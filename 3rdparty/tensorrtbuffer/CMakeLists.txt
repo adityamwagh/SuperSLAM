@@ -13,6 +13,3 @@ include_directories(
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 add_library(tensorrtbuffer SHARED src/logger.cpp)
-
-
-

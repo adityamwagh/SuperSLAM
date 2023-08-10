@@ -40,100 +40,116 @@ using namespace nvinfer1;
 //! SampleErrorRecorder is not intended for use in automotive safety
 //! environments.
 //!
-class TensorRTErrorRecorder : public IErrorRecorder {
-    using errorPair = std::pair<ErrorCode, std::string>;
-    using errorStack = std::vector<errorPair>;
+class TensorRTErrorRecorder : public IErrorRecorder
+{
+  using errorPair = std::pair<ErrorCode, std::string>;
+  using errorStack = std::vector<errorPair>;
 
 public:
-    TensorRTErrorRecorder() = default;
+  TensorRTErrorRecorder() = default;
 
-    virtual ~TensorRTErrorRecorder() noexcept {}
+  virtual ~TensorRTErrorRecorder() noexcept {}
 
-    int32_t getNbErrors() const noexcept final {
-        return mErrorStack.size();
+  int32_t getNbErrors() const noexcept final
+  {
+    return mErrorStack.size();
+  }
+
+  ErrorCode getErrorCode(int32_t errorIdx) const noexcept final
+  {
+    return invalidIndexCheck(errorIdx) ? ErrorCode::kINVALID_ARGUMENT : (*this)[errorIdx].first;
+  };
+
+  IErrorRecorder::ErrorDesc getErrorDesc(int32_t errorIdx) const noexcept final
+  {
+    return invalidIndexCheck(errorIdx) ? "errorIdx out of range." : (*this)[errorIdx].second.c_str();
+  }
+
+  // This class can never overflow since we have dynamic resize via std::vector usage.
+  bool hasOverflowed() const noexcept final
+  {
+    return false;
+  }
+
+  // Empty the errorStack.
+  void clear() noexcept final
+  {
+    try
+    {
+      // grab a lock so that there is no addition while clearing.
+      std::lock_guard<std::mutex> guard(mStackLock);
+      mErrorStack.clear();
     }
-
-    ErrorCode getErrorCode(int32_t errorIdx) const noexcept final {
-        return invalidIndexCheck(errorIdx) ? ErrorCode::kINVALID_ARGUMENT : (*this)[errorIdx].first;
-    };
-
-    IErrorRecorder::ErrorDesc getErrorDesc(int32_t errorIdx) const noexcept final {
-        return invalidIndexCheck(errorIdx) ? "errorIdx out of range." : (*this)[errorIdx].second.c_str();
-    }
-
-    // This class can never overflow since we have dynamic resize via std::vector usage.
-    bool hasOverflowed() const noexcept final {
-        return false;
-    }
-
-    // Empty the errorStack.
-    void clear() noexcept final {
-        try {
-            // grab a lock so that there is no addition while clearing.
-            std::lock_guard<std::mutex> guard(mStackLock);
-            mErrorStack.clear();
-        }
-        catch (const std::exception &e) {
+    catch (const std::exception &e)
+    {
 #if NV_IS_SAFETY
-            std::cerr << "Internal Error: " << e.what() << std::endl;
+      std::cerr << "Internal Error: " << e.what() << std::endl;
 #else
-            getLogger()->log(ILogger::Severity::kINTERNAL_ERROR, e.what());
+      getLogger()->log(ILogger::Severity::kINTERNAL_ERROR, e.what());
 #endif
-        }
-    };
-
-    //! Simple helper function that
-    bool empty() const noexcept {
-        return mErrorStack.empty();
     }
+  };
 
-    bool reportError(ErrorCode val, IErrorRecorder::ErrorDesc desc) noexcept final {
-        try {
-            std::lock_guard<std::mutex> guard(mStackLock);
-            tensorrt_log::gLogError << "Error[" << static_cast<int32_t>(val) << "]: " << desc << std::endl;
-            mErrorStack.push_back(errorPair(val, desc));
-        }
-        catch (const std::exception &e) {
+  //! Simple helper function that
+  bool empty() const noexcept
+  {
+    return mErrorStack.empty();
+  }
+
+  bool reportError(ErrorCode val, IErrorRecorder::ErrorDesc desc) noexcept final
+  {
+    try
+    {
+      std::lock_guard<std::mutex> guard(mStackLock);
+      tensorrt_log::gLogError << "Error[" << static_cast<int32_t>(val) << "]: " << desc << std::endl;
+      mErrorStack.push_back(errorPair(val, desc));
+    }
+    catch (const std::exception &e)
+    {
 #if NV_IS_SAFETY
-            std::cerr << "Internal Error: " << e.what() << std::endl;
+      std::cerr << "Internal Error: " << e.what() << std::endl;
 #else
-            getLogger()->log(ILogger::Severity::kINTERNAL_ERROR, e.what());
+      getLogger()->log(ILogger::Severity::kINTERNAL_ERROR, e.what());
 #endif
-        }
-        // All errors are considered fatal.
-        return true;
     }
+    // All errors are considered fatal.
+    return true;
+  }
 
-    // Atomically increment or decrement the ref counter.
-    IErrorRecorder::RefCount incRefCount() noexcept final {
-        return ++mRefCount;
-    }
+  // Atomically increment or decrement the ref counter.
+  IErrorRecorder::RefCount incRefCount() noexcept final
+  {
+    return ++mRefCount;
+  }
 
-    IErrorRecorder::RefCount decRefCount() noexcept final {
-        return --mRefCount;
-    }
+  IErrorRecorder::RefCount decRefCount() noexcept final
+  {
+    return --mRefCount;
+  }
 
 private:
-    // Simple helper functions.
-    const errorPair &operator[](size_t index) const noexcept {
-        return mErrorStack[index];
-    }
+  // Simple helper functions.
+  const errorPair &operator[](size_t index) const noexcept
+  {
+    return mErrorStack[index];
+  }
 
-    bool invalidIndexCheck(int32_t index) const noexcept {
-        // By converting signed to unsigned, we only need a single check since
-        // negative numbers turn into large positive greater than the size.
-        size_t sIndex = index;
-        return sIndex >= mErrorStack.size();
-    }
+  bool invalidIndexCheck(int32_t index) const noexcept
+  {
+    // By converting signed to unsigned, we only need a single check since
+    // negative numbers turn into large positive greater than the size.
+    size_t sIndex = index;
+    return sIndex >= mErrorStack.size();
+  }
 
-    // Mutex to hold when locking mErrorStack.
-    std::mutex mStackLock;
+  // Mutex to hold when locking mErrorStack.
+  std::mutex mStackLock;
 
-    // Reference count of the class. Destruction of the class when mRefCount
-    // is not zero causes undefined behavior.
-    std::atomic<int32_t> mRefCount{0};
+  // Reference count of the class. Destruction of the class when mRefCount
+  // is not zero causes undefined behavior.
+  std::atomic<int32_t> mRefCount{0};
 
-    // The error stack that holds the errors recorded by TensorRT.
-    errorStack mErrorStack;
+  // The error stack that holds the errors recorded by TensorRT.
+  errorStack mErrorStack;
 };     // class TensorRTErrorRecorder
 #endif // ERROR_RECORDER_H
