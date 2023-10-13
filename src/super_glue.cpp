@@ -1,6 +1,3 @@
-//
-// Created by haoyuefan on 2021/9/22.
-//
 
 #include "super_glue.h"
 #include <cfloat>

@@ -1,6 +1,3 @@
-//
-// Created by haoyuefan on 2021/9/22.
-//
 
 #ifndef SUPER_POINT_H_
 #define SUPER_POINT_H_
@@ -12,7 +9,7 @@
 #include <NvOnnxParser.h>
 #include <opencv2/opencv.hpp>
 
-#include "3rdparty/tensorrtbuffer/include/buffers.h"
+#include "thirdparty/tensorrtbuffer/include/buffers.h"
 #include "read_config.h"
 
 using tensorrt_common::TensorRTUniquePtr;

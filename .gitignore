@@ -31,7 +31,20 @@
 *.out
 *.app
 
+# user defined
 build/
 cmake-build-debug/
 .idea/
 .vscode/
+CMakeLists.txt.user
+KeyFrameTrajectory.txt
+thirdparty/DBoW2/build/
+thirdparty/DBoW2/lib/
+thirdparty/g2o/build/
+thirdparty/g2o/config.h
+thirdparty/g2o/lib/
+vocabulary/ORBvoc.txt
+build/
+*~
+lib/
+

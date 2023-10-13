@@ -1,9 +1,6 @@
 # Use an appropriate base image, for example, Ubuntu
 FROM yuefan2022/tensorrt-ubuntu20.04-cuda11.6
 
-# Install Ninja
-RUN apt-get ninja-build build-essential
-
 # Install Ceres Solver
 RUN apt-get update && apt-get install -y \
     libgoogle-glog-dev \
