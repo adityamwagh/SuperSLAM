@@ -13,6 +13,31 @@ It utilizes SuperPoint for keypoint detection and description and SuperGlue for 
 * DBoW3
 * DBoW2
 
+# Install libraries
+
+**OpenCV**
+```
+sudo apt-get install -y libopencv-dev
+```
+**Eigen**
+```
+sudo apt install libeigen3-dev
+```
+**Pangolin**
+```
+git clone --recursive https://github.com/stevenlovegrove/Pangolin.git
+```
+
+Pangolin is split into a few components so you can include just what you need. Most dependencies are optional so you can pick and mix for your needs. Rather than enforcing a particular package manager, you can use a simple script to generate a list of (required, recommended or all) packages for installation for that manager (e.g. apt, port, brew, dnf, pacman, vcpkg):
+
+```
+# See what package manager and packages are recommended
+./scripts/install_prerequisites.sh --dry-run recommended
+
+# Override the package manager choice and install all packages
+./scripts/install_prerequisites.sh -m brew all
+```
+
 ## Convert model(Optional)
 The converted model is already provided in the [weights](./weights) folder, if you are using the pretrained model officially provided by [SuperPoint and SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork), you do not need to go through this step.
 ```bash
