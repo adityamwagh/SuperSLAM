@@ -43,6 +43,7 @@ thirdparty/DBoW2/lib/
 thirdparty/g2o/build/
 thirdparty/g2o/config.h
 thirdparty/g2o/lib/
+**/build
 vocabulary/ORBvoc.txt
 build/
 *~
