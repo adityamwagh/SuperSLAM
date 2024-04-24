@@ -11,7 +11,6 @@ MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 # If cmake cannot find opencv or eigen3, try to set the path manually as following.
 set(Torch_DIR "/pytorch/torch/share/cmake/Torch") # libtorch
 set(OpenCV_DIR "/usr/local/lib/cmake/opencv4/") # opencv
-
 # set(Eigen3_DIR "/usr/lib/cmake/eigen3")    # eigen3
 find_package(OpenCV 4.5.4 QUIET REQUIRED)
 
