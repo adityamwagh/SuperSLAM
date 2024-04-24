@@ -59,4 +59,4 @@ The default image size param is 320x240, if you need to modify the image size in
 * [SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork) 
 * [TensorRT](https://github.com/NVIDIA/TensorRT) 
 * [AirVO](https://github.com/xukuanHIT/AirVO)
-* [ORB_SLAM2](https://github.com/raulmur/ORB_SLAM2)
+* [SuperSLAM](https://github.com/adityamwagh/SuperSLAM)

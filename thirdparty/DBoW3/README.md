@@ -48,7 +48,7 @@ See utils/demo_general.cpp for an example
 
 ### Load/Store Vocabulary
 
-The file orbvoc.dbow3 is the ORB vocabulary in ORBSLAM2 but in binary format of DBoW3:  https://github.com/raulmur/ORB_SLAM2/tree/master/Vocabulary
+The file orbvoc.dbow3 is the ORB vocabulary in ORBSLAM2 but in binary format of DBoW3:  https://github.com/adityamwagh/SuperSLAM/tree/master/Vocabulary
  
 
 
