@@ -1,14 +1,15 @@
 [submodule "thirdparty/yaml-cpp"]
-	path = thirdparty/yaml-cpp
-	url = https://github.com/jbeder/yaml-cpp.git
+path = thirdparty/yaml-cpp
+url = https://github.com/jbeder/yaml-cpp.git
 
 [submodule "thirdparty/opencv"]
-	path = thirdparty/opencv
-	url = https://github.com/opencv/opencv.git
+path = thirdparty/opencv
+url = https://github.com/opencv/opencv.git
 
 [submodule "thirdparty/Pangolin"]
-	path = thirdparty/Pangolin
-	url = https://github.com/stevenlovegrove/Pangolin.git
+path = thirdparty/Pangolin
+url = https://github.com/stevenlovegrove/Pangolin.git
+
 [submodule "thirdparty/eigen"]
-	path = thirdparty/eigen
-	url = https://gitlab.com/libeigen/eigen
+path = thirdparty/eigen
+url = https://gitlab.com/libeigen/eigen
