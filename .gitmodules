@@ -1,3 +1,11 @@
-[submodule "Pangolin"]
-path = Pangolin
+[submodule "thirdparty/Pangolin"]
+path = thirdparty/Pangolin
 url = git@github.com:stevenlovegrove/Pangolin.git
+
+[submodule "thirdparty/opencv"]
+path = thirdparty/opencv
+url = git@github.com:opencv/opencv.git
+
+[submodule "thirdparty/yaml-cpp"]
+path = thirdparty/opencv
+url = git@github.com:jbeder/yaml-cpp.git
