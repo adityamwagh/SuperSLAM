@@ -26,36 +26,38 @@
 
 #include "solver.h"
 
-#include <cstring>
 #include <algorithm>
+#include <cstring>
 
 namespace g2o {
 
-Solver::Solver() :
-  _optimizer(0), _x(0), _b(0), _xSize(0), _maxXSize(0),
-  _isLevenberg(false), _additionalVectorSpace(0)
-{
-}
+Solver::Solver()
+    : _optimizer(0),
+      _x(0),
+      _b(0),
+      _xSize(0),
+      _maxXSize(0),
+      _isLevenberg(false),
+      _additionalVectorSpace(0) {}
 
-Solver::~Solver()
-{
+Solver::~Solver() {
   delete[] _x;
   delete[] _b;
 }
 
-void Solver::resizeVector(size_t sx)
-{
+void Solver::resizeVector(size_t sx) {
   size_t oldSize = _xSize;
   _xSize = sx;
-  sx += _additionalVectorSpace; // allocate some additional space if requested
+  sx += _additionalVectorSpace;  // allocate some additional space if requested
   if (_maxXSize < sx) {
-    _maxXSize = 2*sx;
+    _maxXSize = 2 * sx;
     delete[] _x;
     _x = new double[_maxXSize];
 #ifndef NDEBUG
     memset(_x, 0, _maxXSize * sizeof(double));
 #endif
-    if (_b) { // backup the former b, might still be needed for online processing
+    if (_b) {  // backup the former b, might still be needed for online
+               // processing
       memcpy(_x, _b, oldSize * sizeof(double));
       delete[] _b;
       _b = new double[_maxXSize];
@@ -69,19 +71,12 @@ void Solver::resizeVector(size_t sx)
   }
 }
 
-void Solver::setOptimizer(SparseOptimizer* optimizer)
-{
+void Solver::setOptimizer(SparseOptimizer* optimizer) {
   _optimizer = optimizer;
 }
 
-void Solver::setLevenberg(bool levenberg)
-{
-  _isLevenberg = levenberg;
-}
+void Solver::setLevenberg(bool levenberg) { _isLevenberg = levenberg; }
 
-void Solver::setAdditionalVectorSpace(size_t s)
-{
-  _additionalVectorSpace = s;
-}
+void Solver::setAdditionalVectorSpace(size_t s) { _additionalVectorSpace = s; }
 
-} // end namespace
+}  // namespace g2o

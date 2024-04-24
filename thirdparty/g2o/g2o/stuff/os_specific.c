@@ -28,15 +28,13 @@
 
 #ifdef WINDOWS
 
-int vasprintf(char** strp, const char* fmt, va_list ap)
-{
+int vasprintf(char** strp, const char* fmt, va_list ap) {
   int n;
   int size = 100;
   char* p;
   char* np;
 
-  if ((p = (char*)malloc(size * sizeof(char))) == NULL)
-    return -1;
+  if ((p = (char*)malloc(size * sizeof(char))) == NULL) return -1;
 
   while (1) {
 #ifdef _MSC_VER
@@ -49,16 +47,15 @@ int vasprintf(char** strp, const char* fmt, va_list ap)
       return n;
     }
     if (n > -1)
-      size = n+1;
+      size = n + 1;
     else
       size *= 2;
-    if ((np = (char*)realloc (p, size * sizeof(char))) == NULL) {
+    if ((np = (char*)realloc(p, size * sizeof(char))) == NULL) {
       free(p);
       return -1;
     } else
       p = np;
   }
 }
-
 
 #endif

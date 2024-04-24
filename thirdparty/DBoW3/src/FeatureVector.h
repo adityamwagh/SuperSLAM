@@ -10,28 +10,27 @@
 #ifndef __D_T_FEATURE_VECTOR__
 #define __D_T_FEATURE_VECTOR__
 
-#include "BowVector.h"
 #include <map>
 #include <vector>
+
+#include "BowVector.h"
 #include "exports.h"
 namespace DBoW3 {
 
 /// Vector of nodes with indexes of local features
-class  DBOW_API FeatureVector:
-  public std::map<NodeId, std::vector<unsigned int> >
-{
-public:
-
+class DBOW_API FeatureVector
+    : public std::map<NodeId, std::vector<unsigned int> > {
+ public:
   /**
    * Constructor
    */
   FeatureVector(void);
-  
+
   /**
    * Destructor
    */
   ~FeatureVector(void);
-  
+
   /**
    * Adds a feature to an existing node, or adds a new node with an initial
    * feature
@@ -45,11 +44,9 @@ public:
    * @param out stream
    * @param v feature vector
    */
-  friend std::ostream& operator<<(std::ostream &out, const FeatureVector &v);
-    
+  friend std::ostream& operator<<(std::ostream& out, const FeatureVector& v);
 };
 
-} // namespace DBoW3
+}  // namespace DBoW3
 
 #endif
-

@@ -26,15 +26,15 @@
 
 #include "factory.h"
 
-#include "creators.h"
-#include "parameter.h"
-#include "cache.h"
-#include "optimizable_graph.h"
-#include "../stuff/color_macros.h"
-
+#include <cassert>
 #include <iostream>
 #include <typeinfo>
-#include <cassert>
+
+#include "../stuff/color_macros.h"
+#include "cache.h"
+#include "creators.h"
+#include "optimizable_graph.h"
+#include "parameter.h"
 
 using namespace std;
 
@@ -42,15 +42,12 @@ namespace g2o {
 
 Factory* Factory::factoryInstance = 0;
 
-Factory::Factory()
-{
-}
+Factory::Factory() {}
 
-Factory::~Factory()
-{
-# ifdef G2O_DEBUG_FACTORY
+Factory::~Factory() {
+#ifdef G2O_DEBUG_FACTORY
   cerr << "# Factory destroying " << (void*)this << endl;
-# endif
+#endif
   for (CreatorMap::iterator it = _creator.begin(); it != _creator.end(); ++it) {
     delete it->second->creator;
   }
@@ -58,20 +55,19 @@ Factory::~Factory()
   _tagLookup.clear();
 }
 
-Factory* Factory::instance()
-{
+Factory* Factory::instance() {
   if (factoryInstance == 0) {
     factoryInstance = new Factory;
-#  ifdef G2O_DEBUG_FACTORY
+#ifdef G2O_DEBUG_FACTORY
     cerr << "# Factory allocated " << (void*)factoryInstance << endl;
-#  endif
+#endif
   }
 
   return factoryInstance;
 }
 
-void Factory::registerType(const std::string& tag, AbstractHyperGraphElementCreator* c)
-{
+void Factory::registerType(const std::string& tag,
+                           AbstractHyperGraphElementCreator* c) {
   CreatorMap::const_iterator foundIt = _creator.find(tag);
   if (foundIt != _creator.end()) {
     cerr << "FACTORY WARNING: Overwriting Vertex tag " << tag << endl;
@@ -79,7 +75,8 @@ void Factory::registerType(const std::string& tag, AbstractHyperGraphElementCrea
   }
   TagLookup::const_iterator tagIt = _tagLookup.find(c->name());
   if (tagIt != _tagLookup.end()) {
-    cerr << "FACTORY WARNING: Registering same class for two tags " << c->name() << endl;
+    cerr << "FACTORY WARNING: Registering same class for two tags " << c->name()
+         << endl;
     assert(0);
   }
 
@@ -96,7 +93,7 @@ void Factory::registerType(const std::string& tag, AbstractHyperGraphElementCrea
 #ifdef G2O_DEBUG_FACTORY
   cerr << "done." << endl;
   cerr << "# Factory " << (void*)this << " registering " << tag;
-  cerr << " " << (void*) c << " ";
+  cerr << " " << (void*)c << " ";
   switch (element->elementType()) {
     case HyperGraph::HGET_VERTEX:
       cerr << " -> Vertex";
@@ -125,93 +122,84 @@ void Factory::registerType(const std::string& tag, AbstractHyperGraphElementCrea
   delete element;
 }
 
-  void Factory::unregisterType(const std::string& tag)
-  {
-    // Look for the tag
-    CreatorMap::iterator tagPosition = _creator.find(tag);
+void Factory::unregisterType(const std::string& tag) {
+  // Look for the tag
+  CreatorMap::iterator tagPosition = _creator.find(tag);
 
-    if (tagPosition != _creator.end()) {
+  if (tagPosition != _creator.end()) {
+    AbstractHyperGraphElementCreator* c = tagPosition->second->creator;
 
-      AbstractHyperGraphElementCreator* c = tagPosition->second->creator;
-
-      // If we found it, remove the creator from the tag lookup map
-      TagLookup::iterator classPosition = _tagLookup.find(c->name());
-      if (classPosition != _tagLookup.end())
-        {
-          _tagLookup.erase(classPosition);
-        }
-      _creator.erase(tagPosition);
+    // If we found it, remove the creator from the tag lookup map
+    TagLookup::iterator classPosition = _tagLookup.find(c->name());
+    if (classPosition != _tagLookup.end()) {
+      _tagLookup.erase(classPosition);
     }
+    _creator.erase(tagPosition);
   }
+}
 
-HyperGraph::HyperGraphElement* Factory::construct(const std::string& tag) const
-{
+HyperGraph::HyperGraphElement* Factory::construct(
+    const std::string& tag) const {
   CreatorMap::const_iterator foundIt = _creator.find(tag);
   if (foundIt != _creator.end()) {
-    //cerr << "tag " << tag << " -> " << (void*) foundIt->second->creator << " " << foundIt->second->creator->name() << endl;
+    // cerr << "tag " << tag << " -> " << (void*) foundIt->second->creator << "
+    // " << foundIt->second->creator->name() << endl;
     return foundIt->second->creator->construct();
   }
   return 0;
 }
 
-const std::string& Factory::tag(const HyperGraph::HyperGraphElement* e) const
-{
+const std::string& Factory::tag(const HyperGraph::HyperGraphElement* e) const {
   static std::string emptyStr("");
   TagLookup::const_iterator foundIt = _tagLookup.find(typeid(*e).name());
-  if (foundIt != _tagLookup.end())
-    return foundIt->second;
+  if (foundIt != _tagLookup.end()) return foundIt->second;
   return emptyStr;
 }
 
-void Factory::fillKnownTypes(std::vector<std::string>& types) const
-{
+void Factory::fillKnownTypes(std::vector<std::string>& types) const {
   types.clear();
-  for (CreatorMap::const_iterator it = _creator.begin(); it != _creator.end(); ++it)
+  for (CreatorMap::const_iterator it = _creator.begin(); it != _creator.end();
+       ++it)
     types.push_back(it->first);
 }
 
-bool Factory::knowsTag(const std::string& tag, int* elementType) const
-{
+bool Factory::knowsTag(const std::string& tag, int* elementType) const {
   CreatorMap::const_iterator foundIt = _creator.find(tag);
   if (foundIt == _creator.end()) {
-    if (elementType)
-      *elementType = -1;
+    if (elementType) *elementType = -1;
     return false;
   }
-  if (elementType)
-    *elementType = foundIt->second->elementTypeBit;
+  if (elementType) *elementType = foundIt->second->elementTypeBit;
   return true;
 }
 
-void Factory::destroy()
-{
+void Factory::destroy() {
   delete factoryInstance;
   factoryInstance = 0;
 }
 
-void Factory::printRegisteredTypes(std::ostream& os, bool comment) const
-{
-  if (comment)
-    os << "# ";
+void Factory::printRegisteredTypes(std::ostream& os, bool comment) const {
+  if (comment) os << "# ";
   os << "types:" << endl;
-  for (CreatorMap::const_iterator it = _creator.begin(); it != _creator.end(); ++it) {
-    if (comment)
-      os << "#";
+  for (CreatorMap::const_iterator it = _creator.begin(); it != _creator.end();
+       ++it) {
+    if (comment) os << "#";
     cerr << "\t" << it->first << endl;
   }
 }
 
-HyperGraph::HyperGraphElement* Factory::construct(const std::string& tag, const HyperGraph::GraphElemBitset& elemsToConstruct) const
-{
+HyperGraph::HyperGraphElement* Factory::construct(
+    const std::string& tag,
+    const HyperGraph::GraphElemBitset& elemsToConstruct) const {
   if (elemsToConstruct.none()) {
     return construct(tag);
   }
   CreatorMap::const_iterator foundIt = _creator.find(tag);
-  if (foundIt != _creator.end() && foundIt->second->elementTypeBit >= 0 && elemsToConstruct.test(foundIt->second->elementTypeBit)) {
+  if (foundIt != _creator.end() && foundIt->second->elementTypeBit >= 0 &&
+      elemsToConstruct.test(foundIt->second->elementTypeBit)) {
     return foundIt->second->creator->construct();
   }
   return 0;
 }
 
-} // end namespace
-
+}  // namespace g2o

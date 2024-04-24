@@ -22,16 +22,15 @@
 class TensorRTErrorRecorder;
 
 extern TensorRTErrorRecorder gRecorder;
-namespace tensorrt_log
-{
-  extern Logger gLogger;
-  extern LogStreamConsumer gLogVerbose;
-  extern LogStreamConsumer gLogInfo;
-  extern LogStreamConsumer gLogWarning;
-  extern LogStreamConsumer gLogError;
-  extern LogStreamConsumer gLogFatal;
+namespace tensorrt_log {
+extern Logger gLogger;
+extern LogStreamConsumer gLogVerbose;
+extern LogStreamConsumer gLogInfo;
+extern LogStreamConsumer gLogWarning;
+extern LogStreamConsumer gLogError;
+extern LogStreamConsumer gLogFatal;
 
-  void setReportableSeverity(Logger::Severity severity);
-} // namespace tensorrt_log
+void setReportableSeverity(Logger::Severity severity);
+}  // namespace tensorrt_log
 
-#endif // LOGGER_H
+#endif  // LOGGER_H

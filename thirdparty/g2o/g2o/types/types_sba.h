@@ -27,35 +27,31 @@
 #ifndef G2O_SBA_TYPES
 #define G2O_SBA_TYPES
 
-#include "../core/base_vertex.h"
-
 #include <Eigen/Geometry>
 #include <iostream>
+
+#include "../core/base_vertex.h"
 
 namespace g2o {
 
 /**
  * \brief Point vertex, XYZ
  */
- class VertexSBAPointXYZ : public BaseVertex<3, Vector3d>
-{
-  public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW    
-    VertexSBAPointXYZ();
-    virtual bool read(std::istream& is);
-    virtual bool write(std::ostream& os) const;
+class VertexSBAPointXYZ : public BaseVertex<3, Vector3d> {
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  VertexSBAPointXYZ();
+  virtual bool read(std::istream& is);
+  virtual bool write(std::ostream& os) const;
 
-    virtual void setToOriginImpl() {
-      _estimate.fill(0.);
-    }
+  virtual void setToOriginImpl() { _estimate.fill(0.); }
 
-    virtual void oplusImpl(const double* update)
-    {
-      Eigen::Map<const Vector3d> v(update);
-      _estimate += v;
-    }
+  virtual void oplusImpl(const double* update) {
+    Eigen::Map<const Vector3d> v(update);
+    _estimate += v;
+  }
 };
 
-} // end namespace
+}  // namespace g2o
 
-#endif // SBA_TYPES
+#endif  // SBA_TYPES
