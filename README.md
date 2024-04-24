@@ -1,10 +1,11 @@
 # SuperSLAM: Framework for deep learning based SLAM
 
-(Work in Progress) SuperSLAM is a deep learning based visual SLAM system that combines recent advances in learned feature detection and matching with the mapping capabilities of ORB_SLAM2. 
+(Work in Progress) SuperSLAM is a deep learning based visual SLAM system that combines recent advances in learned feature detection and matching with the mapping capabilities of ORB_SLAM2.
 
 It utilizes SuperPoint for keypoint detection and description and SuperGlue for robust feature matching between frames. These matches are then used by ORB_SLAM2 to estimate camera poses and build a map of the environment.
 
 ## Environment required
+
 * CUDA==11.6
 * TensorRT==8.4.1.5
 * OpenCV>=4.0
@@ -12,25 +13,48 @@ It utilizes SuperPoint for keypoint detection and description and SuperGlue for 
 * yaml-cpp
 * DBoW3
 * DBoW2
+* Ubuntu 20.04
 
-# Install libraries
+## Installation
 
-**OpenCV**
+Clone the repository and the submodules.
+
+```bash
+git clone https://github.com/adityamwagh/SuperSLAM.git --recursive
+cd SuperSLAM
 ```
+
+### Automatically Install Dependencies
+
+```bash
+sh ./install_dependencies.sh
+```
+
+You can use the included script to build the dependencies or install using the APT package manager.
+
+### Manually Install Dependencies
+
+#### OpenCV
+
+```bash
 sudo apt-get install -y libopencv-dev
 ```
-**Eigen**
-```
+
+#### Eigen
+
+```bash
 sudo apt install libeigen3-dev
 ```
-**Pangolin**
-```
+
+#### Pangolin
+
+```bash
 git clone --recursive https://github.com/stevenlovegrove/Pangolin.git
 ```
 
 Pangolin is split into a few components so you can include just what you need. Most dependencies are optional so you can pick and mix for your needs. Rather than enforcing a particular package manager, you can use a simple script to generate a list of (required, recommended or all) packages for installation for that manager (e.g. apt, port, brew, dnf, pacman, vcpkg):
 
-```
+```bash
 # See what package manager and packages are recommended
 ./scripts/install_prerequisites.sh --dry-run recommended
 
@@ -55,8 +79,9 @@ sh ./build.sh
 The default image size param is 320x240, if you need to modify the image size in the config file, you should delete the old .engine file in the weights dir.
 
 ## Acknowledgements
-* [SuperPoint](https://github.com/magicleap/SuperPointPretrainedNetwork) 
-* [SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork) 
-* [TensorRT](https://github.com/NVIDIA/TensorRT) 
+
+* [SuperPoint](https://github.com/magicleap/SuperPointPretrainedNetwork)
+* [SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork)
+* [TensorRT](https://github.com/NVIDIA/TensorRT)
 * [AirVO](https://github.com/xukuanHIT/AirVO)
-* [SuperSLAM](https://github.com/adityamwagh/SuperSLAM)
+* [ORB_SLAM2](https://github.com/raulmur/ORB_SLAM2)
