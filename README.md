@@ -1,4 +1,4 @@
-# SuperSLAM: Framework for deep learning based SLAM
+# SuperSLAM: Framework for Deep Learning based Visual SLAM
 
 (Work in Progress) SuperSLAM is a deep learning based visual SLAM system that combines recent advances in learned feature detection and matching with the mapping capabilities of ORB_SLAM2.
 
