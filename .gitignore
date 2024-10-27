@@ -38,6 +38,7 @@ cmake-build-debug/
 .vscode/
 CMakeLists.txt.user
 KeyFrameTrajectory.txt
+thirdparty/libtorch/
 thirdparty/DBoW2/build/
 thirdparty/DBoW2/lib/
 thirdparty/g2o/build/
