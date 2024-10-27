@@ -7,9 +7,9 @@ ENDIF()
 
 MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 
-# # PACKAGES
-# If cmake cannot find opencv or eigen3, try to set the path manually as following.
-# set(Torch_DIR "/pytorch/torch/share/cmake/Torch") # libtorch
+# PACKAGES
+# If cmake cannot find Pytorch, OpenCV or Eigen3, try to set the path manually as following.
+set(Torch_DIR "thirdparty/libtorch/share/cmake/Torch") # libtorch
 set(OpenCV_DIR "/usr/local/lib/cmake/opencv4/") # opencv
 set(Eigen3_DIR "/usr/lib/cmake/eigen3")    # eigen3
 find_package(OpenCV QUIET REQUIRED)
