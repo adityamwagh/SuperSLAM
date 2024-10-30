@@ -31,7 +31,7 @@ cd SuperSLAM
 ### Automatically Install Dependencies
 
 ```bash
-sh ./install_dependencies.sh
+sh ./build_dependencies.sh
 ```
 
 You can use the included script to build the dependencies or install using the APT package manager.
