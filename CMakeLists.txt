@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.10)
 project(SuperSLAM)
 
 IF(NOT CMAKE_BUILD_TYPE)
@@ -8,23 +8,28 @@ ENDIF()
 MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 
 # PACKAGES
-# If cmake cannot find Pytorch, OpenCV or Eigen3, try to set the path manually as following.
+# If cmake cannot find PyTorch, OpenCV or Eigen3, try to set the path manually as following.
 set(Torch_DIR "thirdparty/libtorch/share/cmake/Torch") # libtorch
 set(OpenCV_DIR "/usr/local/lib/cmake/opencv4/") # opencv
 set(Eigen3_DIR "/usr/lib/cmake/eigen3")    # eigen3
-find_package(OpenCV QUIET REQUIRED)
+set(DBow3_DIR "thirdparty/DBow3/eigen3")    # DBoW3
+set(Pangolin_DIR "thirdparty/Pangolin/cmake/")    # Pangolin
+
+
+add_subdirectory(${PROJECT_SOURCE_DIR}/thirdparty/DBoW3)
+add_subdirectory(${PROJECT_SOURCE_DIR}/thirdparty/DBoW2)
+add_subdirectory(${PROJECT_SOURCE_DIR}/thirdparty/Pangolin)
+add_subdirectory(${PROJECT_SOURCE_DIR}/thirdparty/g2o)
 
 if(NOT OpenCV_FOUND)
-    find_package(OpenCV 2.4.3 QUIET)
-
+    find_package(OpenCV QUIET)
     if(NOT OpenCV_FOUND)
-        message(FATAL_ERROR "OpenCV > 2.4.3 not found.")
+        message(FATAL_ERROR "OpenCV not found.")
     endif()
 endif()
 
 # Find all the fun packages
-find_package(Eigen3 3.1.0 REQUIRED NO_MODULE)
-find_package(Pangolin REQUIRED)
+find_package(Eigen3 REQUIRED NO_MODULE)
 find_package(Torch REQUIRED)
 
 # # COMPILERS
@@ -37,11 +42,11 @@ CHECK_CXX_COMPILER_FLAG("-std=c++17" COMPILER_SUPPORTS_CXX17)
 CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
 CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
 
-# if(COMPILER_SUPPORTS_CXX17)
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
-# add_definitions(-DCOMPILEDWITHC17)
-# message(STATUS "Using flag -std=c++17.")
-if(COMPILER_SUPPORTS_CXX14)
+if(COMPILER_SUPPORTS_CXX17)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
+    add_definitions(-DCOMPILEDWITHC17)
+    message(STATUS "Using flag -std=c++17.")
+elseif(COMPILER_SUPPORTS_CXX14)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
     add_definitions(-DCOMPILEDWITHC14)
     message(STATUS "Using flag -std=c++14.")
@@ -61,8 +66,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/include
     ${EIGEN3_INCLUDE_DIR}
     ${Pangolin_INCLUDE_DIRS}
-
-    # ${PROJECT_SOURCE_DIR}/thirdparty/libtorch/include
+    ${PROJECT_SOURCE_DIR}/thirdparty/libtorch/include
 )
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)

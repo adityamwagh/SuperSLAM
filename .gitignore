@@ -49,3 +49,4 @@ vocabulary/ORBvoc.txt
 build/
 *~
 lib/
+.cache
