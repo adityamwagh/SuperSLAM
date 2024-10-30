@@ -83,8 +83,8 @@ add_library(${PROJECT_NAME} SHARED
     src/SPextractor.cc
     src/SPmatcher.cc
     src/SuperPointLibTorch.cc
-    src/SuperGlueTensorRT.cpp
-    src/SuperPointTensorRT.cpp
+    src/SuperGlueTensorRT.cc
+    src/SuperPointTensorRT.cc
 
     src/FrameDrawer.cc
     src/Converter.cc
