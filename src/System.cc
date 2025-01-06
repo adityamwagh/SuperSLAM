@@ -103,12 +103,12 @@ System::System(const std::string& strVocFile,
   // Initialize the Local Mapping thread and launch
   mpLocalMapper = new LocalMapping(mpMap, mSensor == MONOCULAR);
   mptLocalMapping =
-      new std::thread(&ORB_SLAM2::LocalMapping::Run, mpLocalMapper);
+      new std::thread(&SuperSLAM::LocalMapping::Run, mpLocalMapper);
 
   // Initialize the Loop Closing thread and launch
   mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary,
                                  mSensor != MONOCULAR);
-  mptLoopClosing = new std::thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
+  mptLoopClosing = new std::thread(&SuperSLAM::LoopClosing::Run, mpLoopCloser);
 
   // Initialize the Viewer thread and launch
   if (bUseViewer) {
@@ -343,7 +343,7 @@ void System::SaveTrajectoryTUM(const std::string& filename) {
 
   // For each frame we have a reference keyframe (lRit), the timestamp (lT) and
   // a flag which is true when tracking failed (lbL).
-  std::list<ORB_SLAM2::KeyFrame*>::iterator lRit =
+  std::list<SuperSLAM::KeyFrame*>::iterator lRit =
       mpTracker->mlpReferences.begin();
   std::list<double>::iterator lT = mpTracker->mlFrameTimes.begin();
   std::list<bool>::iterator lbL = mpTracker->mlbLost.begin();
@@ -443,14 +443,14 @@ void System::SaveTrajectoryKITTI(const std::string& filename) {
 
   // For each frame we have a reference keyframe (lRit), the timestamp (lT) and
   // a flag which is true when tracking failed (lbL).
-  std::list<ORB_SLAM2::KeyFrame*>::iterator lRit =
+  std::list<SuperSLAM::KeyFrame*>::iterator lRit =
       mpTracker->mlpReferences.begin();
   std::list<double>::iterator lT = mpTracker->mlFrameTimes.begin();
   for (std::list<cv::Mat>::iterator
            lit = mpTracker->mlRelativeFramePoses.begin(),
            lend = mpTracker->mlRelativeFramePoses.end();
        lit != lend; lit++, lRit++, lT++) {
-    ORB_SLAM2::KeyFrame* pKF = *lRit;
+    SuperSLAM::KeyFrame* pKF = *lRit;
 
     cv::Mat Trw = cv::Mat::eye(4, 4, CV_32F);
 

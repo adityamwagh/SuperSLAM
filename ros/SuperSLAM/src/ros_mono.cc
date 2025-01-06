@@ -2,7 +2,7 @@
  * This file is part of ORB-SLAM2.
  *
  * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University
- * of Zaragoza) For more information see <https://github.com/raulmur/ORB_SLAM2>
+ * of Zaragoza) For more information see <https://github.com/raulmur/SuperSLAM>
  *
  * ORB-SLAM2 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,11 +33,11 @@ using namespace std;
 
 class ImageGrabber {
  public:
-  ImageGrabber(ORB_SLAM2::System* pSLAM) : mpSLAM(pSLAM) {}
+  ImageGrabber(SuperSLAM::System* pSLAM) : mpSLAM(pSLAM) {}
 
   void GrabImage(const sensor_msgs::ImageConstPtr& msg);
 
-  ORB_SLAM2::System* mpSLAM;
+  SuperSLAM::System* mpSLAM;
 };
 
 int main(int argc, char** argv) {
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
 
   if (argc != 3) {
     cerr << endl
-         << "Usage: rosrun ORB_SLAM2 Mono path_to_vocabulary path_to_settings"
+         << "Usage: rosrun SuperSLAM Mono path_to_vocabulary path_to_settings"
          << endl;
     ros::shutdown();
     return 1;
@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
 
   // Create SLAM system. It initializes all system threads and gets ready to
   // process frames.
-  ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, true);
+  SuperSLAM::System SLAM(argv[1], argv[2], SuperSLAM::System::MONOCULAR, true);
 
   ImageGrabber igb(&SLAM);
 

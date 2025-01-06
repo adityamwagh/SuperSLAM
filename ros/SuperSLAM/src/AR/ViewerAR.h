@@ -63,7 +63,7 @@ class ViewerAR {
     mT = 1e3 / fps;
   }
 
-  void SetSLAM(ORB_SLAM2::System* pSystem) { mpSystem = pSystem; }
+  void SetSLAM(SuperSLAM::System* pSystem) { mpSystem = pSystem; }
 
   // Main thread function.
   void Run();
@@ -86,7 +86,7 @@ class ViewerAR {
 
  private:
   // SLAM
-  ORB_SLAM2::System* mpSystem;
+  SuperSLAM::System* mpSystem;
 
   void PrintStatus(const int& status, const bool& bLocMode, cv::Mat& im);
   void AddTextToImage(const std::string& s, cv::Mat& im, const int r = 0,
