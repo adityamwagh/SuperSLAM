@@ -1,23 +1,24 @@
-# SuperSLAM: Open Source Framework for Deep Learning based Monocular Visual SLAM
+# SuperSLAM: Open Source System for Deep Learning based Monocular Visual SLAM
 
-> (Work in Progress) Very early stage development that I do in my free time now. This might break once in a while.
+> Alpha Software
  
 SuperSLAM is a deep learning based visual SLAM system that combines recent advances in learned feature detection and matching with the mapping capabilities of ORB_SLAM2. 
 
 It utilizes SuperPoint for keypoint detection and description and SuperGlue for robust feature matching between frames. These matches are then used by ORB_SLAM2 to estimate camera poses and build a map of the environment.
 
-One of the future goals is to eventually replace the ORB_SLAM2 backend with a more modern and performant implementation and also release the code under a MIT Licence.
+One of the future goals is to eventually replace the ORB_SLAM backend with a more modern and performant factor graph based implementation and also release the code under a MIT Licence. I also have plans to rewrite it using Rust in the future.
 
-## Environment required
+## Dependencies
+
+Tested on a Ubntu 20.04 machine.
 
 * CUDA==11.6
-* TensorRT==8.4.1.5
+* TensorRT
 * OpenCV>=4.0
 * Eigen
 * yaml-cpp
 * DBoW3
 * DBoW2
-* Ubuntu 20.04
 
 ## Installation
 
