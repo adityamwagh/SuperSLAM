@@ -1,0 +1,26 @@
+# Build directories
+build/
+**/build/
+lib/
+**/lib/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Compiled files
+*.o
+*.so
+*.a
+*.pyc
+__pycache__/
+
+# Temporary files
+*.tmp
+*~
+
+# Large downloaded files
+*.zip
+*.tar.gz
