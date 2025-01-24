@@ -47,6 +47,7 @@ thirdparty/g2o/lib/
 **/build
 vocabulary/ORBvoc.txt
 build/
+.build/
 *~
 lib/
 .cache
