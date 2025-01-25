@@ -1,4 +1,4 @@
-superpoint:
+wsuperpoint:
   max_keypoints: 500
   keypoint_threshold: 0.004
   remove_borders: 4
