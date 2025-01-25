@@ -6,63 +6,63 @@ SuperSLAM is a deep learning based visual SLAM system that combines recent advan
 
 It utilizes SuperPoint for keypoint detection and description and SuperGlue for robust feature matching between frames. These matches are then used by ORB_SLAM2 to estimate camera poses and build a map of the environment.
 
-One of the future goals is to eventually replace the ORB_SLAM backend with a more modern and performant factor graph based implementation and also release the code under a MIT Licence. I also have plans to rewrite it using Rust in the future.
-
-## Dependencies
-
-Tested on a Ubntu 20.04 machine.
-
-* CUDA==11.6
-* TensorRT
-* OpenCV>=4.0
-* Eigen
-* yaml-cpp
-* DBoW3
-* DBoW2
+Some of the future goals are to eventually replace the ORB_SLAM backend with a modern and performant factor graph based implementation and complete rewrite in Rust.
 
 ## Installation
 
-Clone the repository and the submodules.
+### Local Installation
+
+See [INSTALL.md](INSTALL.md)
+
+### Docker/Podman Installation
+
+
+### Using Docker
+
+1. Build the Docker image:
 
 ```bash
-git clone https://github.com/adityamwagh/SuperSLAM.git --recursive
-cd SuperSLAM
+docker build -t superslam .
 ```
 
-### Automatically Install Dependencies
+2. Run the container with GPU support:
 
 ```bash
-sh ./build_dependencies.sh
+docker run --gpus all -it --rm superslam
 ```
 
-You can use the included script to build the dependencies or install using the APT package manager.
-
-### Manually Install Dependencies
+3. For development with mounted source code:
 
 ```bash
-# OpenCV
-sudo apt-get install -y libopencv-dev
-
-# Eigen
-
-sudo apt install libeigen3-dev
-
-# Pangolin
-
-git clone --recursive https://github.com/stevenlovegrove/Pangolin.git
-
-# Pangolin is split into a few components so you can include just what you need. Most dependencies are optional so you can pick and mix for your needs.
-# Rather than enforcing a particular package manager, you can use a simple script to generate a list of (required, recommended or all) packages for installation for that manager (e.g. apt, port, brew, dnf, pacman, vcpkg):
-
-# See what package manager and packages are recommended
-./scripts/install_prerequisites.sh --dry-run recommended
-
-# Override the package manager choice and install all packages
-./scripts/install_prerequisites.sh -m brew all
+docker run --gpus all -it --rm \
+  -v $(pwd):/workspace \
+  -w /workspace \
+  superslam
 ```
 
-## Convert model(Optional)
-The converted model is already provided in the [weights](./weights) folder, if you are using the pretrained model officially provided by [SuperPoint and SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork), you do not need to go through this step.
+### Using Podman
+
+1. Build the Podman image:
+
+```bash
+podman build -t superslam .
+```
+
+2. Run the container with GPU support:
+
+```bash
+podman run --security-opt=label=disable --device /dev/dri:/dev/dri --device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm -it --rm superslam
+```
+
+3. For development with mounted source code:
+
+```bash
+podman run --security-opt=label=disable --device /dev/dri:/dev/dri --device /dev/nvidia0:/dev/nvidia0 --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm -it --rm \
+  -v $(pwd):/workspace \
+  -w /workspace \
+  superslam
+```
+
 ```bash
 python convert2onnx/convert_superpoint_to_onnx.py --weight_file superpoint_pth_file_path --output_dir superpoint_onnx_file_dir
 python convert2onnx/convert_superglue_to_onnx.py --weight_file superglue_pth_file_path --output_dir superglue_onnx_file_dir
@@ -75,7 +75,23 @@ cd SuperSLAM
 sh ./build.sh
 ```
 
-The default image size param is 320x240, if you need to modify the image size in the config file, you should delete the old .engine file in the weights dir.
+This will create `libSuperSLAM.so` in the `lib` folder and the executables `mono_tum`, `mono_kitti`, `rgbd_tum`, `stereo_kitti`, `mono_euroc` and `stereo_euroc` in `examples` folder.
+
+## Troubleshooting
+
+- **CUDA Errors**: Ensure your NVIDIA drivers and CUDA toolkit are correctly installed.
+- **ROS 2 Issues**: Verify that the ROS 2 environment is sourced correctly.
+- **Missing Dependencies**: Double-check that all dependencies listed above are installed.
+
+## Contributing
+
+Contributions to the SuperSLAM project are welcome! Please ensure that any changes are well-documented and tested.
+
+## License
+
+This project is licensed under the [LGPL](LICENSE).
+
+For any questions or issues, please open an issue on the GitHub repository.
 
 ## Acknowledgements
 
