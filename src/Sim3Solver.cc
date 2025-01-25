@@ -21,23 +21,23 @@
 #include "Sim3Solver.h"
 
 #include <cmath>
-#include <opencv2/core/core.hpp>
+#include <opencv4/opencv2/core/core.hpp>
 #include <vector>
 
 #include "KeyFrame.h"
 #include "Random.h"
-#include "SPmatcher.h"
+#include "SPMatcher.h"
 
 namespace SuperSLAM {
 
-Sim3Solver::Sim3Solver(KeyFrame* pKF1, KeyFrame* pKF2,
-                       const std::vector<MapPoint*>& vpMatched12,
+Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2,
+                       const std::vector<MapPoint *> &vpMatched12,
                        const bool bFixScale)
     : mnIterations(0), mnBestInliers(0), mbFixScale(bFixScale) {
   mpKF1 = pKF1;
   mpKF2 = pKF2;
 
-  std::vector<MapPoint*> vpKeyFrameMP1 = pKF1->GetMapPointMatches();
+  std::vector<MapPoint *> vpKeyFrameMP1 = pKF1->GetMapPointMatches();
 
   mN1 = vpMatched12.size();
 
@@ -58,20 +58,23 @@ Sim3Solver::Sim3Solver(KeyFrame* pKF1, KeyFrame* pKF2,
   size_t idx = 0;
   for (int i1 = 0; i1 < mN1; i1++) {
     if (vpMatched12[i1]) {
-      MapPoint* pMP1 = vpKeyFrameMP1[i1];
-      MapPoint* pMP2 = vpMatched12[i1];
+      MapPoint *pMP1 = vpKeyFrameMP1[i1];
+      MapPoint *pMP2 = vpMatched12[i1];
 
-      if (!pMP1) continue;
+      if (!pMP1)
+        continue;
 
-      if (pMP1->isBad() || pMP2->isBad()) continue;
+      if (pMP1->isBad() || pMP2->isBad())
+        continue;
 
       int indexKF1 = pMP1->GetIndexInKeyFrame(pKF1);
       int indexKF2 = pMP2->GetIndexInKeyFrame(pKF2);
 
-      if (indexKF1 < 0 || indexKF2 < 0) continue;
+      if (indexKF1 < 0 || indexKF2 < 0)
+        continue;
 
-      const cv::KeyPoint& kp1 = pKF1->mvKeysUn[indexKF1];
-      const cv::KeyPoint& kp2 = pKF2->mvKeysUn[indexKF2];
+      const cv::KeyPoint &kp1 = pKF1->mvKeysUn[indexKF1];
+      const cv::KeyPoint &kp2 = pKF2->mvKeysUn[indexKF2];
 
       const float sigmaSquare1 = pKF1->mvLevelSigma2[kp1.octave];
       const float sigmaSquare2 = pKF2->mvLevelSigma2[kp2.octave];
@@ -109,7 +112,7 @@ void Sim3Solver::SetRansacParameters(double probability, int minInliers,
   mRansacMinInliers = minInliers;
   mRansacMaxIts = maxIterations;
 
-  N = mvpMapPoints1.size();  // number of correspondences
+  N = mvpMapPoints1.size(); // number of correspondences
 
   mvbInliersi.resize(N);
 
@@ -130,8 +133,8 @@ void Sim3Solver::SetRansacParameters(double probability, int minInliers,
   mnIterations = 0;
 }
 
-cv::Mat Sim3Solver::iterate(int nIterations, bool& bNoMore,
-                            std::vector<bool>& vbInliers, int& nInliers) {
+cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore,
+                            std::vector<bool> &vbInliers, int &nInliers) {
   bNoMore = false;
   vbInliers = std::vector<bool>(mN1, false);
   nInliers = 0;
@@ -181,23 +184,25 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool& bNoMore,
       if (mnInliersi > mRansacMinInliers) {
         nInliers = mnInliersi;
         for (int i = 0; i < N; i++)
-          if (mvbInliersi[i]) vbInliers[mvnIndices1[i]] = true;
+          if (mvbInliersi[i])
+            vbInliers[mvnIndices1[i]] = true;
         return mBestT12;
       }
     }
   }
 
-  if (mnIterations >= mRansacMaxIts) bNoMore = true;
+  if (mnIterations >= mRansacMaxIts)
+    bNoMore = true;
 
   return cv::Mat();
 }
 
-cv::Mat Sim3Solver::find(std::vector<bool>& vbInliers12, int& nInliers) {
+cv::Mat Sim3Solver::find(std::vector<bool> &vbInliers12, int &nInliers) {
   bool bFlag;
   return iterate(mRansacMaxIts, bFlag, vbInliers12, nInliers);
 }
 
-void Sim3Solver::ComputeCentroid(cv::Mat& P, cv::Mat& Pr, cv::Mat& C) {
+void Sim3Solver::ComputeCentroid(cv::Mat &P, cv::Mat &Pr, cv::Mat &C) {
   cv::reduce(P, C, 1, CV_REDUCE_SUM);
   C = C / P.cols;
 
@@ -206,7 +211,7 @@ void Sim3Solver::ComputeCentroid(cv::Mat& P, cv::Mat& Pr, cv::Mat& C) {
   }
 }
 
-void Sim3Solver::ComputeSim3(cv::Mat& P1, cv::Mat& P2) {
+void Sim3Solver::ComputeSim3(cv::Mat &P1, cv::Mat &P2) {
   // Custom implementation of:
   // Horn 1987, Closed-form solution of absolute orientataion using unit
   // quaternions
@@ -214,11 +219,11 @@ void Sim3Solver::ComputeSim3(cv::Mat& P1, cv::Mat& P2) {
   // Step 1: Centroid and relative coordinates
 
   cv::Mat Pr1(P1.size(),
-              P1.type());  // Relative coordinates to centroid (set 1)
+              P1.type()); // Relative coordinates to centroid (set 1)
   cv::Mat Pr2(P2.size(),
-              P2.type());        // Relative coordinates to centroid (set 2)
-  cv::Mat O1(3, 1, Pr1.type());  // Centroid of P1
-  cv::Mat O2(3, 1, Pr2.type());  // Centroid of P2
+              P2.type());       // Relative coordinates to centroid (set 2)
+  cv::Mat O1(3, 1, Pr1.type()); // Centroid of P1
+  cv::Mat O2(3, 1, Pr2.type()); // Centroid of P2
 
   ComputeCentroid(P1, Pr1, O1);
   ComputeCentroid(P2, Pr2, O2);
@@ -252,21 +257,21 @@ void Sim3Solver::ComputeSim3(cv::Mat& P1, cv::Mat& P2) {
   cv::Mat eval, evec;
 
   cv::eigen(N, eval,
-            evec);  // evec[0] is the quaternion of the desired rotation
+            evec); // evec[0] is the quaternion of the desired rotation
 
   cv::Mat vec(1, 3, evec.type());
   (evec.row(0).colRange(1, 4))
-      .copyTo(vec);  // extract imaginary part of the quaternion (sin*axis)
+      .copyTo(vec); // extract imaginary part of the quaternion (sin*axis)
 
   // Rotation angle. sin is the norm of the imaginary part, cos is the real part
   double ang = atan2(norm(vec), evec.at<float>(0, 0));
 
   vec = 2 * ang * vec /
-        norm(vec);  // Angle-axis representation. quaternion angle is the half
+        norm(vec); // Angle-axis representation. quaternion angle is the half
 
   mR12i.create(3, 3, P1.type());
 
-  cv::Rodrigues(vec, mR12i);  // computes the rotation matrix from angle-axis
+  cv::Rodrigues(vec, mR12i); // computes the rotation matrix from angle-axis
 
   // Step 5: Rotate set 2
 
@@ -347,14 +352,14 @@ cv::Mat Sim3Solver::GetEstimatedTranslation() {
 
 float Sim3Solver::GetEstimatedScale() { return mBestScale; }
 
-void Sim3Solver::Project(const std::vector<cv::Mat>& vP3Dw,
-                         std::vector<cv::Mat>& vP2D, cv::Mat Tcw, cv::Mat K) {
+void Sim3Solver::Project(const std::vector<cv::Mat> &vP3Dw,
+                         std::vector<cv::Mat> &vP2D, cv::Mat Tcw, cv::Mat K) {
   cv::Mat Rcw = Tcw.rowRange(0, 3).colRange(0, 3);
   cv::Mat tcw = Tcw.rowRange(0, 3).col(3);
-  const float& fx = K.at<float>(0, 0);
-  const float& fy = K.at<float>(1, 1);
-  const float& cx = K.at<float>(0, 2);
-  const float& cy = K.at<float>(1, 2);
+  const float &fx = K.at<float>(0, 0);
+  const float &fy = K.at<float>(1, 1);
+  const float &cx = K.at<float>(0, 2);
+  const float &cy = K.at<float>(1, 2);
 
   vP2D.clear();
   vP2D.reserve(vP3Dw.size());
@@ -369,12 +374,12 @@ void Sim3Solver::Project(const std::vector<cv::Mat>& vP3Dw,
   }
 }
 
-void Sim3Solver::FromCameraToImage(const std::vector<cv::Mat>& vP3Dc,
-                                   std::vector<cv::Mat>& vP2D, cv::Mat K) {
-  const float& fx = K.at<float>(0, 0);
-  const float& fy = K.at<float>(1, 1);
-  const float& cx = K.at<float>(0, 2);
-  const float& cy = K.at<float>(1, 2);
+void Sim3Solver::FromCameraToImage(const std::vector<cv::Mat> &vP3Dc,
+                                   std::vector<cv::Mat> &vP2D, cv::Mat K) {
+  const float &fx = K.at<float>(0, 0);
+  const float &fy = K.at<float>(1, 1);
+  const float &cx = K.at<float>(0, 2);
+  const float &cy = K.at<float>(1, 2);
 
   vP2D.clear();
   vP2D.reserve(vP3Dc.size());
@@ -388,4 +393,4 @@ void Sim3Solver::FromCameraToImage(const std::vector<cv::Mat>& vP3Dc,
   }
 }
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM

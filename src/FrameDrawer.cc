@@ -21,14 +21,14 @@
 #include "FrameDrawer.h"
 
 #include <mutex>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv4/opencv2/core/core.hpp>
+#include <opencv4/opencv2/highgui/highgui.hpp>
 
 #include "Tracking.h"
 
 namespace SuperSLAM {
 
-FrameDrawer::FrameDrawer(Map* pMap) : mpMap(pMap) {
+FrameDrawer::FrameDrawer(Map *pMap) : mpMap(pMap) {
   mState = Tracking::SYSTEM_NOT_READY;
   mIm = cv::Mat(480, 640, CV_8UC3, cv::Scalar(0, 0, 0));
 }
@@ -36,18 +36,19 @@ FrameDrawer::FrameDrawer(Map* pMap) : mpMap(pMap) {
 cv::Mat FrameDrawer::DrawFrame() {
   cv::Mat im;
   std::vector<cv::KeyPoint>
-      vIniKeys;  // Initialization: KeyPoints in reference frame
+      vIniKeys; // Initialization: KeyPoints in reference frame
   std::vector<int>
-      vMatches;  // Initialization: correspondeces with reference keypoints
-  std::vector<cv::KeyPoint> vCurrentKeys;  // KeyPoints in current frame
-  std::vector<bool> vbVO, vbMap;           // Tracked MapPoints in current frame
-  int state;                               // Tracking state
+      vMatches; // Initialization: correspondeces with reference keypoints
+  std::vector<cv::KeyPoint> vCurrentKeys; // KeyPoints in current frame
+  std::vector<bool> vbVO, vbMap;          // Tracked MapPoints in current frame
+  int state;                              // Tracking state
 
   // Copy variables within scoped mutex
   {
     std::unique_lock<std::mutex> lock(mMutex);
     state = mState;
-    if (mState == Tracking::SYSTEM_NOT_READY) mState = Tracking::NO_IMAGES_YET;
+    if (mState == Tracking::SYSTEM_NOT_READY)
+      mState = Tracking::NO_IMAGES_YET;
 
     mIm.copyTo(im);
 
@@ -62,13 +63,13 @@ cv::Mat FrameDrawer::DrawFrame() {
     } else if (mState == Tracking::LOST) {
       vCurrentKeys = mvCurrentKeys;
     }
-  }  // destroy scoped mutex -> release mutex
+  } // destroy scoped mutex -> release mutex
 
-  if (im.channels() < 3)  // this should be always true
+  if (im.channels() < 3) // this should be always true
     cvtColor(im, im, CV_GRAY2BGR);
 
   // Draw
-  if (state == Tracking::NOT_INITIALIZED)  // INITIALIZING
+  if (state == Tracking::NOT_INITIALIZED) // INITIALIZING
   {
     for (unsigned int i = 0; i < vMatches.size(); i++) {
       if (vMatches[i] >= 0) {
@@ -76,7 +77,7 @@ cv::Mat FrameDrawer::DrawFrame() {
                  cv::Scalar(0, 255, 0));
       }
     }
-  } else if (state == Tracking::OK)  // TRACKING
+  } else if (state == Tracking::OK) // TRACKING
   {
     mnTracked = 0;
     mnTrackedVO = 0;
@@ -95,8 +96,8 @@ cv::Mat FrameDrawer::DrawFrame() {
           cv::rectangle(im, pt1, pt2, cv::Scalar(0, 255, 0));
           cv::circle(im, vCurrentKeys[i].pt, 2, cv::Scalar(0, 255, 0), -1);
           mnTracked++;
-        } else  // This is match to a "visual odometry" MapPoint created in the
-                // last frame
+        } else // This is match to a "visual odometry" MapPoint created in the
+               // last frame
         {
           cv::rectangle(im, pt1, pt2, cv::Scalar(255, 0, 0));
           cv::circle(im, vCurrentKeys[i].pt, 2, cv::Scalar(255, 0, 0), -1);
@@ -112,7 +113,7 @@ cv::Mat FrameDrawer::DrawFrame() {
   return imWithInfo;
 }
 
-void FrameDrawer::DrawTextInfo(cv::Mat& im, int nState, cv::Mat& imText) {
+void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText) {
   std::stringstream s;
   if (nState == Tracking::NO_IMAGES_YET)
     s << " WAITING FOR IMAGES";
@@ -126,7 +127,8 @@ void FrameDrawer::DrawTextInfo(cv::Mat& im, int nState, cv::Mat& imText) {
     int nKFs = mpMap->KeyFramesInMap();
     int nMPs = mpMap->MapPointsInMap();
     s << "KFs: " << nKFs << ", MPs: " << nMPs << ", Matches: " << mnTracked;
-    if (mnTrackedVO > 0) s << ", + VO matches: " << mnTrackedVO;
+    if (mnTrackedVO > 0)
+      s << ", + VO matches: " << mnTrackedVO;
   } else if (nState == Tracking::LOST) {
     s << " TRACK LOST. TRYING TO RELOCALIZE ";
   } else if (nState == Tracking::SYSTEM_NOT_READY) {
@@ -145,7 +147,7 @@ void FrameDrawer::DrawTextInfo(cv::Mat& im, int nState, cv::Mat& imText) {
               cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 255, 255), 1, 8);
 }
 
-void FrameDrawer::Update(Tracking* pTracker) {
+void FrameDrawer::Update(Tracking *pTracker) {
   std::unique_lock<std::mutex> lock(mMutex);
   pTracker->mImGray.copyTo(mIm);
   mvCurrentKeys = pTracker->mCurrentFrame.mvKeys;
@@ -159,7 +161,7 @@ void FrameDrawer::Update(Tracking* pTracker) {
     mvIniMatches = pTracker->mvIniMatches;
   } else if (pTracker->mLastProcessedState == Tracking::OK) {
     for (int i = 0; i < N; i++) {
-      MapPoint* pMP = pTracker->mCurrentFrame.mvpMapPoints[i];
+      MapPoint *pMP = pTracker->mCurrentFrame.mvpMapPoints[i];
       if (pMP) {
         if (!pTracker->mCurrentFrame.mvbOutlier[i]) {
           if (pMP->Observations() > 0)
@@ -173,4 +175,4 @@ void FrameDrawer::Update(Tracking* pTracker) {
   mState = static_cast<int>(pTracker->mLastProcessedState);
 }
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM

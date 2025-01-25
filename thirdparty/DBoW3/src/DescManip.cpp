@@ -23,9 +23,11 @@ namespace DBoW3 {
 
 // --------------------------------------------------------------------------
 
-void DescManip::meanValue(const std::vector<cv::Mat>& descriptors,
-                          cv::Mat& mean) {
-  if (descriptors.empty()) return;
+void DescManip::meanValue(
+    const std::vector<cv::Mat>& descriptors,
+    cv::Mat& mean) {
+  if (descriptors.empty())
+    return;
 
   if (descriptors.size() == 1) {
     mean = descriptors[0].clone();
@@ -42,14 +44,22 @@ void DescManip::meanValue(const std::vector<cv::Mat>& descriptors,
       const unsigned char* p = d.ptr<unsigned char>();
 
       for (int j = 0; j < d.cols; ++j, ++p) {
-        if (*p & (1 << 7)) ++sum[j * 8];
-        if (*p & (1 << 6)) ++sum[j * 8 + 1];
-        if (*p & (1 << 5)) ++sum[j * 8 + 2];
-        if (*p & (1 << 4)) ++sum[j * 8 + 3];
-        if (*p & (1 << 3)) ++sum[j * 8 + 4];
-        if (*p & (1 << 2)) ++sum[j * 8 + 5];
-        if (*p & (1 << 1)) ++sum[j * 8 + 6];
-        if (*p & (1)) ++sum[j * 8 + 7];
+        if (*p & (1 << 7))
+          ++sum[j * 8];
+        if (*p & (1 << 6))
+          ++sum[j * 8 + 1];
+        if (*p & (1 << 5))
+          ++sum[j * 8 + 2];
+        if (*p & (1 << 4))
+          ++sum[j * 8 + 3];
+        if (*p & (1 << 3))
+          ++sum[j * 8 + 4];
+        if (*p & (1 << 2))
+          ++sum[j * 8 + 5];
+        if (*p & (1 << 1))
+          ++sum[j * 8 + 6];
+        if (*p & (1))
+          ++sum[j * 8 + 7];
       }
     }
 
@@ -63,12 +73,13 @@ void DescManip::meanValue(const std::vector<cv::Mat>& descriptors,
         *p |= 1 << (7 - (i % 8));
       }
 
-      if (i % 8 == 7) ++p;
+      if (i % 8 == 7)
+        ++p;
     }
   }
   // non binary descriptor
   else {
-    assert(descriptors[0].type() == CV_32F);  // ensure it is float
+    assert(descriptors[0].type() == CV_32F); // ensure it is float
 
     mean.create(1, descriptors[0].cols, descriptors[0].type());
     mean.setTo(cv::Scalar::all(0));
@@ -89,18 +100,18 @@ double DescManip::distance(const cv::Mat& a, const cv::Mat& b) {
     // This implementation assumes that a.cols (CV_8U) % sizeof(uint64_t) == 0
 
     const uint64_t *pa, *pb;
-    pa = a.ptr<uint64_t>();  // a & b are actually CV_8U
+    pa = a.ptr<uint64_t>(); // a & b are actually CV_8U
     pb = b.ptr<uint64_t>();
 
     uint64_t v, ret = 0;
     for (size_t i = 0; i < a.cols / sizeof(uint64_t); ++i, ++pa, ++pb) {
       v = *pa ^ *pb;
-      v = v - ((v >> 1) & (uint64_t) ~(uint64_t)0 / 3);
-      v = (v & (uint64_t) ~(uint64_t)0 / 15 * 3) +
-          ((v >> 2) & (uint64_t) ~(uint64_t)0 / 15 * 3);
-      v = (v + (v >> 4)) & (uint64_t) ~(uint64_t)0 / 255 * 15;
-      ret += (uint64_t)(v * ((uint64_t) ~(uint64_t)0 / 255)) >>
-             (sizeof(uint64_t) - 1) * CHAR_BIT;
+      v = v - ((v >> 1) & (uint64_t)~(uint64_t)0 / 3);
+      v = (v & (uint64_t)~(uint64_t)0 / 15 * 3) +
+          ((v >> 2) & (uint64_t)~(uint64_t)0 / 15 * 3);
+      v = (v + (v >> 4)) & (uint64_t)~(uint64_t)0 / 255 * 15;
+      ret += (uint64_t)(v * ((uint64_t)~(uint64_t)0 / 255)) >>
+          (sizeof(uint64_t) - 1) * CHAR_BIT;
     }
 
     return ret;
@@ -128,10 +139,12 @@ std::string DescManip::toString(const cv::Mat& a) {
 
   if (a.type() == CV_8U) {
     const unsigned char* p = a.ptr<unsigned char>();
-    for (int i = 0; i < a.cols; ++i, ++p) ss << (int)*p << " ";
+    for (int i = 0; i < a.cols; ++i, ++p)
+      ss << (int)*p << " ";
   } else {
     const float* p = a.ptr<float>();
-    for (int i = 0; i < a.cols; ++i, ++p) ss << *p << " ";
+    for (int i = 0; i < a.cols; ++i, ++p)
+      ss << *p << " ";
   }
 
   return ss.str();
@@ -143,14 +156,16 @@ void DescManip::fromString(cv::Mat& a, const std::string& s) {
   // check if the dbow3 is present
   string ss_aux;
   ss_aux.reserve(10);
-  for (size_t i = 0; i < 10 && i < s.size(); i++) ss_aux.push_back(s[i]);
-  if (ss_aux.find("dbw3") == std::string::npos) {  // is dbow2
+  for (size_t i = 0; i < 10 && i < s.size(); i++)
+    ss_aux.push_back(s[i]);
+  if (ss_aux.find("dbw3") == std::string::npos) { // is dbow2
     // READ UNTIL END
     stringstream ss(s);
     int val;
     vector<uchar> data;
     data.reserve(100);
-    while (ss >> val) data.push_back(val);
+    while (ss >> val)
+      data.push_back(val);
     // copy to a
     a.create(1, data.size(), CV_8UC1);
     memcpy(a.ptr<char>(0), &data[0], data.size());
@@ -164,7 +179,8 @@ void DescManip::fromString(cv::Mat& a, const std::string& s) {
       unsigned char* p = a.ptr<unsigned char>();
       int n;
       for (int i = 0; i < a.cols; ++i, ++p)
-        if (ss >> n) *p = (unsigned char)n;
+        if (ss >> n)
+          *p = (unsigned char)n;
     } else {
       float* p = a.ptr<float>();
       for (int i = 0; i < a.cols; ++i, ++p)
@@ -177,8 +193,9 @@ void DescManip::fromString(cv::Mat& a, const std::string& s) {
 
 // --------------------------------------------------------------------------
 
-void DescManip::toMat32F(const std::vector<cv::Mat>& descriptors,
-                         cv::Mat& mat) {
+void DescManip::toMat32F(
+    const std::vector<cv::Mat>& descriptors,
+    cv::Mat& mat) {
   if (descriptors.empty()) {
     mat.release();
     return;
@@ -211,8 +228,8 @@ void DescManip::toMat32F(const std::vector<cv::Mat>& descriptors,
     int L = descriptors[0].cols;
     mat.create(N, L, CV_32F);
     for (int i = 0; i < N; ++i)
-      memcpy(mat.ptr<float>(i), descriptors[i].ptr<float>(0),
-             sizeof(float) * L);
+      memcpy(
+          mat.ptr<float>(i), descriptors[i].ptr<float>(0), sizeof(float) * L);
   }
 }
 
@@ -238,4 +255,4 @@ void DescManip::fromStream(cv::Mat& m, std::istream& str) {
 
 // --------------------------------------------------------------------------
 
-}  // namespace DBoW3
+} // namespace DBoW3

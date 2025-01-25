@@ -5,12 +5,12 @@
 #include "DBoW3.h"
 #include "timers.h"
 // OpenCV
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv4/opencv2/core/core.hpp>
+#include <opencv4/opencv2/features2d/features2d.hpp>
+#include <opencv4/opencv2/highgui/highgui.hpp>
 #ifdef USE_CONTRIB
-#include <opencv2/xfeatures2d.hpp>
-#include <opencv2/xfeatures2d/nonfree.hpp>
+#include <opencv4/opencv2/xfeatures2d.hpp>
+#include <opencv4/opencv2/xfeatures2d/nonfree.hpp>
 #endif
 using namespace DBoW3;
 using namespace std;
@@ -25,13 +25,15 @@ class CmdLineParser {
   bool operator[](string param) {
     int idx = -1;
     for (int i = 0; i < argc && idx == -1; i++)
-      if (string(argv[i]) == param) idx = i;
+      if (string(argv[i]) == param)
+        idx = i;
     return (idx != -1);
   }
   string operator()(string param, string defvalue = "-1") {
     int idx = -1;
     for (int i = 0; i < argc && idx == -1; i++)
-      if (string(argv[i]) == param) idx = i;
+      if (string(argv[i]) == param)
+        idx = i;
     if (idx == -1)
       return defvalue;
     else
@@ -39,8 +41,9 @@ class CmdLineParser {
   }
 };
 
-vector<cv::Mat> loadFeatures(std::vector<string> path_to_images,
-                             string descriptor = "") throw(std::exception) {
+vector<cv::Mat> loadFeatures(
+    std::vector<string> path_to_images,
+    string descriptor = "") throw(std::exception) {
   // select detector
   cv::Ptr<cv::Feature2D> fdetector;
   if (descriptor == "orb")
@@ -95,13 +98,14 @@ int main(int argc, char** argv) {
     DBoW3::BowVector vv;
     cout << "size=" << features[0].rows << endl;
     auto t_start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < 1000; i++) voc.transform(features[0], vv);
+    for (int i = 0; i < 1000; i++)
+      voc.transform(features[0], vv);
     auto t_end = std::chrono::high_resolution_clock::now();
     cout << "time="
-         << double(std::chrono::duration_cast<std::chrono::nanoseconds>(t_end -
-                                                                        t_start)
+         << double(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                       t_end - t_start)
                        .count()) /
-                1e6
+            1e6
          << " ns" << endl;
 
     cout << vv.begin()->first << " " << vv.begin()->second << endl;

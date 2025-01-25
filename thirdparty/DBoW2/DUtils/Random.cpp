@@ -30,7 +30,9 @@ void DUtils::Random::SeedRandOnce() {
   }
 }
 
-void DUtils::Random::SeedRand(int seed) { srand(seed); }
+void DUtils::Random::SeedRand(int seed) {
+  srand(seed);
+}
 
 void DUtils::Random::SeedRandOnce(int seed) {
   if (!m_already_seeded) {
@@ -69,7 +71,8 @@ DUtils::Random::UnrepeatedRandomizer::UnrepeatedRandomizer(
 // ---------------------------------------------------------------------------
 
 int DUtils::Random::UnrepeatedRandomizer::get() {
-  if (empty()) createValues();
+  if (empty())
+    createValues();
 
   DUtils::Random::SeedRandOnce();
 
@@ -87,20 +90,21 @@ void DUtils::Random::UnrepeatedRandomizer::createValues() {
   int n = m_max - m_min + 1;
 
   m_values.resize(n);
-  for (int i = 0; i < n; ++i) m_values[i] = m_min + i;
+  for (int i = 0; i < n; ++i)
+    m_values[i] = m_min + i;
 }
 
 // ---------------------------------------------------------------------------
 
 void DUtils::Random::UnrepeatedRandomizer::reset() {
-  if ((int)m_values.size() != m_max - m_min + 1) createValues();
+  if ((int)m_values.size() != m_max - m_min + 1)
+    createValues();
 }
 
 // ---------------------------------------------------------------------------
 
-DUtils::Random::UnrepeatedRandomizer&
-DUtils::Random::UnrepeatedRandomizer::operator=(
-    const DUtils::Random::UnrepeatedRandomizer& rnd) {
+DUtils::Random::UnrepeatedRandomizer& DUtils::Random::UnrepeatedRandomizer::
+operator=(const DUtils::Random::UnrepeatedRandomizer& rnd) {
   if (this != &rnd) {
     this->m_min = rnd.m_min;
     this->m_max = rnd.m_max;

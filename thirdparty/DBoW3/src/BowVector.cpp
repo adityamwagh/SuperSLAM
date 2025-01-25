@@ -54,14 +54,17 @@ void BowVector::normalize(LNorm norm_type) {
   BowVector::iterator it;
 
   if (norm_type == DBoW3::L1) {
-    for (it = begin(); it != end(); ++it) norm += fabs(it->second);
+    for (it = begin(); it != end(); ++it)
+      norm += fabs(it->second);
   } else {
-    for (it = begin(); it != end(); ++it) norm += it->second * it->second;
+    for (it = begin(); it != end(); ++it)
+      norm += it->second * it->second;
     norm = sqrt(norm);
   }
 
   if (norm > 0.0) {
-    for (it = begin(); it != end(); ++it) it->second /= norm;
+    for (it = begin(); it != end(); ++it)
+      it->second /= norm;
   }
 }
 
@@ -75,7 +78,8 @@ std::ostream& operator<<(std::ostream& out, const BowVector& v) {
   for (vit = v.begin(); vit != v.end(); ++vit, ++i) {
     out << "<" << vit->first << ", " << vit->second << ">";
 
-    if (i < N - 1) out << ", ";
+    if (i < N - 1)
+      out << ", ";
   }
   return out;
 }
@@ -95,7 +99,8 @@ void BowVector::saveM(const std::string& filename, size_t W) const {
 
     last = bit->first + 1;
   }
-  for (; last < (WordId)W; ++last) f << "0 ";
+  for (; last < (WordId)W; ++last)
+    f << "0 ";
 
   f.close();
 }
@@ -127,10 +132,11 @@ void BowVector::fromStream(std::istream& str) {
 
 uint64_t BowVector::getSignature() const {
   uint64_t sig = 0;
-  for (auto ww : *this) sig += ww.first + 1e6 * ww.second;
+  for (auto ww : *this)
+    sig += ww.first + 1e6 * ww.second;
   return sig;
 }
 
 // --------------------------------------------------------------------------
 
-}  // namespace DBoW3
+} // namespace DBoW3

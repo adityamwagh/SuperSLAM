@@ -11,7 +11,7 @@
 
 #include "FORB.h"
 
-#include <stdint-gcc.h>
+#include <stdint.h>
 
 #include <sstream>
 #include <string>
@@ -25,8 +25,9 @@ namespace DBoW2 {
 
 const int FORB::L = 32;
 
-void FORB::meanValue(const std::vector<FORB::pDescriptor>& descriptors,
-                     FORB::TDescriptor& mean) {
+void FORB::meanValue(
+    const std::vector<FORB::pDescriptor>& descriptors,
+    FORB::TDescriptor& mean) {
   if (descriptors.empty()) {
     mean.release();
     return;
@@ -40,14 +41,22 @@ void FORB::meanValue(const std::vector<FORB::pDescriptor>& descriptors,
       const unsigned char* p = d.ptr<unsigned char>();
 
       for (int j = 0; j < d.cols; ++j, ++p) {
-        if (*p & (1 << 7)) ++sum[j * 8];
-        if (*p & (1 << 6)) ++sum[j * 8 + 1];
-        if (*p & (1 << 5)) ++sum[j * 8 + 2];
-        if (*p & (1 << 4)) ++sum[j * 8 + 3];
-        if (*p & (1 << 3)) ++sum[j * 8 + 4];
-        if (*p & (1 << 2)) ++sum[j * 8 + 5];
-        if (*p & (1 << 1)) ++sum[j * 8 + 6];
-        if (*p & (1)) ++sum[j * 8 + 7];
+        if (*p & (1 << 7))
+          ++sum[j * 8];
+        if (*p & (1 << 6))
+          ++sum[j * 8 + 1];
+        if (*p & (1 << 5))
+          ++sum[j * 8 + 2];
+        if (*p & (1 << 4))
+          ++sum[j * 8 + 3];
+        if (*p & (1 << 3))
+          ++sum[j * 8 + 4];
+        if (*p & (1 << 2))
+          ++sum[j * 8 + 5];
+        if (*p & (1 << 1))
+          ++sum[j * 8 + 6];
+        if (*p & (1))
+          ++sum[j * 8 + 7];
       }
     }
 
@@ -61,7 +70,8 @@ void FORB::meanValue(const std::vector<FORB::pDescriptor>& descriptors,
         *p |= 1 << (7 - (i % 8));
       }
 
-      if (i % 8 == 7) ++p;
+      if (i % 8 == 7)
+        ++p;
     }
   }
 }
@@ -111,7 +121,8 @@ void FORB::fromString(FORB::TDescriptor& a, const std::string& s) {
     int n;
     ss >> n;
 
-    if (!ss.fail()) *p = (unsigned char)n;
+    if (!ss.fail())
+      *p = (unsigned char)n;
   }
 }
 
@@ -160,4 +171,4 @@ void FORB::toMat8U(const std::vector<TDescriptor>& descriptors, cv::Mat& mat) {
 
 // --------------------------------------------------------------------------
 
-}  // namespace DBoW2
+} // namespace DBoW2

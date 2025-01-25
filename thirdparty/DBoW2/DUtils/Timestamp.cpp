@@ -45,12 +45,14 @@ Timestamp::Timestamp(Timestamp::tOptions option) {
 
 Timestamp::~Timestamp(void) {}
 
-bool Timestamp::empty() const { return m_secs == 0 && m_usecs == 0; }
+bool Timestamp::empty() const {
+  return m_secs == 0 && m_usecs == 0;
+}
 
 void Timestamp::setToCurrentTime() {
 #ifdef WIN32
   struct __timeb32 timebuffer;
-  _ftime32_s(&timebuffer);  // C4996
+  _ftime32_s(&timebuffer); // C4996
   // Note: _ftime is deprecated; consider using _ftime_s instead
   m_secs = timebuffer.time;
   m_usecs = timebuffer.millitm * 1000;
@@ -201,7 +203,7 @@ string Timestamp::Format(bool machine_friendly) const {
   if (machine_friendly) {
     strftime(buffer, 128, "%Y%m%d_%H%M%S", &tm_time);
   } else {
-    strftime(buffer, 128, "%c", &tm_time);  // Thu Aug 23 14:55:02 2001
+    strftime(buffer, 128, "%c", &tm_time); // Thu Aug 23 14:55:02 2001
   }
 
   return string(buffer);
@@ -220,12 +222,17 @@ string Timestamp::Format(double s) {
   stringstream ss;
   ss.fill('0');
   bool b;
-  if ((b = (days > 0))) ss << days << "d ";
-  if ((b = (b || hours > 0))) ss << setw(2) << hours << ":";
-  if ((b = (b || minutes > 0))) ss << setw(2) << minutes << ":";
-  if (b) ss << setw(2);
+  if ((b = (days > 0)))
+    ss << days << "d ";
+  if ((b = (b || hours > 0)))
+    ss << setw(2) << hours << ":";
+  if ((b = (b || minutes > 0)))
+    ss << setw(2) << minutes << ":";
+  if (b)
+    ss << setw(2);
   ss << seconds;
-  if (!b) ss << "." << setw(6) << ms;
+  if (!b)
+    ss << "." << setw(6) << ms;
 
   return ss.str();
 }

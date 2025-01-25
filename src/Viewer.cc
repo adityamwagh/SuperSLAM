@@ -29,21 +29,17 @@
 
 namespace SuperSLAM {
 
-Viewer::Viewer(System* pSystem, FrameDrawer* pFrameDrawer,
-               MapDrawer* pMapDrawer, Tracking* pTracking,
-               const std::string& strSettingPath)
-    : mpSystem(pSystem),
-      mpFrameDrawer(pFrameDrawer),
-      mpMapDrawer(pMapDrawer),
-      mpTracker(pTracking),
-      mbFinishRequested(false),
-      mbFinished(true),
-      mbStopped(true),
-      mbStopRequested(false) {
+Viewer::Viewer(System *pSystem, FrameDrawer *pFrameDrawer,
+               MapDrawer *pMapDrawer, Tracking *pTracking,
+               const std::string &strSettingPath)
+    : mpSystem(pSystem), mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer),
+      mpTracker(pTracking), mbFinishRequested(false), mbFinished(true),
+      mbStopped(true), mbStopRequested(false) {
   cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
 
   float fps = fSettings["Camera.fps"];
-  if (fps < 1) fps = 30;
+  if (fps < 1)
+    fps = 30;
   mT = 1e3 / fps;
 
   mImageWidth = fSettings["Camera.width"];
@@ -90,7 +86,7 @@ void Viewer::Run() {
                                 0.0, -1.0, 0.0));
 
   // Add named OpenGL viewport to window and provide 3D Handler
-  pangolin::View& d_cam = pangolin::CreateDisplay()
+  pangolin::View &d_cam = pangolin::CreateDisplay()
                               .SetBounds(0.0, 1.0, pangolin::Attach::Pix(175),
                                          1.0, -1024.0f / 768.0f)
                               .SetHandler(new pangolin::Handler3D(s_cam));
@@ -132,7 +128,8 @@ void Viewer::Run() {
     mpMapDrawer->DrawCurrentCamera(Twc);
     if (menuShowKeyFrames || menuShowGraph)
       mpMapDrawer->DrawKeyFrames(menuShowKeyFrames, menuShowGraph);
-    if (menuShowPoints) mpMapDrawer->DrawMapPoints();
+    if (menuShowPoints)
+      mpMapDrawer->DrawMapPoints();
 
     pangolin::FinishFrame();
 
@@ -145,7 +142,8 @@ void Viewer::Run() {
       menuShowKeyFrames = true;
       menuShowPoints = true;
       menuLocalizationMode = false;
-      if (bLocalizationMode) mpSystem->DeactivateLocalizationMode();
+      if (bLocalizationMode)
+        mpSystem->DeactivateLocalizationMode();
       bLocalizationMode = false;
       bFollow = true;
       menuFollowCamera = true;
@@ -159,7 +157,8 @@ void Viewer::Run() {
       }
     }
 
-    if (CheckFinish()) break;
+    if (CheckFinish())
+      break;
   }
 
   SetFinish();
@@ -187,7 +186,8 @@ bool Viewer::isFinished() {
 
 void Viewer::RequestStop() {
   std::unique_lock<std::mutex> lock(mMutexStop);
-  if (!mbStopped) mbStopRequested = true;
+  if (!mbStopped)
+    mbStopRequested = true;
 }
 
 bool Viewer::isStopped() {
@@ -215,4 +215,4 @@ void Viewer::Release() {
   mbStopped = false;
 }
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM

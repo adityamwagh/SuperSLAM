@@ -1,16 +1,16 @@
+#include <opencv4/opencv2/core.hpp>
+#include <opencv4/opencv2/core/core.hpp>
+#include <opencv4/opencv2/features2d/features2d.hpp>
+#include <opencv4/opencv2/flann.hpp>
+#include <opencv4/opencv2/highgui/highgui.hpp>
 #include <memory>
-#include <opencv2/core.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/flann.hpp>
-#include <opencv2/highgui/highgui.hpp>
 
 #include "DBoW3.h"
 #include "nanoflann.hpp"
 #include "timers.h"
 #ifdef USE_CONTRIB
-#include <opencv2/xfeatures2d.hpp>
-#include <opencv2/xfeatures2d/nonfree.hpp>
+#include <opencv4/opencv2/xfeatures2d.hpp>
+#include <opencv4/opencv2/xfeatures2d/nonfree.hpp>
 #endif
 #include <cstdlib>
 
@@ -68,14 +68,16 @@ class FastSearch {
     cv::Mat feat(voc.m_words.size(), desc_size, CV_8UC1);
 
     for (int i = 0; i < voc.m_words.size(); i++) {
-      memcpy(feat.ptr<uchar>(i), voc.m_words[i]->descriptor.ptr<uchar>(0),
-             desc_size);
+      memcpy(
+          feat.ptr<uchar>(i),
+          voc.m_words[i]->descriptor.ptr<uchar>(0),
+          desc_size);
       assert(i == voc.m_words[i]->word_id);
     }
     return feat;
   }
 };
-}  // namespace DBoW3
+} // namespace DBoW3
 
 int main(int argc, char** argv) {
   DBoW3::Vocabulary voc;
@@ -103,14 +105,14 @@ int main(int argc, char** argv) {
   cout << "Performing single search to find closest data point to mean:"
        << endl;
 
-  cv::Mat indices;  //(numQueries, k, CV_32S);
-  cv::Mat dists;    //(numQueries, k, CV_32F);
+  cv::Mat indices; //(numQueries, k, CV_32S);
+  cv::Mat dists; //(numQueries, k, CV_32F);
 
   {
     ScopedTimerEvents timer("search");
     // Invoke the function
-    kdtree.knnSearch(features[0], indices, dists, 1,
-                     cv::flann::SearchParams(1));
+    kdtree.knnSearch(
+        features[0], indices, dists, 1, cv::flann::SearchParams(1));
   }
   cout << "res=" << indices.at<int>(0, 0) << " "
        << indices.at<int>(indices.rows - 1, 0) << endl;

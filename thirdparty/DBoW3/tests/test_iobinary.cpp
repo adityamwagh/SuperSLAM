@@ -5,7 +5,7 @@
 #include "DBoW3.h"
 
 // OpenCV
-#include <opencv2/core/core.hpp>
+#include <opencv4/opencv2/core/core.hpp>
 using namespace DBoW3;
 using namespace std;
 
@@ -19,13 +19,15 @@ class CmdLineParser {
   bool operator[](string param) {
     int idx = -1;
     for (int i = 0; i < argc && idx == -1; i++)
-      if (string(argv[i]) == param) idx = i;
+      if (string(argv[i]) == param)
+        idx = i;
     return (idx != -1);
   }
   string operator()(string param, string defvalue = "-1") {
     int idx = -1;
     for (int i = 0; i < argc && idx == -1; i++)
-      if (string(argv[i]) == param) idx = i;
+      if (string(argv[i]) == param)
+        idx = i;
     if (idx == -1)
       return defvalue;
     else

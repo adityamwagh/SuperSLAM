@@ -34,7 +34,8 @@ ostream& operator<<(ostream& os, const QueryResults& ret) {
   QueryResults::const_iterator rit;
   for (rit = ret.begin(); rit != ret.end(); ++rit) {
     os << *rit;
-    if (rit + 1 != ret.end()) os << endl;
+    if (rit + 1 != ret.end())
+      os << endl;
   }
   return os;
 }
@@ -54,4 +55,4 @@ void QueryResults::saveM(const std::string& filename) const {
 
 // ---------------------------------------------------------------------------
 
-}  // namespace DBoW3
+} // namespace DBoW3

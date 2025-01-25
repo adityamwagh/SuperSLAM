@@ -46,7 +46,8 @@ std::ostream& operator<<(std::ostream& out, const FeatureVector& v) {
     const std::vector<unsigned int>* f = &vit->second;
 
     out << "<" << vit->first << ": [";
-    if (!f->empty()) out << (*f)[0];
+    if (!f->empty())
+      out << (*f)[0];
     for (unsigned int i = 1; i < f->size(); ++i) {
       out << ", " << (*f)[i];
     }
@@ -56,7 +57,8 @@ std::ostream& operator<<(std::ostream& out, const FeatureVector& v) {
       f = &vit->second;
 
       out << ", <" << vit->first << ": [";
-      if (!f->empty()) out << (*f)[0];
+      if (!f->empty())
+        out << (*f)[0];
       for (unsigned int i = 1; i < f->size(); ++i) {
         out << ", " << (*f)[i];
       }
@@ -69,4 +71,4 @@ std::ostream& operator<<(std::ostream& out, const FeatureVector& v) {
 
 // ---------------------------------------------------------------------------
 
-}  // namespace DBoW3
+} // namespace DBoW3

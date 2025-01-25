@@ -1,15 +1,15 @@
+#include <opencv4/opencv2/core.hpp>
+#include <opencv4/opencv2/core/core.hpp>
+#include <opencv4/opencv2/features2d/features2d.hpp>
+#include <opencv4/opencv2/highgui/highgui.hpp>
 #include <memory>
-#include <opencv2/core.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/highgui/highgui.hpp>
 
 #include "DBoW3.h"
 #include "nanoflann.hpp"
 #include "timers.h"
 #ifdef USE_CONTRIB
-#include <opencv2/xfeatures2d.hpp>
-#include <opencv2/xfeatures2d/nonfree.hpp>
+#include <opencv4/opencv2/xfeatures2d.hpp>
+#include <opencv4/opencv2/xfeatures2d/nonfree.hpp>
 #endif
 #include <cstdlib>
 using namespace DBoW3;
@@ -60,21 +60,28 @@ namespace DBoW3 {
 class FastSearch {
  public:
   ~FastSearch() {
-    if (_data) delete _data;
+    if (_data)
+      delete _data;
   }
 
   int getNodePos(Vocabulary::Node& node) {}
   struct node_info {
-    uint32_t id_or_childblock;  // if id ,msb is 1.
+    uint32_t id_or_childblock; // if id ,msb is 1.
 
     float weight;
 
-    inline bool isleaf() const { return (id_or_childblock & 0x80000000); }
-    inline uint32_t getChildBlock() const { return (id_or_childblock); }
-    inline uint32_t getId() const { return (id_or_childblock & 0x7FFFFFFF); }
+    inline bool isleaf() const {
+      return (id_or_childblock & 0x80000000);
+    }
+    inline uint32_t getChildBlock() const {
+      return (id_or_childblock);
+    }
+    inline uint32_t getId() const {
+      return (id_or_childblock & 0x7FFFFFFF);
+    }
   };
 
-  std::map<uint32_t, set<uint32_t> > parent_children;
+  std::map<uint32_t, set<uint32_t>> parent_children;
   void create(Vocabulary& voc) {
     if (voc.getDescritorType() == CV_8UC1)
       _aligment = 8;
@@ -84,22 +91,24 @@ class FastSearch {
     // consider possible aligment of each descriptor adding offsets at the end
     _desc_size_bytes = voc.getDescritorSize();
     _desc_size_bytes_al = _desc_size_bytes / _aligment;
-    if (_desc_size_bytes % _aligment != 0) _desc_size_bytes_al++;
+    if (_desc_size_bytes % _aligment != 0)
+      _desc_size_bytes_al++;
     _desc_size_bytes = _desc_size_bytes_al * _aligment;
 
     int foffnbytes_alg = sizeof(uint32_t) / _aligment;
-    if (sizeof(uint32_t) % _aligment != 0) foffnbytes_alg++;
+    if (sizeof(uint32_t) % _aligment != 0)
+      foffnbytes_alg++;
     _feature_off_start = foffnbytes_alg * _aligment;
-    _child_off_start =
-        _feature_off_start +
-        voc.m_k * _desc_size_bytes;  // where do children information start from
-                                     // the start of the block
+    _child_off_start = _feature_off_start +
+        voc.m_k * _desc_size_bytes; // where do children information start from
+                                    // the start of the block
 
     // block: nvalid|f0 f1 .. fn|ni0 ni1 ..nin
     _block_size_bytes =
         _feature_off_start + voc.m_k * (_desc_size_bytes + sizeof(node_info));
     _block_size_bytes_al = _block_size_bytes / _aligment;
-    if (_block_size_bytes % _aligment != 0) _block_size_bytes_al++;
+    if (_block_size_bytes % _aligment != 0)
+      _block_size_bytes_al++;
     _block_size_bytes = _block_size_bytes_al * _aligment;
 
     _desc_type = CV_8UC1;
@@ -145,23 +154,27 @@ class FastSearch {
 
     cout << parent_children.begin()->first << endl;
     std::map<uint32_t, uint32_t> block_offset;
-    uint32_t currblock = 0;  // expressed in blocks
+    uint32_t currblock = 0; // expressed in blocks
     uint32_t descsize = voc.getDescritorSize();
     for (const auto& Block : parent_children) {
       block_offset[Block.first] = currblock;
-      assert(!(currblock &
-               0x80000000));  // 32 bits 100000000...0.check msb is not set
+      assert(
+          !(currblock &
+            0x80000000)); // 32 bits 100000000...0.check msb is not set
       uint64_t block_offset_bytes = currblock * _block_size_bytes;
       int idx = 0;
       *reinterpret_cast<uint32_t*>(_data + block_offset_bytes) =
           Block.second.size();
       for (const auto& c : Block.second) {
         const auto& node = voc.m_nodes[nid_vpos[c]];
-        memcpy(_data + block_offset_bytes + _feature_off_start +
-                   idx * _desc_size_bytes,
-               node.descriptor.ptr<char>(0), descsize);
-        assert(block_offset_bytes + idx * _desc_size_bytes + descsize <
-               _total_size);
+        memcpy(
+            _data + block_offset_bytes + _feature_off_start +
+                idx * _desc_size_bytes,
+            node.descriptor.ptr<char>(0),
+            descsize);
+        assert(
+            block_offset_bytes + idx * _desc_size_bytes + descsize <
+            _total_size);
         // now, the offset to the children block//unkonwn yet
         idx++;
       }
@@ -182,13 +195,13 @@ class FastSearch {
 
         if (!node.isLeaf()) {
           assert(block_offset.count(node.id));
-          ptr_child->id_or_childblock = block_offset[node.id];  // childblock
+          ptr_child->id_or_childblock = block_offset[node.id]; // childblock
         } else {
           // set the node id (ensure msb is set)
-          assert(!(node.id & 0x80000000));  // check
+          assert(!(node.id & 0x80000000)); // check
           ptr_child->id_or_childblock = node.word_id;
           ptr_child->id_or_childblock |=
-              0x80000000;  // set the msb to one to distinguish from offset
+              0x80000000; // set the msb to one to distinguish from offset
           // now,set the weight too
           ptr_child->weight = node.weight;
         }
@@ -234,7 +247,7 @@ class FastSearch {
       float weight;
       int wid;
       while (!done) {
-        node_info* ni;  //=getBestOfBlock(block,desc.row(i));
+        node_info* ni; //=getBestOfBlock(block,desc.row(i));
         {
           uint64_t block_start = block * _block_size_bytes;
           uint32_t mind = std::numeric_limits<uint32_t>::max();
@@ -247,27 +260,27 @@ class FastSearch {
           for (i = 0; i < n4; i += 4) {
             uint64_t* ptr = (uint64_t*)(_data + _toff + _desc_size_bytes * i);
             uint32_t d = __builtin_popcountl(dptr[0] ^ ptr[0]) +
-                         __builtin_popcountl(dptr[1] ^ ptr[1]) +
-                         __builtin_popcountl(dptr[2] ^ ptr[2]) +
-                         __builtin_popcountl(dptr[3] ^ ptr[3]);
+                __builtin_popcountl(dptr[1] ^ ptr[1]) +
+                __builtin_popcountl(dptr[2] ^ ptr[2]) +
+                __builtin_popcountl(dptr[3] ^ ptr[3]);
             uint64_t* ptr_2 =
                 (uint64_t*)(_data + _toff + _desc_size_bytes * (i + 1));
             uint32_t d2 = __builtin_popcountl(dptr[0] ^ ptr_2[0]) +
-                          __builtin_popcountl(dptr[1] ^ ptr_2[1]) +
-                          __builtin_popcountl(dptr[2] ^ ptr_2[2]) +
-                          __builtin_popcountl(dptr[3] ^ ptr_2[3]);
+                __builtin_popcountl(dptr[1] ^ ptr_2[1]) +
+                __builtin_popcountl(dptr[2] ^ ptr_2[2]) +
+                __builtin_popcountl(dptr[3] ^ ptr_2[3]);
             uint64_t* ptr_3 =
                 (uint64_t*)(_data + _toff + _desc_size_bytes * (i + 2));
             uint32_t d3 = __builtin_popcountl(dptr[0] ^ ptr_3[0]) +
-                          __builtin_popcountl(dptr[1] ^ ptr_3[1]) +
-                          __builtin_popcountl(dptr[2] ^ ptr_3[2]) +
-                          __builtin_popcountl(dptr[3] ^ ptr_3[3]);
+                __builtin_popcountl(dptr[1] ^ ptr_3[1]) +
+                __builtin_popcountl(dptr[2] ^ ptr_3[2]) +
+                __builtin_popcountl(dptr[3] ^ ptr_3[3]);
             uint64_t* ptr_4 =
                 (uint64_t*)(_data + _toff + _desc_size_bytes * (i + 3));
             uint32_t d4 = __builtin_popcountl(dptr[0] ^ ptr_4[0]) +
-                          __builtin_popcountl(dptr[1] ^ ptr_4[1]) +
-                          __builtin_popcountl(dptr[2] ^ ptr_4[2]) +
-                          __builtin_popcountl(dptr[3] ^ ptr_4[3]);
+                __builtin_popcountl(dptr[1] ^ ptr_4[1]) +
+                __builtin_popcountl(dptr[2] ^ ptr_4[2]) +
+                __builtin_popcountl(dptr[3] ^ ptr_4[3]);
             if (d < mind) {
               mind = d;
               bestIdx = i;
@@ -288,9 +301,9 @@ class FastSearch {
           for (; i < n; i++) {
             uint64_t* ptr = (uint64_t*)(_data + _toff + _desc_size_bytes * i);
             uint32_t d = __builtin_popcountl(dptr[0] ^ ptr[0]) +
-                         __builtin_popcountl(dptr[1] ^ ptr[1]) +
-                         __builtin_popcountl(dptr[2] ^ ptr[2]) +
-                         __builtin_popcountl(dptr[3] ^ ptr[3]);
+                __builtin_popcountl(dptr[1] ^ ptr[1]) +
+                __builtin_popcountl(dptr[2] ^ ptr[2]) +
+                __builtin_popcountl(dptr[3] ^ ptr[3]);
             if (d < mind) {
               mind = d;
               bestIdx = i;
@@ -303,7 +316,7 @@ class FastSearch {
           wid = ni->getId();
           weight = ni->weight;
           done = true;
-        } else  // go to children block
+        } else // go to children block
           block = ni->getChildBlock();
       }
       v.addWeight(wid, weight);
@@ -311,24 +324,24 @@ class FastSearch {
   }
 
   uint32_t _aligment, _nblocks;
-  uint64_t _desc_size_bytes;  // size of the descriptor(includding padding)
+  uint64_t _desc_size_bytes; // size of the descriptor(includding padding)
   uint64_t _desc_size_bytes_al;
-  uint64_t _block_size_bytes;  // size of a block
+  uint64_t _block_size_bytes; // size of a block
   uint64_t _block_size_bytes_al;
   uint64_t _feature_off_start;
   uint64_t
-      _child_off_start;  // into the block,where the children offset part starts
+      _child_off_start; // into the block,where the children offset part starts
   uint64_t _total_size;
-  int32_t _desc_type, _desc_size;  // original desc type and size
-  uint32_t _m_k;                   // number of children per node
+  int32_t _desc_type, _desc_size; // original desc type and size
+  uint32_t _m_k; // number of children per node
   char* _data = 0;
   string _desc_name;
 
   void saveToFile(const std::string& filepath) throw(std::exception) {
     std::ofstream str(filepath);
     if (!str)
-      throw std::runtime_error("Vocabulary::saveToFile could not open:" +
-                               filepath);
+      throw std::runtime_error(
+          "Vocabulary::saveToFile could not open:" + filepath);
     // magic number
     uint64_t sig = 55824123;
     str.write((char*)&sig, sizeof(sig));
@@ -356,7 +369,7 @@ class FastSearch {
     cout << "save:" << *reinterpret_cast<uint32_t*>(_data) << endl;
   }
 };
-}  // namespace DBoW3
+} // namespace DBoW3
 
 int main(int argc, char** argv) {
   if (argc != 4) {

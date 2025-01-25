@@ -16,7 +16,7 @@ using namespace DBoW3;
 
 // If you change the type of WordValue, make sure you change also the
 // epsilon value (this is needed by the KL method)
-const double GeneralScoring::LOG_EPS = log(DBL_EPSILON);  // FLT_EPSILON
+const double GeneralScoring::LOG_EPS = log(DBL_EPSILON); // FLT_EPSILON
 
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
@@ -58,7 +58,7 @@ double L1Scoring::score(const BowVector& v1, const BowVector& v2) const {
   // scaled_||v - w||_{L1} = 1 - 0.5 * ||v - w||_{L1}
   score = -score / 2.0;
 
-  return score;  // [0..1]
+  return score; // [0..1]
 }
 
 // ---------------------------------------------------------------------------
@@ -98,10 +98,10 @@ double L2Scoring::score(const BowVector& v1, const BowVector& v2) const {
   // ||v - w||_{L2} = sqrt( 2 - 2 * Sum(v_i * w_i) )
   //		for all i | v_i != 0 and w_i != 0 )
   // (Nister, 2006)
-  if (score >= 1)  // rounding errors
+  if (score >= 1) // rounding errors
     score = 1.0;
   else
-    score = 1.0 - sqrt(1.0 - score);  // [0..1]
+    score = 1.0 - sqrt(1.0 - score); // [0..1]
 
   return score;
 }
@@ -128,7 +128,8 @@ double ChiSquareScoring::score(const BowVector& v1, const BowVector& v2) const {
     if (v1_it->first == v2_it->first) {
       // (v-w)^2/(v+w) - v - w = -4 vw/(v+w)
       // we move the -4 out
-      if (vi + wi != 0.0) score += vi * wi / (vi + wi);
+      if (vi + wi != 0.0)
+        score += vi * wi / (vi + wi);
 
       // move v1 and v2 forward
       ++v1_it;
@@ -143,7 +144,7 @@ double ChiSquareScoring::score(const BowVector& v1, const BowVector& v2) const {
   }
 
   // this takes the -4 into account
-  score = 2. * score;  // [0..1]
+  score = 2. * score; // [0..1]
 
   return score;
 }
@@ -168,7 +169,8 @@ double KLScoring::score(const BowVector& v1, const BowVector& v2) const {
     const WordValue& wi = v2_it->second;
 
     if (v1_it->first == v2_it->first) {
-      if (vi != 0 && wi != 0) score += vi * log(vi / wi);
+      if (vi != 0 && wi != 0)
+        score += vi * log(vi / wi);
 
       // move v1 and v2 forward
       ++v1_it;
@@ -189,14 +191,14 @@ double KLScoring::score(const BowVector& v1, const BowVector& v2) const {
     if (v1_it->second != 0)
       score += v1_it->second * (log(v1_it->second) - LOG_EPS);
 
-  return score;  // cannot be scaled
+  return score; // cannot be scaled
 }
 
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 
-double BhattacharyyaScoring::score(const BowVector& v1,
-                                   const BowVector& v2) const {
+double BhattacharyyaScoring::score(const BowVector& v1, const BowVector& v2)
+    const {
   BowVector::const_iterator v1_it, v2_it;
   const BowVector::const_iterator v1_end = v1.end();
   const BowVector::const_iterator v2_end = v2.end();
@@ -227,14 +229,14 @@ double BhattacharyyaScoring::score(const BowVector& v1,
     }
   }
 
-  return score;  // already scaled
+  return score; // already scaled
 }
 
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 
-double DotProductScoring::score(const BowVector& v1,
-                                const BowVector& v2) const {
+double DotProductScoring::score(const BowVector& v1, const BowVector& v2)
+    const {
   BowVector::const_iterator v1_it, v2_it;
   const BowVector::const_iterator v1_end = v1.end();
   const BowVector::const_iterator v2_end = v2.end();
@@ -265,7 +267,7 @@ double DotProductScoring::score(const BowVector& v1,
     }
   }
 
-  return score;  // cannot scale
+  return score; // cannot scale
 }
 
 // ---------------------------------------------------------------------------

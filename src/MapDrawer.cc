@@ -29,7 +29,7 @@
 
 namespace SuperSLAM {
 
-MapDrawer::MapDrawer(Map* pMap, const std::string& strSettingPath)
+MapDrawer::MapDrawer(Map *pMap, const std::string &strSettingPath)
     : mpMap(pMap) {
   cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
 
@@ -42,19 +42,21 @@ MapDrawer::MapDrawer(Map* pMap, const std::string& strSettingPath)
 }
 
 void MapDrawer::DrawMapPoints() {
-  const std::vector<MapPoint*>& vpMPs = mpMap->GetAllMapPoints();
-  const std::vector<MapPoint*>& vpRefMPs = mpMap->GetReferenceMapPoints();
+  const std::vector<MapPoint *> &vpMPs = mpMap->GetAllMapPoints();
+  const std::vector<MapPoint *> &vpRefMPs = mpMap->GetReferenceMapPoints();
 
-  std::set<MapPoint*> spRefMPs(vpRefMPs.begin(), vpRefMPs.end());
+  std::set<MapPoint *> spRefMPs(vpRefMPs.begin(), vpRefMPs.end());
 
-  if (vpMPs.empty()) return;
+  if (vpMPs.empty())
+    return;
 
   glPointSize(mPointSize);
   glBegin(GL_POINTS);
   glColor3f(0.0, 0.0, 0.0);
 
   for (size_t i = 0, iend = vpMPs.size(); i < iend; i++) {
-    if (vpMPs[i]->isBad() || spRefMPs.count(vpMPs[i])) continue;
+    if (vpMPs[i]->isBad() || spRefMPs.count(vpMPs[i]))
+      continue;
     cv::Mat pos = vpMPs[i]->GetWorldPos();
     glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
   }
@@ -64,10 +66,11 @@ void MapDrawer::DrawMapPoints() {
   glBegin(GL_POINTS);
   glColor3f(1.0, 0.0, 0.0);
 
-  for (std::set<MapPoint*>::iterator sit = spRefMPs.begin(),
-                                     send = spRefMPs.end();
+  for (std::set<MapPoint *>::iterator sit = spRefMPs.begin(),
+                                      send = spRefMPs.end();
        sit != send; sit++) {
-    if ((*sit)->isBad()) continue;
+    if ((*sit)->isBad())
+      continue;
     cv::Mat pos = (*sit)->GetWorldPos();
     glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
   }
@@ -76,15 +79,15 @@ void MapDrawer::DrawMapPoints() {
 }
 
 void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
-  const float& w = mKeyFrameSize;
+  const float &w = mKeyFrameSize;
   const float h = w * 0.75;
   const float z = w * 0.6;
 
-  const std::vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+  const std::vector<KeyFrame *> vpKFs = mpMap->GetAllKeyFrames();
 
   if (bDrawKF) {
     for (size_t i = 0; i < vpKFs.size(); i++) {
-      KeyFrame* pKF = vpKFs[i];
+      KeyFrame *pKF = vpKFs[i];
       cv::Mat Twc = pKF->GetPoseInverse().t();
 
       glPushMatrix();
@@ -127,14 +130,15 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
 
     for (size_t i = 0; i < vpKFs.size(); i++) {
       // Covisibility Graph
-      const std::vector<KeyFrame*> vCovKFs =
+      const std::vector<KeyFrame *> vCovKFs =
           vpKFs[i]->GetCovisiblesByWeight(100);
       cv::Mat Ow = vpKFs[i]->GetCameraCenter();
       if (!vCovKFs.empty()) {
-        for (std::vector<KeyFrame*>::const_iterator vit = vCovKFs.begin(),
-                                                    vend = vCovKFs.end();
+        for (std::vector<KeyFrame *>::const_iterator vit = vCovKFs.begin(),
+                                                     vend = vCovKFs.end();
              vit != vend; vit++) {
-          if ((*vit)->mnId < vpKFs[i]->mnId) continue;
+          if ((*vit)->mnId < vpKFs[i]->mnId)
+            continue;
           cv::Mat Ow2 = (*vit)->GetCameraCenter();
           glVertex3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2));
           glVertex3f(Ow2.at<float>(0), Ow2.at<float>(1), Ow2.at<float>(2));
@@ -142,7 +146,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
       }
 
       // Spanning tree
-      KeyFrame* pParent = vpKFs[i]->GetParent();
+      KeyFrame *pParent = vpKFs[i]->GetParent();
       if (pParent) {
         cv::Mat Owp = pParent->GetCameraCenter();
         glVertex3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2));
@@ -150,11 +154,12 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
       }
 
       // Loops
-      std::set<KeyFrame*> sLoopKFs = vpKFs[i]->GetLoopEdges();
-      for (std::set<KeyFrame*>::iterator sit = sLoopKFs.begin(),
-                                         send = sLoopKFs.end();
+      std::set<KeyFrame *> sLoopKFs = vpKFs[i]->GetLoopEdges();
+      for (std::set<KeyFrame *>::iterator sit = sLoopKFs.begin(),
+                                          send = sLoopKFs.end();
            sit != send; sit++) {
-        if ((*sit)->mnId < vpKFs[i]->mnId) continue;
+        if ((*sit)->mnId < vpKFs[i]->mnId)
+          continue;
         cv::Mat Owl = (*sit)->GetCameraCenter();
         glVertex3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2));
         glVertex3f(Owl.at<float>(0), Owl.at<float>(1), Owl.at<float>(2));
@@ -165,8 +170,8 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph) {
   }
 }
 
-void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix& Twc) {
-  const float& w = mCameraSize;
+void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc) {
+  const float &w = mCameraSize;
   const float h = w * 0.75;
   const float z = w * 0.6;
 
@@ -206,12 +211,12 @@ void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix& Twc) {
   glPopMatrix();
 }
 
-void MapDrawer::SetCurrentCameraPose(const cv::Mat& Tcw) {
+void MapDrawer::SetCurrentCameraPose(const cv::Mat &Tcw) {
   std::unique_lock<std::mutex> lock(mMutexCamera);
   mCameraPose = Tcw.clone();
 }
 
-void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix& M) {
+void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M) {
   if (!mCameraPose.empty()) {
     cv::Mat Rwc(3, 3, CV_32F);
     cv::Mat twc(3, 1, CV_32F);
@@ -244,4 +249,4 @@ void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix& M) {
     M.SetIdentity();
 }
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM

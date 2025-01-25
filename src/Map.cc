@@ -26,18 +26,19 @@ namespace SuperSLAM {
 
 Map::Map() : mnMaxKFid(0), mnBigChangeIdx(0) {}
 
-void Map::AddKeyFrame(KeyFrame* pKF) {
+void Map::AddKeyFrame(KeyFrame *pKF) {
   std::unique_lock<std::mutex> lock(mMutexMap);
   mspKeyFrames.insert(pKF);
-  if (pKF->mnId > mnMaxKFid) mnMaxKFid = pKF->mnId;
+  if (pKF->mnId > mnMaxKFid)
+    mnMaxKFid = pKF->mnId;
 }
 
-void Map::AddMapPoint(MapPoint* pMP) {
+void Map::AddMapPoint(MapPoint *pMP) {
   std::unique_lock<std::mutex> lock(mMutexMap);
   mspMapPoints.insert(pMP);
 }
 
-void Map::EraseMapPoint(MapPoint* pMP) {
+void Map::EraseMapPoint(MapPoint *pMP) {
   std::unique_lock<std::mutex> lock(mMutexMap);
   mspMapPoints.erase(pMP);
 
@@ -45,7 +46,7 @@ void Map::EraseMapPoint(MapPoint* pMP) {
   // Delete the MapPoint
 }
 
-void Map::EraseKeyFrame(KeyFrame* pKF) {
+void Map::EraseKeyFrame(KeyFrame *pKF) {
   std::unique_lock<std::mutex> lock(mMutexMap);
   mspKeyFrames.erase(pKF);
 
@@ -53,7 +54,7 @@ void Map::EraseKeyFrame(KeyFrame* pKF) {
   // Delete the MapPoint
 }
 
-void Map::SetReferenceMapPoints(const std::vector<MapPoint*>& vpMPs) {
+void Map::SetReferenceMapPoints(const std::vector<MapPoint *> &vpMPs) {
   std::unique_lock<std::mutex> lock(mMutexMap);
   mvpReferenceMapPoints = vpMPs;
 }
@@ -68,14 +69,14 @@ int Map::GetLastBigChangeIdx() {
   return mnBigChangeIdx;
 }
 
-std::vector<KeyFrame*> Map::GetAllKeyFrames() {
+std::vector<KeyFrame *> Map::GetAllKeyFrames() {
   std::unique_lock<std::mutex> lock(mMutexMap);
-  return std::vector<KeyFrame*>(mspKeyFrames.begin(), mspKeyFrames.end());
+  return std::vector<KeyFrame *>(mspKeyFrames.begin(), mspKeyFrames.end());
 }
 
-std::vector<MapPoint*> Map::GetAllMapPoints() {
+std::vector<MapPoint *> Map::GetAllMapPoints() {
   std::unique_lock<std::mutex> lock(mMutexMap);
-  return std::vector<MapPoint*>(mspMapPoints.begin(), mspMapPoints.end());
+  return std::vector<MapPoint *>(mspMapPoints.begin(), mspMapPoints.end());
 }
 
 long unsigned int Map::MapPointsInMap() {
@@ -88,7 +89,7 @@ long unsigned int Map::KeyFramesInMap() {
   return mspKeyFrames.size();
 }
 
-std::vector<MapPoint*> Map::GetReferenceMapPoints() {
+std::vector<MapPoint *> Map::GetReferenceMapPoints() {
   std::unique_lock<std::mutex> lock(mMutexMap);
   return mvpReferenceMapPoints;
 }
@@ -99,13 +100,13 @@ long unsigned int Map::GetMaxKFid() {
 }
 
 void Map::clear() {
-  for (std::set<MapPoint*>::iterator sit = mspMapPoints.begin(),
-                                     send = mspMapPoints.end();
+  for (std::set<MapPoint *>::iterator sit = mspMapPoints.begin(),
+                                      send = mspMapPoints.end();
        sit != send; sit++)
     delete *sit;
 
-  for (std::set<KeyFrame*>::iterator sit = mspKeyFrames.begin(),
-                                     send = mspKeyFrames.end();
+  for (std::set<KeyFrame *>::iterator sit = mspKeyFrames.begin(),
+                                      send = mspKeyFrames.end();
        sit != send; sit++)
     delete *sit;
 
@@ -116,4 +117,4 @@ void Map::clear() {
   mvpKeyFrameOrigins.clear();
 }
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM

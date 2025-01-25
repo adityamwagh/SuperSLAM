@@ -32,18 +32,14 @@
 
 namespace SuperSLAM {
 
-System::System(const std::string& strVocFile,
-               const std::string& strSettingsFile, const eSensor sensor,
+System::System(const std::string &strVocFile,
+               const std::string &strSettingsFile, const eSensor sensor,
                const bool bUseViewer)
-    : mSensor(sensor),
-      mpViewer(static_cast<Viewer*>(NULL)),
-      mbReset(false),
-      mbActivateLocalizationMode(false),
-      mbDeactivateLocalizationMode(false) {
+    : mSensor(sensor), mpViewer(static_cast<Viewer *>(NULL)), mbReset(false),
+      mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false) {
   // Output welcome message
   std::cout << std::endl
-            << "SuperSLAM Copyright (C) 2014-2016 Raul Mur-Artal, University "
-               "of Zaragoza."
+            << "SuperSLAM Copyright (C) Aditya Wagh (adityamwagh@outlook.com)"
             << std::endl
             << "This program comes with ABSOLUTELY NO WARRANTY;" << std::endl
             << "This is free software, and you are welcome to redistribute it"
@@ -68,9 +64,9 @@ System::System(const std::string& strVocFile,
     exit(-1);
   }
 
-  // Load ORB Vocabulary
+  // Load SuperPoint Vocabulary
   std::cout << std::endl
-            << "Loading ORB Vocabulary. This could take a while..."
+            << "Loading SuperPoint Vocabulary. This could take a while..."
             << std::endl;
 
   mpVocabulary = new ORBVocabulary();
@@ -129,8 +125,8 @@ System::System(const std::string& strVocFile,
   mpLoopCloser->SetLocalMapper(mpLocalMapper);
 }
 
-cv::Mat System::TrackStereo(const cv::Mat& imLeft, const cv::Mat& imRight,
-                            const double& timestamp) {
+cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight,
+                            const double &timestamp) {
   if (mSensor != STEREO) {
     std::cerr << "ERROR: you called TrackStereo but input sensor was not set "
                  "to STEREO."
@@ -177,8 +173,8 @@ cv::Mat System::TrackStereo(const cv::Mat& imLeft, const cv::Mat& imRight,
   return Tcw;
 }
 
-cv::Mat System::TrackRGBD(const cv::Mat& im, const cv::Mat& depthmap,
-                          const double& timestamp) {
+cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap,
+                          const double &timestamp) {
   if (mSensor != RGBD) {
     std::cerr
         << "ERROR: you called TrackRGBD but input sensor was not set to RGBD."
@@ -225,7 +221,7 @@ cv::Mat System::TrackRGBD(const cv::Mat& im, const cv::Mat& depthmap,
   return Tcw;
 }
 
-cv::Mat System::TrackMonocular(const cv::Mat& im, const double& timestamp) {
+cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
   if (mSensor != MONOCULAR) {
     std::cerr << "ERROR: you called TrackMonocular but input sensor was not "
                  "set to Monocular."
@@ -303,7 +299,8 @@ void System::Shutdown() {
   mpLoopCloser->RequestFinish();
   if (mpViewer) {
     mpViewer->RequestFinish();
-    while (!mpViewer->isFinished()) usleep(5000);
+    while (!mpViewer->isFinished())
+      usleep(5000);
   }
 
   // Wait until all thread have effectively stopped
@@ -312,10 +309,11 @@ void System::Shutdown() {
     usleep(5000);
   }
 
-  if (mpViewer) pangolin::BindToContext("SuperSLAM: Map Viewer");
+  if (mpViewer)
+    pangolin::BindToContext("SuperSLAM: Map Viewer");
 }
 
-void System::SaveTrajectoryTUM(const std::string& filename) {
+void System::SaveTrajectoryTUM(const std::string &filename) {
   std::cout << std::endl
             << "Saving camera trajectory to " << filename << " ..."
             << std::endl;
@@ -325,7 +323,7 @@ void System::SaveTrajectoryTUM(const std::string& filename) {
     return;
   }
 
-  std::vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+  std::vector<KeyFrame *> vpKFs = mpMap->GetAllKeyFrames();
   sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
 
   // Transform all keyframes so that the first keyframe is at the origin.
@@ -343,7 +341,7 @@ void System::SaveTrajectoryTUM(const std::string& filename) {
 
   // For each frame we have a reference keyframe (lRit), the timestamp (lT) and
   // a flag which is true when tracking failed (lbL).
-  std::list<SuperSLAM::KeyFrame*>::iterator lRit =
+  std::list<SuperSLAM::KeyFrame *>::iterator lRit =
       mpTracker->mlpReferences.begin();
   std::list<double>::iterator lT = mpTracker->mlFrameTimes.begin();
   std::list<bool>::iterator lbL = mpTracker->mlbLost.begin();
@@ -351,9 +349,10 @@ void System::SaveTrajectoryTUM(const std::string& filename) {
            lit = mpTracker->mlRelativeFramePoses.begin(),
            lend = mpTracker->mlRelativeFramePoses.end();
        lit != lend; lit++, lRit++, lT++, lbL++) {
-    if (*lbL) continue;
+    if (*lbL)
+      continue;
 
-    KeyFrame* pKF = *lRit;
+    KeyFrame *pKF = *lRit;
 
     cv::Mat Trw = cv::Mat::eye(4, 4, CV_32F);
 
@@ -380,12 +379,12 @@ void System::SaveTrajectoryTUM(const std::string& filename) {
   std::cout << std::endl << "trajectory saved!" << std::endl;
 }
 
-void System::SaveKeyFrameTrajectoryTUM(const std::string& filename) {
+void System::SaveKeyFrameTrajectoryTUM(const std::string &filename) {
   std::cout << std::endl
             << "Saving keyframe trajectory to " << filename << " ..."
             << std::endl;
 
-  std::vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+  std::vector<KeyFrame *> vpKFs = mpMap->GetAllKeyFrames();
   sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
 
   // Transform all keyframes so that the first keyframe is at the origin.
@@ -397,11 +396,12 @@ void System::SaveKeyFrameTrajectoryTUM(const std::string& filename) {
   f << std::fixed;
 
   for (size_t i = 0; i < vpKFs.size(); i++) {
-    KeyFrame* pKF = vpKFs[i];
+    KeyFrame *pKF = vpKFs[i];
 
     // pKF->SetPose(pKF->GetPose()*Two);
 
-    if (pKF->isBad()) continue;
+    if (pKF->isBad())
+      continue;
 
     cv::Mat R = pKF->GetRotation().t();
     std::vector<float> q = Converter::toQuaternion(R);
@@ -415,7 +415,7 @@ void System::SaveKeyFrameTrajectoryTUM(const std::string& filename) {
   std::cout << std::endl << "trajectory saved!" << std::endl;
 }
 
-void System::SaveTrajectoryKITTI(const std::string& filename) {
+void System::SaveTrajectoryKITTI(const std::string &filename) {
   std::cout << std::endl
             << "Saving camera trajectory to " << filename << " ..."
             << std::endl;
@@ -425,7 +425,7 @@ void System::SaveTrajectoryKITTI(const std::string& filename) {
     return;
   }
 
-  std::vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+  std::vector<KeyFrame *> vpKFs = mpMap->GetAllKeyFrames();
   sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
 
   // Transform all keyframes so that the first keyframe is at the origin.
@@ -443,14 +443,14 @@ void System::SaveTrajectoryKITTI(const std::string& filename) {
 
   // For each frame we have a reference keyframe (lRit), the timestamp (lT) and
   // a flag which is true when tracking failed (lbL).
-  std::list<SuperSLAM::KeyFrame*>::iterator lRit =
+  std::list<SuperSLAM::KeyFrame *>::iterator lRit =
       mpTracker->mlpReferences.begin();
   std::list<double>::iterator lT = mpTracker->mlFrameTimes.begin();
   for (std::list<cv::Mat>::iterator
            lit = mpTracker->mlRelativeFramePoses.begin(),
            lend = mpTracker->mlRelativeFramePoses.end();
        lit != lend; lit++, lRit++, lT++) {
-    SuperSLAM::KeyFrame* pKF = *lRit;
+    SuperSLAM::KeyFrame *pKF = *lRit;
 
     cv::Mat Trw = cv::Mat::eye(4, 4, CV_32F);
 
@@ -483,7 +483,7 @@ int System::GetTrackingState() {
   return mTrackingState;
 }
 
-std::vector<MapPoint*> System::GetTrackedMapPoints() {
+std::vector<MapPoint *> System::GetTrackedMapPoints() {
   std::unique_lock<std::mutex> lock(mMutexState);
   return mTrackedMapPoints;
 }
@@ -493,4 +493,4 @@ std::vector<cv::KeyPoint> System::GetTrackedKeyPointsUn() {
   return mTrackedKeyPointsUn;
 }
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM
