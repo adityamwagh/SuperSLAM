@@ -54,16 +54,16 @@
  *
  */
 
-#include "SPextractor.h"
+#include "SPExtractor.h"
 
 #include <chrono>
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv4/opencv2/core/core.hpp>
+#include <opencv4/opencv2/features2d/features2d.hpp>
+#include <opencv4/opencv2/highgui/highgui.hpp>
+#include <opencv4/opencv2/imgproc/imgproc.hpp>
 #include <vector>
 
-#include "SuperPoint.h"
+#include "SuperPointLT.h"
 
 namespace SuperSLAM {
 
@@ -73,8 +73,8 @@ const int EDGE_THRESHOLD = 19;
 
 const float factorPI = (float)(CV_PI / 180.f);
 
-void ExtractorNode::DivideNode(ExtractorNode& n1, ExtractorNode& n2,
-                               ExtractorNode& n3, ExtractorNode& n4) {
+void ExtractorNode::DivideNode(ExtractorNode &n1, ExtractorNode &n2,
+                               ExtractorNode &n3, ExtractorNode &n4) {
   const int halfX = std::ceil(static_cast<float>(UR.x - UL.x) / 2);
   const int halfY = std::ceil(static_cast<float>(BR.y - UL.y) / 2);
 
@@ -105,7 +105,7 @@ void ExtractorNode::DivideNode(ExtractorNode& n1, ExtractorNode& n2,
 
   // Associate points to childs
   for (size_t i = 0; i < vKeys.size(); i++) {
-    const cv::KeyPoint& kp = vKeys[i];
+    const cv::KeyPoint &kp = vKeys[i];
     if (kp.pt.x < n1.UR.x) {
       if (kp.pt.y < n1.BR.y)
         n1.vKeys.push_back(kp);
@@ -117,19 +117,20 @@ void ExtractorNode::DivideNode(ExtractorNode& n1, ExtractorNode& n2,
       n4.vKeys.push_back(kp);
   }
 
-  if (n1.vKeys.size() == 1) n1.bNoMore = true;
-  if (n2.vKeys.size() == 1) n2.bNoMore = true;
-  if (n3.vKeys.size() == 1) n3.bNoMore = true;
-  if (n4.vKeys.size() == 1) n4.bNoMore = true;
+  if (n1.vKeys.size() == 1)
+    n1.bNoMore = true;
+  if (n2.vKeys.size() == 1)
+    n2.bNoMore = true;
+  if (n3.vKeys.size() == 1)
+    n3.bNoMore = true;
+  if (n4.vKeys.size() == 1)
+    n4.bNoMore = true;
 }
 
 SPextractor::SPextractor(int _nfeatures, float _scaleFactor, int _nlevels,
                          float _iniThFAST, float _minThFAST)
-    : nfeatures(_nfeatures),
-      scaleFactor(_scaleFactor),
-      nlevels(_nlevels),
-      iniThFAST(_iniThFAST),
-      minThFAST(_minThFAST) {
+    : nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels),
+      iniThFAST(_iniThFAST), minThFAST(_minThFAST) {
   model = std::make_shared<SuperPoint>();
   torch::load(model, "superpoint.pt");
 
@@ -167,9 +168,9 @@ SPextractor::SPextractor(int _nfeatures, float _scaleFactor, int _nlevels,
 }
 
 std::vector<cv::KeyPoint> SPextractor::DistributeOctTree(
-    const std::vector<cv::KeyPoint>& vToDistributeKeys, const int& minX,
-    const int& maxX, const int& minY, const int& maxY, const int& N,
-    const int& level) {
+    const std::vector<cv::KeyPoint> &vToDistributeKeys, const int &minX,
+    const int &maxX, const int &minY, const int &maxY, const int &N,
+    const int &level) {
   // Compute how many initial nodes
   const int nIni = round(static_cast<float>(maxX - minX) / (maxY - minY));
 
@@ -177,7 +178,7 @@ std::vector<cv::KeyPoint> SPextractor::DistributeOctTree(
 
   std::list<ExtractorNode> lNodes;
 
-  std::vector<ExtractorNode*> vpIniNodes;
+  std::vector<ExtractorNode *> vpIniNodes;
   vpIniNodes.resize(nIni);
 
   for (int i = 0; i < nIni; i++) {
@@ -194,7 +195,7 @@ std::vector<cv::KeyPoint> SPextractor::DistributeOctTree(
 
   // Associate points to childs
   for (size_t i = 0; i < vToDistributeKeys.size(); i++) {
-    const cv::KeyPoint& kp = vToDistributeKeys[i];
+    const cv::KeyPoint &kp = vToDistributeKeys[i];
     vpIniNodes[kp.pt.x / hX]->vKeys.push_back(kp);
   }
 
@@ -214,7 +215,7 @@ std::vector<cv::KeyPoint> SPextractor::DistributeOctTree(
 
   int iteration = 0;
 
-  std::vector<std::pair<int, ExtractorNode*>> vSizeAndPointerToNode;
+  std::vector<std::pair<int, ExtractorNode *>> vSizeAndPointerToNode;
   vSizeAndPointerToNode.reserve(lNodes.size() * 4);
 
   while (!bFinish) {
@@ -289,7 +290,7 @@ std::vector<cv::KeyPoint> SPextractor::DistributeOctTree(
       while (!bFinish) {
         prevSize = lNodes.size();
 
-        std::vector<std::pair<int, ExtractorNode*>> vPrevSizeAndPointerToNode =
+        std::vector<std::pair<int, ExtractorNode *>> vPrevSizeAndPointerToNode =
             vSizeAndPointerToNode;
         vSizeAndPointerToNode.clear();
 
@@ -335,7 +336,8 @@ std::vector<cv::KeyPoint> SPextractor::DistributeOctTree(
 
           lNodes.erase(vPrevSizeAndPointerToNode[j].second->lit);
 
-          if ((int)lNodes.size() >= N) break;
+          if ((int)lNodes.size() >= N)
+            break;
         }
 
         if ((int)lNodes.size() >= N || (int)lNodes.size() == prevSize)
@@ -349,8 +351,8 @@ std::vector<cv::KeyPoint> SPextractor::DistributeOctTree(
   vResultKeys.reserve(nfeatures);
   for (std::list<ExtractorNode>::iterator lit = lNodes.begin();
        lit != lNodes.end(); lit++) {
-    std::vector<cv::KeyPoint>& vNodeKeys = lit->vKeys;
-    cv::KeyPoint* pKP = &vNodeKeys[0];
+    std::vector<cv::KeyPoint> &vNodeKeys = lit->vKeys;
+    cv::KeyPoint *pKP = &vNodeKeys[0];
     float maxResponse = pKP->response;
 
     for (size_t k = 1; k < vNodeKeys.size(); k++) {
@@ -367,7 +369,7 @@ std::vector<cv::KeyPoint> SPextractor::DistributeOctTree(
 }
 
 void SPextractor::ComputeKeyPointsOctTree(
-    std::vector<std::vector<cv::KeyPoint>>& allKeypoints, cv::Mat& _desc) {
+    std::vector<std::vector<cv::KeyPoint>> &allKeypoints, cv::Mat &_desc) {
   allKeypoints.resize(nlevels);
 
   std::vector<cv::Mat> vDesc;
@@ -403,14 +405,18 @@ void SPextractor::ComputeKeyPointsOctTree(
       const float iniY = minBorderY + i * hCell;
       float maxY = iniY + hCell + 6;
 
-      if (iniY >= maxBorderY - 3) continue;
-      if (maxY > maxBorderY) maxY = maxBorderY;
+      if (iniY >= maxBorderY - 3)
+        continue;
+      if (maxY > maxBorderY)
+        maxY = maxBorderY;
 
       for (int j = 0; j < nCols; j++) {
         const float iniX = minBorderX + j * wCell;
         float maxX = iniX + wCell + 6;
-        if (iniX >= maxBorderX - 6) continue;
-        if (maxX > maxBorderX) maxX = maxBorderX;
+        if (iniX >= maxBorderX - 6)
+          continue;
+        if (maxX > maxBorderX)
+          maxX = maxBorderX;
 
         std::vector<cv::KeyPoint> vKeysCell;
         // FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),
@@ -436,7 +442,7 @@ void SPextractor::ComputeKeyPointsOctTree(
       }
     }
 
-    std::vector<cv::KeyPoint>& keypoints = allKeypoints[level];
+    std::vector<cv::KeyPoint> &keypoints = allKeypoints[level];
     keypoints.reserve(nfeatures);
 
     keypoints =
@@ -467,9 +473,10 @@ void SPextractor::ComputeKeyPointsOctTree(
 }
 
 void SPextractor::operator()(cv::InputArray _image, cv::InputArray _mask,
-                             std::vector<cv::KeyPoint>& _keypoints,
+                             std::vector<cv::KeyPoint> &_keypoints,
                              cv::OutputArray _descriptors) {
-  if (_image.empty()) return;
+  if (_image.empty())
+    return;
 
   cv::Mat image = _image.getMat();
   assert(image.type() == CV_8UC1);
@@ -498,10 +505,11 @@ void SPextractor::operator()(cv::InputArray _image, cv::InputArray _mask,
 
   int offset = 0;
   for (int level = 0; level < nlevels; ++level) {
-    std::vector<cv::KeyPoint>& keypoints = allKeypoints[level];
+    std::vector<cv::KeyPoint> &keypoints = allKeypoints[level];
     int nkeypointsLevel = (int)keypoints.size();
 
-    if (nkeypointsLevel == 0) continue;
+    if (nkeypointsLevel == 0)
+      continue;
 
     // // preprocess the resized image
     // Mat workingMat = mvImagePyramid[level].clone();
@@ -517,7 +525,7 @@ void SPextractor::operator()(cv::InputArray _image, cv::InputArray _mask,
     // Scale keypoint coordinates
     if (level != 0) {
       float scale =
-          mvScaleFactor[level];  // getScale(level, firstLevel, scaleFactor);
+          mvScaleFactor[level]; // getScale(level, firstLevel, scaleFactor);
       for (std::vector<cv::KeyPoint>::iterator keypoint = keypoints.begin(),
                                                keypointEnd = keypoints.end();
            keypoint != keypointEnd; ++keypoint)
@@ -588,4 +596,4 @@ void SPextractor::ComputePyramid(cv::Mat image) {
   }
 }
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM

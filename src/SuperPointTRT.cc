@@ -1,9 +1,8 @@
 #include <memory>
-#include <opencv2/opencv.hpp>
-#include <unordered_map>
+#include <opencv4/opencv2/opencv.hpp>
 #include <utility>
 
-#include "super_point.h"
+#include "SuperPointTRT.h"
 
 using namespace tensorrt_common;
 using namespace tensorrt_log;
@@ -91,10 +90,10 @@ bool SuperPoint::build() {
 }
 
 bool SuperPoint::construct_network(
-    TensorRTUniquePtr<nvinfer1::IBuilder>& builder,
-    TensorRTUniquePtr<nvinfer1::INetworkDefinition>& network,
-    TensorRTUniquePtr<nvinfer1::IBuilderConfig>& config,
-    TensorRTUniquePtr<nvonnxparser::IParser>& parser) const {
+    TensorRTUniquePtr<nvinfer1::IBuilder> &builder,
+    TensorRTUniquePtr<nvinfer1::INetworkDefinition> &network,
+    TensorRTUniquePtr<nvinfer1::IBuilderConfig> &config,
+    TensorRTUniquePtr<nvonnxparser::IParser> &parser) const {
   auto parsed =
       parser->parseFromFile(super_point_config_.onnx_file.c_str(),
                             static_cast<int>(gLogger.getReportableSeverity()));
@@ -107,8 +106,8 @@ bool SuperPoint::construct_network(
   return true;
 }
 
-bool SuperPoint::infer(const cv::Mat& image,
-                       Eigen::Matrix<double, 259, Eigen::Dynamic>& features) {
+bool SuperPoint::infer(const cv::Mat &image,
+                       Eigen::Matrix<double, 259, Eigen::Dynamic> &features) {
   if (!context_) {
     context_ = TensorRTUniquePtr<nvinfer1::IExecutionContext>(
         engine_->createExecutionContext());
@@ -144,8 +143,8 @@ bool SuperPoint::infer(const cv::Mat& image,
   return true;
 }
 
-bool SuperPoint::process_input(const BufferManager& buffers,
-                               const cv::Mat& image) {
+bool SuperPoint::process_input(const BufferManager &buffers,
+                               const cv::Mat &image) {
   input_dims_.d[2] = image.rows;
   input_dims_.d[3] = image.cols;
   semi_dims_.d[1] = image.rows;
@@ -153,7 +152,7 @@ bool SuperPoint::process_input(const BufferManager& buffers,
   desc_dims_.d[1] = 256;
   desc_dims_.d[2] = image.rows / 8;
   desc_dims_.d[3] = image.cols / 8;
-  auto* host_data_buffer = static_cast<float*>(
+  auto *host_data_buffer = static_cast<float *>(
       buffers.getHostBuffer(super_point_config_.input_tensor_names[0]));
 
   for (int row = 0; row < image.rows; ++row) {
@@ -165,8 +164,8 @@ bool SuperPoint::process_input(const BufferManager& buffers,
   return true;
 }
 
-void SuperPoint::find_high_score_index(std::vector<float>& scores,
-                                       std::vector<std::vector<int>>& keypoints,
+void SuperPoint::find_high_score_index(std::vector<float> &scores,
+                                       std::vector<std::vector<int>> &keypoints,
                                        int h, int w, double threshold) {
   std::vector<float> new_scores;
   for (int i = 0; i < scores.size(); ++i) {
@@ -179,8 +178,8 @@ void SuperPoint::find_high_score_index(std::vector<float>& scores,
   scores.swap(new_scores);
 }
 
-void SuperPoint::remove_borders(std::vector<std::vector<int>>& keypoints,
-                                std::vector<float>& scores, int border,
+void SuperPoint::remove_borders(std::vector<std::vector<int>> &keypoints,
+                                std::vector<float> &scores, int border,
                                 int height, int width) {
   std::vector<std::vector<int>> keypoints_selected;
   std::vector<float> scores_selected;
@@ -199,7 +198,7 @@ void SuperPoint::remove_borders(std::vector<std::vector<int>>& keypoints,
   scores.swap(scores_selected);
 }
 
-std::vector<size_t> SuperPoint::sort_indexes(std::vector<float>& data) {
+std::vector<size_t> SuperPoint::sort_indexes(std::vector<float> &data) {
   std::vector<size_t> indexes(data.size());
   iota(indexes.begin(), indexes.end(), 0);
   sort(indexes.begin(), indexes.end(),
@@ -207,8 +206,8 @@ std::vector<size_t> SuperPoint::sort_indexes(std::vector<float>& data) {
   return indexes;
 }
 
-void SuperPoint::top_k_keypoints(std::vector<std::vector<int>>& keypoints,
-                                 std::vector<float>& scores, int k) {
+void SuperPoint::top_k_keypoints(std::vector<std::vector<int>> &keypoints,
+                                 std::vector<float> &scores, int k) {
   if (k < keypoints.size() && k != -1) {
     std::vector<std::vector<int>> keypoints_top_k;
     std::vector<float> scores_top_k;
@@ -222,10 +221,10 @@ void SuperPoint::top_k_keypoints(std::vector<std::vector<int>>& keypoints,
   }
 }
 
-void normalize_keypoints(const std::vector<std::vector<int>>& keypoints,
-                         std::vector<std::vector<double>>& keypoints_norm,
+void normalize_keypoints(const std::vector<std::vector<int>> &keypoints,
+                         std::vector<std::vector<double>> &keypoints_norm,
                          int h, int w, int s) {
-  for (auto& keypoint : keypoints) {
+  for (auto &keypoint : keypoints) {
     std::vector<double> kp = {keypoint[0] - s / 2 + 0.5,
                               keypoint[1] - s / 2 + 0.5};
     kp[0] = kp[0] / (w * s - s / 2 - 0.5);
@@ -237,17 +236,18 @@ void normalize_keypoints(const std::vector<std::vector<int>>& keypoints,
 }
 
 int clip(int val, int max) {
-  if (val < 0) return 0;
+  if (val < 0)
+    return 0;
   return std::min(val, max - 1);
 }
 
-void grid_sample(const float* input, std::vector<std::vector<double>>& grid,
-                 std::vector<std::vector<double>>& output, int dim, int h,
+void grid_sample(const float *input, std::vector<std::vector<double>> &grid,
+                 std::vector<std::vector<double>> &output, int dim, int h,
                  int w) {
   // descriptors 1, 256, image_height/8, image_width/8
   // keypoints 1, 1, number, 2
   // out 1, 256, 1, number
-  for (auto& g : grid) {
+  for (auto &g : grid) {
     double ix = ((g[0] + 1) / 2) * (w - 1);
     double iy = ((g[1] + 1) / 2) * (h - 1);
 
@@ -283,13 +283,12 @@ void grid_sample(const float* input, std::vector<std::vector<double>>& grid,
   }
 }
 
-template <typename Iter_T>
-double vector_normalize(Iter_T first, Iter_T last) {
+template <typename Iter_T> double vector_normalize(Iter_T first, Iter_T last) {
   return sqrt(inner_product(first, last, first, 0.0));
 }
 
-void normalize_descriptors(std::vector<std::vector<double>>& dest_descriptors) {
-  for (auto& descriptor : dest_descriptors) {
+void normalize_descriptors(std::vector<std::vector<double>> &dest_descriptors) {
+  for (auto &descriptor : dest_descriptors) {
     double norm_inv =
         1.0 / vector_normalize(descriptor.begin(), descriptor.end());
     std::transform(descriptor.begin(), descriptor.end(), descriptor.begin(),
@@ -298,8 +297,8 @@ void normalize_descriptors(std::vector<std::vector<double>>& dest_descriptors) {
 }
 
 void SuperPoint::sample_descriptors(
-    std::vector<std::vector<int>>& keypoints, float* descriptors,
-    std::vector<std::vector<double>>& dest_descriptors, int dim, int h, int w,
+    std::vector<std::vector<int>> &keypoints, float *descriptors,
+    std::vector<std::vector<double>> &dest_descriptors, int dim, int h, int w,
     int s) {
   std::vector<std::vector<double>> keypoints_norm;
   normalize_keypoints(keypoints, keypoints_norm, h, w, s);
@@ -308,13 +307,13 @@ void SuperPoint::sample_descriptors(
 }
 
 bool SuperPoint::process_output(
-    const BufferManager& buffers,
-    Eigen::Matrix<double, 259, Eigen::Dynamic>& features) {
+    const BufferManager &buffers,
+    Eigen::Matrix<double, 259, Eigen::Dynamic> &features) {
   keypoints_.clear();
   descriptors_.clear();
-  auto* output_score = static_cast<float*>(
+  auto *output_score = static_cast<float *>(
       buffers.getHostBuffer(super_point_config_.output_tensor_names[0]));
-  auto* output_desc = static_cast<float*>(
+  auto *output_desc = static_cast<float *>(
       buffers.getHostBuffer(super_point_config_.output_tensor_names[1]));
   int semi_feature_map_h = semi_dims_.d[1];
   int semi_feature_map_w = semi_dims_.d[2];
@@ -351,14 +350,14 @@ bool SuperPoint::process_output(
   return true;
 }
 
-void SuperPoint::visualization(const std::string& image_name,
-                               const cv::Mat& image) {
+void SuperPoint::visualization(const std::string &image_name,
+                               const cv::Mat &image) {
   cv::Mat image_display;
   if (image.channels() == 1)
     cv::cvtColor(image, image_display, cv::COLOR_GRAY2BGR);
   else
     image_display = image.clone();
-  for (auto& keypoint : keypoints_) {
+  for (auto &keypoint : keypoints_) {
     cv::circle(image_display, cv::Point(int(keypoint[0]), int(keypoint[1])), 1,
                cv::Scalar(255, 0, 0), -1, 16);
   }
@@ -366,12 +365,14 @@ void SuperPoint::visualization(const std::string& image_name,
 }
 
 void SuperPoint::save_engine() {
-  if (super_point_config_.engine_file.empty()) return;
+  if (super_point_config_.engine_file.empty())
+    return;
   if (engine_ != nullptr) {
-    nvinfer1::IHostMemory* data = engine_->serialize();
+    nvinfer1::IHostMemory *data = engine_->serialize();
     std::ofstream file(super_point_config_.engine_file, std::ios::binary);
-    if (!file) return;
-    file.write(reinterpret_cast<const char*>(data->data()), data->size());
+    if (!file)
+      return;
+    file.write(reinterpret_cast<const char *>(data->data()), data->size());
   }
 }
 
@@ -381,14 +382,16 @@ bool SuperPoint::deserialize_engine() {
     file.seekg(0, std::ifstream::end);
     size_t size = file.tellg();
     file.seekg(0, std::ifstream::beg);
-    char* model_stream = new char[size];
+    char *model_stream = new char[size];
     file.read(model_stream, size);
     file.close();
-    IRuntime* runtime = createInferRuntime(gLogger);
-    if (runtime == nullptr) return false;
+    IRuntime *runtime = createInferRuntime(gLogger);
+    if (runtime == nullptr)
+      return false;
     engine_ = std::shared_ptr<nvinfer1::ICudaEngine>(
         runtime->deserializeCudaEngine(model_stream, size));
-    if (engine_ == nullptr) return false;
+    if (engine_ == nullptr)
+      return false;
     return true;
   }
   return false;

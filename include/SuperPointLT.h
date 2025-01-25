@@ -1,9 +1,9 @@
-#ifndef SUPERPOINT_H
-#define SUPERPOINT_H
+#ifndef SUPERPOINTLT_H
+#define SUPERPOINTLT_H
 
 #include <torch/torch.h>
 
-#include <opencv2/opencv.hpp>
+#include <opencv4/opencv2/opencv.hpp>
 #include <vector>
 
 #ifdef EIGEN_MPL2_ONLY
@@ -45,10 +45,17 @@ class SPDetector {
  public:
   SPDetector(std::shared_ptr<SuperPoint> _model, bool cuda);
   void detect(cv::Mat& image);
-  void getKeyPoints(float threshold, int iniX, int maxX, int iniY, int maxY,
-                    std::vector<cv::KeyPoint>& keypoints, bool nms);
-  void computeDescriptors(const std::vector<cv::KeyPoint>& keypoints,
-                          cv::Mat& descriptors);
+  void getKeyPoints(
+      float threshold,
+      int iniX,
+      int maxX,
+      int iniY,
+      int maxY,
+      std::vector<cv::KeyPoint>& keypoints,
+      bool nms);
+  void computeDescriptors(
+      const std::vector<cv::KeyPoint>& keypoints,
+      cv::Mat& descriptors);
 
  private:
   std::shared_ptr<SuperPoint> model;
@@ -57,6 +64,6 @@ class SPDetector {
   torch::DeviceType m_device;
 };
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM
 
 #endif

@@ -1,17 +1,15 @@
 
 #include <cfloat>
 #include <fstream>
-#include <opencv2/opencv.hpp>
-#include <unordered_map>
-#include <utility>
+#include <opencv4/opencv2/opencv.hpp>
 
-#include "super_glue.h"
+#include "SuperGlueTRT.h"
 
 using namespace tensorrt_common;
 using namespace tensorrt_log;
 using namespace tensorrt_buffer;
 
-SuperGlue::SuperGlue(const SuperGlueConfig& superglue_config)
+SuperGlue::SuperGlue(const SuperGlueConfig &superglue_config)
     : superglue_config_(superglue_config), engine_(nullptr) {
   setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
 }
@@ -138,10 +136,10 @@ bool SuperGlue::build() {
 }
 
 bool SuperGlue::construct_network(
-    TensorRTUniquePtr<nvinfer1::IBuilder>& builder,
-    TensorRTUniquePtr<nvinfer1::INetworkDefinition>& network,
-    TensorRTUniquePtr<nvinfer1::IBuilderConfig>& config,
-    TensorRTUniquePtr<nvonnxparser::IParser>& parser) const {
+    TensorRTUniquePtr<nvinfer1::IBuilder> &builder,
+    TensorRTUniquePtr<nvinfer1::INetworkDefinition> &network,
+    TensorRTUniquePtr<nvinfer1::IBuilderConfig> &config,
+    TensorRTUniquePtr<nvonnxparser::IParser> &parser) const {
   auto parsed =
       parser->parseFromFile(superglue_config_.onnx_file.c_str(),
                             static_cast<int>(gLogger.getReportableSeverity()));
@@ -155,10 +153,10 @@ bool SuperGlue::construct_network(
 }
 
 bool SuperGlue::infer(
-    const Eigen::Matrix<double, 259, Eigen::Dynamic>& features0,
-    const Eigen::Matrix<double, 259, Eigen::Dynamic>& features1,
-    Eigen::VectorXi& indices0, Eigen::VectorXi& indices1,
-    Eigen::VectorXd& mscores0, Eigen::VectorXd& mscores1) {
+    const Eigen::Matrix<double, 259, Eigen::Dynamic> &features0,
+    const Eigen::Matrix<double, 259, Eigen::Dynamic> &features1,
+    Eigen::VectorXi &indices0, Eigen::VectorXi &indices1,
+    Eigen::VectorXd &mscores0, Eigen::VectorXd &mscores1) {
   if (!context_) {
     context_ = TensorRTUniquePtr<nvinfer1::IExecutionContext>(
         engine_->createExecutionContext());
@@ -226,20 +224,20 @@ bool SuperGlue::infer(
 }
 
 bool SuperGlue::process_input(
-    const BufferManager& buffers,
-    const Eigen::Matrix<double, 259, Eigen::Dynamic>& features0,
-    const Eigen::Matrix<double, 259, Eigen::Dynamic>& features1) {
-  auto* keypoints_0_buffer = static_cast<float*>(
+    const BufferManager &buffers,
+    const Eigen::Matrix<double, 259, Eigen::Dynamic> &features0,
+    const Eigen::Matrix<double, 259, Eigen::Dynamic> &features1) {
+  auto *keypoints_0_buffer = static_cast<float *>(
       buffers.getHostBuffer(superglue_config_.input_tensor_names[0]));
-  auto* scores_0_buffer = static_cast<float*>(
+  auto *scores_0_buffer = static_cast<float *>(
       buffers.getHostBuffer(superglue_config_.input_tensor_names[1]));
-  auto* descriptors_0_buffer = static_cast<float*>(
+  auto *descriptors_0_buffer = static_cast<float *>(
       buffers.getHostBuffer(superglue_config_.input_tensor_names[2]));
-  auto* keypoints_1_buffer = static_cast<float*>(
+  auto *keypoints_1_buffer = static_cast<float *>(
       buffers.getHostBuffer(superglue_config_.input_tensor_names[3]));
-  auto* scores_1_buffer = static_cast<float*>(
+  auto *scores_1_buffer = static_cast<float *>(
       buffers.getHostBuffer(superglue_config_.input_tensor_names[4]));
-  auto* descriptors_1_buffer = static_cast<float*>(
+  auto *descriptors_1_buffer = static_cast<float *>(
       buffers.getHostBuffer(superglue_config_.input_tensor_names[5]));
 
   for (int rows0 = 0; rows0 < 1; ++rows0) {
@@ -285,8 +283,8 @@ bool SuperGlue::process_input(
   return true;
 }
 
-void where_negative_one(const int* flag_data, const int* data, int size,
-                        std::vector<int>& indices) {
+void where_negative_one(const int *flag_data, const int *data, int size,
+                        std::vector<int> &indices) {
   for (int i = 0; i < size; ++i) {
     if (flag_data[i] == 1) {
       indices.push_back(data[i]);
@@ -296,7 +294,7 @@ void where_negative_one(const int* flag_data, const int* data, int size,
   }
 }
 
-void max_matrix(const float* data, int* indices, float* values, int h, int w,
+void max_matrix(const float *data, int *indices, float *values, int h, int w,
                 int dim) {
   if (dim == 2) {
     for (int i = 0; i < h - 1; ++i) {
@@ -327,7 +325,7 @@ void max_matrix(const float* data, int* indices, float* values, int h, int w,
   }
 }
 
-void equal_gather(const int* indices0, const int* indices1, int* mutual,
+void equal_gather(const int *indices0, const int *indices1, int *mutual,
                   int size) {
   for (int i = 0; i < size; ++i) {
     if (indices0[indices1[i]] == i) {
@@ -338,7 +336,7 @@ void equal_gather(const int* indices0, const int* indices1, int* mutual,
   }
 }
 
-void where_exp(const int* flag_data, float* data, std::vector<double>& mscores0,
+void where_exp(const int *flag_data, float *data, std::vector<double> &mscores0,
                int size) {
   for (int i = 0; i < size; ++i) {
     if (flag_data[i] == 1) {
@@ -349,8 +347,8 @@ void where_exp(const int* flag_data, float* data, std::vector<double>& mscores0,
   }
 }
 
-void where_gather(const int* flag_data, int* indices,
-                  std::vector<double>& mscores0, std::vector<double>& mscores1,
+void where_gather(const int *flag_data, int *indices,
+                  std::vector<double> &mscores0, std::vector<double> &mscores1,
                   int size) {
   for (int i = 0; i < size; ++i) {
     if (flag_data[i] == 1) {
@@ -361,8 +359,8 @@ void where_gather(const int* flag_data, int* indices,
   }
 }
 
-void and_threshold(const int* mutual0, int* valid0,
-                   const std::vector<double>& mscores0, double threhold) {
+void and_threshold(const int *mutual0, int *valid0,
+                   const std::vector<double> &mscores0, double threhold) {
   for (int i = 0; i < mscores0.size(); ++i) {
     if (mutual0[i] == 1 && mscores0[i] > threhold) {
       valid0[i] = 1;
@@ -372,8 +370,8 @@ void and_threshold(const int* mutual0, int* valid0,
   }
 }
 
-void and_gather(const int* mutual1, const int* valid0, const int* indices1,
-                int* valid1, int size) {
+void and_gather(const int *mutual1, const int *valid0, const int *indices1,
+                int *valid1, int size) {
   for (int i = 0; i < size; ++i) {
     if (mutual1[i] == 1 && valid0[indices1[i]] == 1) {
       valid1[i] = 1;
@@ -383,23 +381,23 @@ void and_gather(const int* mutual1, const int* valid0, const int* indices1,
   }
 }
 
-void decode(float* scores, int h, int w, std::vector<int>& indices0,
-            std::vector<int>& indices1, std::vector<double>& mscores0,
-            std::vector<double>& mscores1) {
-  auto* max_indices0 = new int[h - 1];
-  auto* max_indices1 = new int[w - 1];
-  auto* max_values0 = new float[h - 1];
-  auto* max_values1 = new float[w - 1];
+void decode(float *scores, int h, int w, std::vector<int> &indices0,
+            std::vector<int> &indices1, std::vector<double> &mscores0,
+            std::vector<double> &mscores1) {
+  auto *max_indices0 = new int[h - 1];
+  auto *max_indices1 = new int[w - 1];
+  auto *max_values0 = new float[h - 1];
+  auto *max_values1 = new float[w - 1];
   max_matrix(scores, max_indices0, max_values0, h, w, 2);
   max_matrix(scores, max_indices1, max_values1, h, w, 1);
-  auto* mutual0 = new int[h - 1];
-  auto* mutual1 = new int[w - 1];
+  auto *mutual0 = new int[h - 1];
+  auto *mutual1 = new int[w - 1];
   equal_gather(max_indices1, max_indices0, mutual0, h - 1);
   equal_gather(max_indices0, max_indices1, mutual1, w - 1);
   where_exp(mutual0, max_values0, mscores0, h - 1);
   where_gather(mutual1, max_indices1, mscores0, mscores1, w - 1);
-  auto* valid0 = new int[h - 1];
-  auto* valid1 = new int[w - 1];
+  auto *valid0 = new int[h - 1];
+  auto *valid1 = new int[w - 1];
   and_threshold(mutual0, valid0, mscores0, 0.2);
   and_gather(mutual1, valid0, max_indices1, valid1, w - 1);
   where_negative_one(valid0, max_indices0, h - 1, indices0);
@@ -414,10 +412,10 @@ void decode(float* scores, int h, int w, std::vector<int>& indices0,
   delete[] valid1;
 }
 
-void log_sinkhorn_iterations(float* couplings, float* Z, int m, int n,
-                             float* log_mu, float* log_nu, int iters) {
-  auto* u = new float[m]();
-  auto* v = new float[n]();
+void log_sinkhorn_iterations(float *couplings, float *Z, int m, int n,
+                             float *log_mu, float *log_nu, int iters) {
+  auto *u = new float[m]();
+  auto *v = new float[n]();
   for (int k = 0; k < iters; ++k) {
     for (int ki = 0; ki < m; ++ki) {
       float nu_expsum = 0.0;
@@ -444,9 +442,9 @@ void log_sinkhorn_iterations(float* couplings, float* Z, int m, int n,
   delete[] v;
 }
 
-void log_optimal_transport(float* scores, float* Z, int m, int n,
+void log_optimal_transport(float *scores, float *Z, int m, int n,
                            float alpha = 2.3457, int iters = 100) {
-  auto* couplings = new float[(m + 1) * (n + 1)];
+  auto *couplings = new float[(m + 1) * (n + 1)];
   for (int i = 0; i < m + 1; ++i) {
     for (int j = 0; j < n + 1; ++j) {
       if (i == m || j == n) {
@@ -459,8 +457,8 @@ void log_optimal_transport(float* scores, float* Z, int m, int n,
 
   float norm = -std::log(m + n);
 
-  auto* log_mu = new float[m + 1];
-  auto* log_nu = new float[n + 1];
+  auto *log_mu = new float[m + 1];
+  auto *log_nu = new float[n + 1];
   for (int ii = 0; ii < m; ++ii) {
     log_mu[ii] = norm;
   }
@@ -482,20 +480,20 @@ void log_optimal_transport(float* scores, float* Z, int m, int n,
   delete[] log_nu;
 }
 
-bool SuperGlue::process_output(const BufferManager& buffers,
-                               Eigen::VectorXi& indices0,
-                               Eigen::VectorXi& indices1,
-                               Eigen::VectorXd& mscores0,
-                               Eigen::VectorXd& mscores1) {
+bool SuperGlue::process_output(const BufferManager &buffers,
+                               Eigen::VectorXi &indices0,
+                               Eigen::VectorXi &indices1,
+                               Eigen::VectorXd &mscores0,
+                               Eigen::VectorXd &mscores1) {
   indices0_.clear();
   indices1_.clear();
   mscores0_.clear();
   mscores1_.clear();
-  auto* output_score = static_cast<float*>(
+  auto *output_score = static_cast<float *>(
       buffers.getHostBuffer(superglue_config_.output_tensor_names[0]));
   int scores_map_h = output_scores_dims_.d[1];
   int scores_map_w = output_scores_dims_.d[2];
-  auto* scores = new float[(scores_map_h + 1) * (scores_map_w + 1)];
+  auto *scores = new float[(scores_map_h + 1) * (scores_map_w + 1)];
   // log_optimal_transport(output_score, scores, scores_map_h, scores_map_w);
   // scores_map_h = scores_map_h + 1;
   // scores_map_w = scores_map_w + 1;
@@ -521,13 +519,15 @@ bool SuperGlue::process_output(const BufferManager& buffers,
 }
 
 void SuperGlue::save_engine() {
-  if (superglue_config_.engine_file.empty()) return;
+  if (superglue_config_.engine_file.empty())
+    return;
   if (engine_ != nullptr) {
-    nvinfer1::IHostMemory* data = engine_->serialize();
+    nvinfer1::IHostMemory *data = engine_->serialize();
     std::ofstream file(superglue_config_.engine_file, std::ios::binary);
     ;
-    if (!file) return;
-    file.write(reinterpret_cast<const char*>(data->data()), data->size());
+    if (!file)
+      return;
+    file.write(reinterpret_cast<const char *>(data->data()), data->size());
   }
 }
 
@@ -537,23 +537,25 @@ bool SuperGlue::deserialize_engine() {
     file.seekg(0, std::ifstream::end);
     size_t size = file.tellg();
     file.seekg(0, std::ifstream::beg);
-    char* model_stream = new char[size];
+    char *model_stream = new char[size];
     file.read(model_stream, size);
     file.close();
-    IRuntime* runtime = createInferRuntime(gLogger);
-    if (runtime == nullptr) return false;
+    IRuntime *runtime = createInferRuntime(gLogger);
+    if (runtime == nullptr)
+      return false;
     engine_ = std::shared_ptr<nvinfer1::ICudaEngine>(
         runtime->deserializeCudaEngine(model_stream, size));
-    if (engine_ == nullptr) return false;
+    if (engine_ == nullptr)
+      return false;
     return true;
   }
   return false;
 }
 
 int SuperGlue::matching_points(
-    Eigen::Matrix<double, 259, Eigen::Dynamic>& features0,
-    Eigen::Matrix<double, 259, Eigen::Dynamic>& features1,
-    std::vector<cv::DMatch>& matches, bool outlier_rejection) {
+    Eigen::Matrix<double, 259, Eigen::Dynamic> &features0,
+    Eigen::Matrix<double, 259, Eigen::Dynamic> &features1,
+    std::vector<cv::DMatch> &matches, bool outlier_rejection) {
   matches.clear();
   Eigen::Matrix<double, 259, Eigen::Dynamic> norm_features0 =
       normalize_keypoints(features0, superglue_config_.image_width,
@@ -596,7 +598,7 @@ int SuperGlue::matching_points(
 }
 
 Eigen::Matrix<double, 259, Eigen::Dynamic> SuperGlue::normalize_keypoints(
-    const Eigen::Matrix<double, 259, Eigen::Dynamic>& features, int width,
+    const Eigen::Matrix<double, 259, Eigen::Dynamic> &features, int width,
     int height) {
   Eigen::Matrix<double, 259, Eigen::Dynamic> norm_features;
   norm_features.resize(259, features.cols());

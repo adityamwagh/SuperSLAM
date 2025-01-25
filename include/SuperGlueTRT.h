@@ -1,14 +1,13 @@
 
-#ifndef SUPER_GLUE_H_
-#define SUPER_GLUE_H_
+#ifndef SUPERGLUETRT_H_
+#define SUPERGLUETRT_H_
 
 #include <NvInfer.h>
 #include <NvOnnxParser.h>
 
+#include <opencv4/opencv2/opencv.hpp>
 #include <Eigen/Core>
 #include <memory>
-#include <opencv2/opencv.hpp>
-#include <string>
 
 #include "ReadConfig.h"
 #include "thirdparty/tensorrtbuffer/include/buffers.h"
@@ -21,18 +20,23 @@ class SuperGlue {
 
   bool build();
 
-  bool infer(const Eigen::Matrix<double, 259, Eigen::Dynamic>& features0,
-             const Eigen::Matrix<double, 259, Eigen::Dynamic>& features1,
-             Eigen::VectorXi& indices0, Eigen::VectorXi& indices1,
-             Eigen::VectorXd& mscores0, Eigen::VectorXd& mscores1);
+  bool infer(
+      const Eigen::Matrix<double, 259, Eigen::Dynamic>& features0,
+      const Eigen::Matrix<double, 259, Eigen::Dynamic>& features1,
+      Eigen::VectorXi& indices0,
+      Eigen::VectorXi& indices1,
+      Eigen::VectorXd& mscores0,
+      Eigen::VectorXd& mscores1);
 
-  int matching_points(Eigen::Matrix<double, 259, Eigen::Dynamic>& features0,
-                      Eigen::Matrix<double, 259, Eigen::Dynamic>& features1,
-                      std::vector<cv::DMatch>& matches,
-                      bool outlier_rejection = false);
+  int matching_points(
+      Eigen::Matrix<double, 259, Eigen::Dynamic>& features0,
+      Eigen::Matrix<double, 259, Eigen::Dynamic>& features1,
+      std::vector<cv::DMatch>& matches,
+      bool outlier_rejection = false);
 
   Eigen::Matrix<double, 259, Eigen::Dynamic> normalize_keypoints(
-      const Eigen::Matrix<double, 259, Eigen::Dynamic>& features, int width,
+      const Eigen::Matrix<double, 259, Eigen::Dynamic>& features,
+      int width,
       int height);
 
   void save_engine();
@@ -68,11 +72,14 @@ class SuperGlue {
       const Eigen::Matrix<double, 259, Eigen::Dynamic>& features0,
       const Eigen::Matrix<double, 259, Eigen::Dynamic>& features1);
 
-  bool process_output(const tensorrt_buffer::BufferManager& buffers,
-                      Eigen::VectorXi& indices0, Eigen::VectorXi& indices1,
-                      Eigen::VectorXd& mscores0, Eigen::VectorXd& mscores1);
+  bool process_output(
+      const tensorrt_buffer::BufferManager& buffers,
+      Eigen::VectorXi& indices0,
+      Eigen::VectorXi& indices1,
+      Eigen::VectorXd& mscores0,
+      Eigen::VectorXd& mscores1);
 };
 
 typedef std::shared_ptr<SuperGlue> SuperGluePtr;
 
-#endif  // SUPER_GLUE_H_
+#endif // SUPER_GLUE_H_
