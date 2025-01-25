@@ -57,6 +57,6 @@ class MapDrawer {
   std::mutex mMutexCamera;
 };
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM
 
-#endif  // MAPDRAWER_H
+#endif // MAPDRAWER_H

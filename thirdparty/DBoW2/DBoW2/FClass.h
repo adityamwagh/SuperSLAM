@@ -10,7 +10,7 @@
 #ifndef __D_T_FCLASS__
 #define __D_T_FCLASS__
 
-#include <opencv2/core/core.hpp>
+#include <opencv4/opencv2/core/core.hpp>
 #include <string>
 #include <vector>
 
@@ -31,8 +31,9 @@ class FClass {
    * @param descriptors
    * @param mean mean descriptor
    */
-  virtual void meanValue(const std::vector<pDescriptor>& descriptors,
-                         TDescriptor& mean) = 0;
+  virtual void meanValue(
+      const std::vector<pDescriptor>& descriptors,
+      TDescriptor& mean) = 0;
 
   /**
    * Calculates the distance between two descriptors
@@ -61,10 +62,11 @@ class FClass {
    * @param descriptors
    * @param mat (out) NxL 32F matrix
    */
-  static void toMat32F(const std::vector<TDescriptor>& descriptors,
-                       cv::Mat& mat);
+  static void toMat32F(
+      const std::vector<TDescriptor>& descriptors,
+      cv::Mat& mat);
 };
 
-}  // namespace DBoW2
+} // namespace DBoW2
 
 #endif

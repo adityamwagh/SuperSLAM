@@ -10,13 +10,13 @@
 #ifndef __D_T__VOCABULARY__
 #define __D_T__VOCABULARY__
 
+#include <opencv4/opencv2/core.hpp>
 #include <algorithm>
 #include <cassert>
 #include <fstream>
 #include <iostream>
 #include <limits>
 #include <numeric>
-#include <opencv2/core/core.hpp>
 #include <string>
 #include <vector>
 
@@ -37,8 +37,11 @@ class DBOW_API Vocabulary {
    * @param weighting weighting type
    * @param scoring scoring type
    */
-  Vocabulary(int k = 10, int L = 5, WeightingType weighting = TF_IDF,
-             ScoringType scoring = L1_NORM);
+  Vocabulary(
+      int k = 10,
+      int L = 5,
+      WeightingType weighting = TF_IDF,
+      ScoringType scoring = L1_NORM);
 
   /**
    * Creates the vocabulary by loading a file
@@ -83,7 +86,7 @@ class DBOW_API Vocabulary {
    * @param training_features
    */
   virtual void create(
-      const std::vector<std::vector<cv::Mat> >& training_features);
+      const std::vector<std::vector<cv::Mat>>& training_features);
   /**
    * Creates a vocabulary from the training features with the already
    * defined parameters
@@ -99,7 +102,8 @@ class DBOW_API Vocabulary {
    * @param L depth levels
    */
   virtual void create(
-      const std::vector<std::vector<cv::Mat> >& training_features, int k,
+      const std::vector<std::vector<cv::Mat>>& training_features,
+      int k,
       int L);
 
   /**
@@ -108,8 +112,11 @@ class DBOW_API Vocabulary {
    * schemes
    */
   virtual void create(
-      const std::vector<std::vector<cv::Mat> >& training_features, int k, int L,
-      WeightingType weighting, ScoringType scoring);
+      const std::vector<std::vector<cv::Mat>>& training_features,
+      int k,
+      int L,
+      WeightingType weighting,
+      ScoringType scoring);
 
   /**
    * Returns the number of words in the vocabulary
@@ -123,7 +130,9 @@ class DBOW_API Vocabulary {
    * Returns whether the vocabulary is empty (i.e. it has not been trained)
    * @return true iff the vocabulary is empty
    */
-  virtual inline bool empty() const { return m_words.empty(); }
+  virtual inline bool empty() const {
+    return m_words.empty();
+  }
 
   /** Clears the vocabulary object
    */
@@ -133,8 +142,8 @@ class DBOW_API Vocabulary {
    * @param features
    * @param v (out) bow vector of weighted words
    */
-  virtual void transform(const std::vector<cv::Mat>& features,
-                         BowVector& v) const;
+  virtual void transform(const std::vector<cv::Mat>& features, BowVector& v)
+      const;
   /**
    * Transforms a set of descriptores into a bow vector
    * @param features, one per row
@@ -148,8 +157,11 @@ class DBOW_API Vocabulary {
    * @param fv (out) feature vector of nodes and feature indexes
    * @param levelsup levels to go up the vocabulary tree to get the node index
    */
-  virtual void transform(const std::vector<cv::Mat>& features, BowVector& v,
-                         FeatureVector& fv, int levelsup) const;
+  virtual void transform(
+      const std::vector<cv::Mat>& features,
+      BowVector& v,
+      FeatureVector& fv,
+      int levelsup) const;
 
   /**
    * Transforms a single feature into a word (without weight)
@@ -190,13 +202,17 @@ class DBOW_API Vocabulary {
    * Returns the branching factor of the tree (k)
    * @return k
    */
-  inline int getBranchingFactor() const { return m_k; }
+  inline int getBranchingFactor() const {
+    return m_k;
+  }
 
   /**
    * Returns the depth levels of the tree (L)
    * @return L
    */
-  inline int getDepthLevels() const { return m_L; }
+  inline int getDepthLevels() const {
+    return m_L;
+  }
 
   /**
    * Returns the real depth levels of the tree on average
@@ -222,13 +238,17 @@ class DBOW_API Vocabulary {
    * Returns the weighting method
    * @return weighting method
    */
-  inline WeightingType getWeightingType() const { return m_weighting; }
+  inline WeightingType getWeightingType() const {
+    return m_weighting;
+  }
 
   /**
    * Returns the scoring method
    * @return scoring method
    */
-  inline ScoringType getScoringType() const { return m_scoring; }
+  inline ScoringType getScoringType() const {
+    return m_scoring;
+  }
 
   /**
    * Changes the weighting method
@@ -265,8 +285,8 @@ class DBOW_API Vocabulary {
    * Saves the vocabulary to a file storage structure
    * @param fn node in file storage
    */
-  virtual void save(cv::FileStorage& fs,
-                    const std::string& name = "vocabulary") const;
+  virtual void save(cv::FileStorage& fs, const std::string& name = "vocabulary")
+      const;
 
   /**
    * Loads the vocabulary from a file storage node
@@ -274,8 +294,9 @@ class DBOW_API Vocabulary {
    * @param subname name of the child node of fn where the tree is stored.
    *   If not given, the fn node is used instead
    */
-  virtual void load(const cv::FileStorage& fs,
-                    const std::string& name = "vocabulary");
+  virtual void load(
+      const cv::FileStorage& fs,
+      const std::string& name = "vocabulary");
 
   /**
    * Stops those words whose weight is below minWeight.
@@ -337,7 +358,9 @@ class DBOW_API Vocabulary {
      * Returns whether the node is a leaf node
      * @return true iff the node is a leaf
      */
-    inline bool isLeaf() const { return children.empty(); }
+    inline bool isLeaf() const {
+      return children.empty();
+    }
   };
 
  protected:
@@ -351,8 +374,9 @@ class DBOW_API Vocabulary {
    * @param training_features all the features
    * @param features (out) pointers to the training features
    */
-  void getFeatures(const std::vector<std::vector<cv::Mat> >& training_features,
-                   std::vector<cv::Mat>& features) const;
+  void getFeatures(
+      const std::vector<std::vector<cv::Mat>>& training_features,
+      std::vector<cv::Mat>& features) const;
 
   /**
    * Returns the word id associated to a feature
@@ -362,8 +386,12 @@ class DBOW_API Vocabulary {
    * @param nid (out) if given, id of the node "levelsup" levels up
    * @param levelsup
    */
-  virtual void transform(const cv::Mat& feature, WordId& id, WordValue& weight,
-                         NodeId* nid, int levelsup = 0) const;
+  virtual void transform(
+      const cv::Mat& feature,
+      WordId& id,
+      WordValue& weight,
+      NodeId* nid,
+      int levelsup = 0) const;
   /**
    * Returns the word id associated to a feature
    * @param feature
@@ -372,8 +400,8 @@ class DBOW_API Vocabulary {
    * @param nid (out) if given, id of the node "levelsup" levels up
    * @param levelsup
    */
-  virtual void transform(const cv::Mat& feature, WordId& id,
-                         WordValue& weight) const;
+  virtual void transform(const cv::Mat& feature, WordId& id, WordValue& weight)
+      const;
 
   /**
    * Returns the word id associated to a feature
@@ -389,16 +417,19 @@ class DBOW_API Vocabulary {
    * @param descriptors descriptors to run the kmeans on
    * @param current_level current level in the tree
    */
-  void HKmeansStep(NodeId parent_id, const std::vector<cv::Mat>& descriptors,
-                   int current_level);
+  void HKmeansStep(
+      NodeId parent_id,
+      const std::vector<cv::Mat>& descriptors,
+      int current_level);
 
   /**
    * Creates k clusters from the given descriptors with some seeding algorithm.
    * @note In this class, kmeans++ is used, but this function should be
    *   overriden by inherited classes.
    */
-  virtual void initiateClusters(const std::vector<cv::Mat>& descriptors,
-                                std::vector<cv::Mat>& clusters) const;
+  virtual void initiateClusters(
+      const std::vector<cv::Mat>& descriptors,
+      std::vector<cv::Mat>& clusters) const;
 
   /**
    * Creates k clusters from the given descriptor sets by running the
@@ -406,8 +437,9 @@ class DBOW_API Vocabulary {
    * @param descriptors
    * @param clusters resulting clusters
    */
-  void initiateClustersKMpp(const std::vector<cv::Mat>& descriptors,
-                            std::vector<cv::Mat>& clusters) const;
+  void initiateClustersKMpp(
+      const std::vector<cv::Mat>& descriptors,
+      std::vector<cv::Mat>& clusters) const;
 
   /**
    * Create the words of the vocabulary once the tree has been built
@@ -420,15 +452,16 @@ class DBOW_API Vocabulary {
    * created (by calling HKmeansStep and createWords)
    * @param features
    */
-  void setNodeWeights(const std::vector<std::vector<cv::Mat> >& features);
+  void setNodeWeights(const std::vector<std::vector<cv::Mat>>& features);
 
   /**
    * Writes printable information of the vocabulary
    * @param os stream to write to
    * @param voc
    */
-  DBOW_API friend std::ostream& operator<<(std::ostream& os,
-                                           const Vocabulary& voc);
+  DBOW_API friend std::ostream& operator<<(
+      std::ostream& os,
+      const Vocabulary& voc);
 
   /**Loads from ORBSLAM txt files
    */
@@ -459,9 +492,11 @@ class DBOW_API Vocabulary {
 
  public:
   // for debug (REMOVE)
-  inline Node* getNodeWord(uint32_t idx) { return m_words[idx]; }
+  inline Node* getNodeWord(uint32_t idx) {
+    return m_words[idx];
+  }
 };
 
-}  // namespace DBoW3
+} // namespace DBoW3
 
 #endif

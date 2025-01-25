@@ -10,7 +10,7 @@
 #ifndef __D_T_DESCMANIP__
 #define __D_T_DESCMANIP__
 
-#include <opencv2/core/core.hpp>
+#include <opencv4/opencv2/core/core.hpp>
 #include <string>
 #include <vector>
 
@@ -79,22 +79,22 @@ uint32_t DescManip::distance_8uc1(const cv::Mat& a, const cv::Mat& b) {
   // This implementation assumes that a.cols (CV_8U) % sizeof(uint64_t) == 0
 
   const uint64_t *pa, *pb;
-  pa = a.ptr<uint64_t>();  // a & b are actually CV_8U
+  pa = a.ptr<uint64_t>(); // a & b are actually CV_8U
   pb = b.ptr<uint64_t>();
 
   uint64_t v, ret = 0;
   int n = a.cols / sizeof(uint64_t);
   for (size_t i = 0; i < n; ++i, ++pa, ++pb) {
     v = *pa ^ *pb;
-    v = v - ((v >> 1) & (uint64_t) ~(uint64_t)0 / 3);
-    v = (v & (uint64_t) ~(uint64_t)0 / 15 * 3) +
-        ((v >> 2) & (uint64_t) ~(uint64_t)0 / 15 * 3);
-    v = (v + (v >> 4)) & (uint64_t) ~(uint64_t)0 / 255 * 15;
-    ret += (uint64_t)(v * ((uint64_t) ~(uint64_t)0 / 255)) >>
-           (sizeof(uint64_t) - 1) * CHAR_BIT;
+    v = v - ((v >> 1) & (uint64_t)~(uint64_t)0 / 3);
+    v = (v & (uint64_t)~(uint64_t)0 / 15 * 3) +
+        ((v >> 2) & (uint64_t)~(uint64_t)0 / 15 * 3);
+    v = (v + (v >> 4)) & (uint64_t)~(uint64_t)0 / 255 * 15;
+    ret += (uint64_t)(v * ((uint64_t)~(uint64_t)0 / 255)) >>
+        (sizeof(uint64_t) - 1) * CHAR_BIT;
   }
   return ret;
 }
-}  // namespace DBoW3
+} // namespace DBoW3
 
 #endif

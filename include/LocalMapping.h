@@ -119,6 +119,6 @@ class LocalMapping {
   std::mutex mMutexAccept;
 };
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM
 
-#endif  // LOCALMAPPING_H
+#endif // LOCALMAPPING_H

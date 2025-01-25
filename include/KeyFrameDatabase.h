@@ -62,6 +62,6 @@ class KeyFrameDatabase {
   std::mutex mMutex;
 };
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM
 
 #endif

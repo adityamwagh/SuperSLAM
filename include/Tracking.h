@@ -21,9 +21,9 @@
 #ifndef TRACKING_H
 #define TRACKING_H
 
+#include <opencv4/opencv2/core/core.hpp>
+#include <opencv4/opencv2/features2d/features2d.hpp>
 #include <mutex>
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
 
 #include "Frame.h"
 #include "FrameDrawer.h"
@@ -33,8 +33,8 @@
 #include "LoopClosing.h"
 #include "Map.h"
 #include "MapDrawer.h"
+#include "SPExtractor.h"
 #include "SPVocabulary.h"
-#include "SPextractor.h"
 #include "System.h"
 #include "Viewer.h"
 
@@ -49,16 +49,26 @@ class System;
 
 class Tracking {
  public:
-  Tracking(System* pSys, ORBVocabulary* pVoc, FrameDrawer* pFrameDrawer,
-           MapDrawer* pMapDrawer, Map* pMap, KeyFrameDatabase* pKFDB,
-           const std::string& strSettingPath, const int sensor);
+  Tracking(
+      System* pSys,
+      ORBVocabulary* pVoc,
+      FrameDrawer* pFrameDrawer,
+      MapDrawer* pMapDrawer,
+      Map* pMap,
+      KeyFrameDatabase* pKFDB,
+      const std::string& strSettingPath,
+      const int sensor);
 
   // Preprocess the input and call Track(). Extract features and performs stereo
   // matching.
-  cv::Mat GrabImageStereo(const cv::Mat& imRectLeft, const cv::Mat& imRectRight,
-                          const double& timestamp);
-  cv::Mat GrabImageRGBD(const cv::Mat& imRGB, const cv::Mat& imD,
-                        const double& timestamp);
+  cv::Mat GrabImageStereo(
+      const cv::Mat& imRectLeft,
+      const cv::Mat& imRectRight,
+      const double& timestamp);
+  cv::Mat GrabImageRGBD(
+      const cv::Mat& imRGB,
+      const cv::Mat& imD,
+      const double& timestamp);
   cv::Mat GrabImageMonocular(const cv::Mat& im, const double& timestamp);
 
   void SetLocalMapper(LocalMapping* pLocalMapper);
@@ -219,6 +229,6 @@ class Tracking {
   std::list<MapPoint*> mlpTemporalPoints;
 };
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM
 
-#endif  // TRACKING_H
+#endif // TRACKING_H

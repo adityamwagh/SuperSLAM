@@ -77,6 +77,6 @@ class Map {
   std::mutex mMutexMap;
 };
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM
 
-#endif  // MAP_H
+#endif // MAP_H

@@ -29,6 +29,6 @@ namespace SuperSLAM {
 typedef DBoW2::TemplatedVocabulary<DBoW2::FORB::TDescriptor, DBoW2::FORB>
     ORBVocabulary;
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM
 
-#endif  // ORBVOCABULARY_H
+#endif // ORBVOCABULARY_H

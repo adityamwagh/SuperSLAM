@@ -12,6 +12,8 @@
 
 #include <vector>
 
+#include <ostream>
+#include <string>
 #include "exports.h"
 namespace DBoW3 {
 
@@ -28,7 +30,7 @@ class DBOW_API Result {
   double Score;
 
   /// debug
-  int nWords;  // words in common
+  int nWords; // words in common
   // !!! this is filled only by Bhatt score!
   // (and for BCMatching, BCThresholding then)
 
@@ -57,33 +59,43 @@ class DBOW_API Result {
    * Compares the scores of two results
    * @return true iff this.score < r.score
    */
-  inline bool operator<(const Result& r) const { return this->Score < r.Score; }
+  inline bool operator<(const Result& r) const {
+    return this->Score < r.Score;
+  }
 
   /**
    * Compares the scores of two results
    * @return true iff this.score > r.score
    */
-  inline bool operator>(const Result& r) const { return this->Score > r.Score; }
+  inline bool operator>(const Result& r) const {
+    return this->Score > r.Score;
+  }
 
   /**
    * Compares the entry id of the result
    * @return true iff this.id == id
    */
-  inline bool operator==(EntryId id) const { return this->Id == id; }
+  inline bool operator==(EntryId id) const {
+    return this->Id == id;
+  }
 
   /**
    * Compares the score of this entry with a given one
    * @param s score to compare with
    * @return true iff this score < s
    */
-  inline bool operator<(double s) const { return this->Score < s; }
+  inline bool operator<(double s) const {
+    return this->Score < s;
+  }
 
   /**
    * Compares the score of this entry with a given one
    * @param s score to compare with
    * @return true iff this score > s
    */
-  inline bool operator>(double s) const { return this->Score > s; }
+  inline bool operator>(double s) const {
+    return this->Score > s;
+  }
 
   /**
    * Compares the score of two results
@@ -119,7 +131,9 @@ class DBOW_API Result {
    * @param s
    * @return true iff a.Score >= s
    */
-  static inline bool geqv(const Result& a, double s) { return a.Score >= s; }
+  static inline bool geqv(const Result& a, double s) {
+    return a.Score >= s;
+  }
 
   /**
    * Returns true iff a.Id < b.Id
@@ -153,8 +167,9 @@ class QueryResults : public std::vector<Result> {
    * @param os ostream
    * @param ret QueryResults to print
    */
-  DBOW_API friend std::ostream& operator<<(std::ostream& os,
-                                           const QueryResults& ret);
+  DBOW_API friend std::ostream& operator<<(
+      std::ostream& os,
+      const QueryResults& ret);
 
   /**
    * Saves a matlab file with the results
@@ -172,6 +187,6 @@ inline void QueryResults::scaleScores(double factor) {
 
 // --------------------------------------------------------------------------
 
-}  // namespace DBoW3
+} // namespace DBoW3
 
 #endif

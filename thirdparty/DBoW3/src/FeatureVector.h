@@ -19,7 +19,7 @@ namespace DBoW3 {
 
 /// Vector of nodes with indexes of local features
 class DBOW_API FeatureVector
-    : public std::map<NodeId, std::vector<unsigned int> > {
+    : public std::map<NodeId, std::vector<unsigned int>> {
  public:
   /**
    * Constructor
@@ -47,6 +47,6 @@ class DBOW_API FeatureVector
   friend std::ostream& operator<<(std::ostream& out, const FeatureVector& v);
 };
 
-}  // namespace DBoW3
+} // namespace DBoW3
 
 #endif

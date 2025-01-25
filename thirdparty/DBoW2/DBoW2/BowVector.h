@@ -90,6 +90,6 @@ class BowVector : public std::map<WordId, WordValue> {
   void saveM(const std::string& filename, size_t W) const;
 };
 
-}  // namespace DBoW2
+} // namespace DBoW2
 
 #endif

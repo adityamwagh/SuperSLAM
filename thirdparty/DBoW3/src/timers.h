@@ -45,7 +45,7 @@ struct ScopeTimer {
                 << double(std::chrono::duration_cast<std::chrono::nanoseconds>(
                               end - begin)
                               .count()) /
-                       fact
+              fact
                 << str << std::endl;
       ;
     }
@@ -59,9 +59,12 @@ struct ScopedTimerEvents {
   std::vector<std::string> names;
   std::string _name;
 
-  ScopedTimerEvents(std::string name = "", bool start = true,
-                    SCALE _sc = MSEC) {
-    if (start) add("start");
+  ScopedTimerEvents(
+      std::string name = "",
+      bool start = true,
+      SCALE _sc = MSEC) {
+    if (start)
+      add("start");
     sc = _sc;
     _name = name;
   }
@@ -73,9 +76,11 @@ struct ScopedTimerEvents {
   void addspaces(std::vector<std::string>& str) {
     // get max size
     int m = -1;
-    for (auto& s : str) m = std::max(int(s.size()), m);
+    for (auto& s : str)
+      m = std::max(int(s.size()), m);
     for (auto& s : str) {
-      while (s.size() < m) s.push_back(' ');
+      while (s.size() < m)
+        s.push_back(' ');
     }
   }
 
@@ -104,12 +109,12 @@ struct ScopedTimerEvents {
                 << double(std::chrono::duration_cast<std::chrono::nanoseconds>(
                               vtimes[i] - vtimes[i - 1])
                               .count()) /
-                       fact
+              fact
                 << str << " "
                 << double(std::chrono::duration_cast<std::chrono::nanoseconds>(
                               vtimes[i] - vtimes[0])
                               .count()) /
-                       fact
+              fact
                 << str << std::endl;
     }
   }
@@ -124,8 +129,12 @@ struct Timer {
   Timer() {}
 
   Timer(std::string name) : _name(name) {}
-  void setName(std::string name) { _name = name; }
-  void start() { _s = std::chrono::high_resolution_clock::now(); }
+  void setName(std::string name) {
+    _name = name;
+  }
+  void start() {
+    _s = std::chrono::high_resolution_clock::now();
+  }
   void end() {
     auto e = std::chrono::high_resolution_clock::now();
     sum += double(
@@ -154,6 +163,6 @@ struct Timer {
               << std::endl;
   }
 };
-}  // namespace DBoW3
+} // namespace DBoW3
 
 #endif

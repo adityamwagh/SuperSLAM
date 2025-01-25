@@ -50,8 +50,10 @@ class DBOW_API Database {
    *   node id to store in the direct index when adding images
    */
 
-  explicit Database(const Vocabulary& voc, bool use_di = true,
-                    int di_levels = 0);
+  explicit Database(
+      const Vocabulary& voc,
+      bool use_di = true,
+      int di_levels = 0);
 
   /**
    * Copy constructor. Copies the vocabulary too
@@ -122,8 +124,10 @@ class DBOW_API Database {
    * @param fvec if given, the vector of nodes and feature indexes is returned
    * @return id of new entry
    */
-  EntryId add(const std::vector<cv::Mat>& features, BowVector* bowvec = NULL,
-              FeatureVector* fvec = NULL);
+  EntryId add(
+      const std::vector<cv::Mat>& features,
+      BowVector* bowvec = NULL,
+      FeatureVector* fvec = NULL);
   /**
    * Adds an entry to the database and returns its index
    * @param features features of the new entry, one per row
@@ -131,8 +135,10 @@ class DBOW_API Database {
    * @param fvec if given, the vector of nodes and feature indexes is returned
    * @return id of new entry
    */
-  EntryId add(const cv::Mat& features, BowVector* bowvec = NULL,
-              FeatureVector* fvec = NULL);
+  EntryId add(
+      const cv::Mat& features,
+      BowVector* bowvec = NULL,
+      FeatureVector* fvec = NULL);
 
   /**
    * Adss an entry to the database and returns its index
@@ -152,19 +158,25 @@ class DBOW_API Database {
    * Returns the number of entries in the database
    * @return number of entries in the database
    */
-  unsigned int size() const { return m_nentries; }
+  unsigned int size() const {
+    return m_nentries;
+  }
 
   /**
    * Checks if the direct index is being used
    * @return true iff using direct index
    */
-  bool usingDirectIndex() const { return m_use_di; }
+  bool usingDirectIndex() const {
+    return m_use_di;
+  }
 
   /**
    * Returns the di levels when using direct index
    * @return di levels
    */
-  int getDirectIndexLevels() const { return m_dilevels; }
+  int getDirectIndexLevels() const {
+    return m_dilevels;
+  }
 
   /**
    * Queries the database with some features
@@ -174,8 +186,11 @@ class DBOW_API Database {
    * @param max_id only entries with id <= max_id are returned in ret.
    *   < 0 means all
    */
-  void query(const std::vector<cv::Mat>& features, QueryResults& ret,
-             int max_results = 1, int max_id = -1) const;
+  void query(
+      const std::vector<cv::Mat>& features,
+      QueryResults& ret,
+      int max_results = 1,
+      int max_id = -1) const;
   /**
    * Queries the database with some features
    * @param features query features,one per row
@@ -184,8 +199,11 @@ class DBOW_API Database {
    * @param max_id only entries with id <= max_id are returned in ret.
    *   < 0 means all
    */
-  void query(const cv::Mat& features, QueryResults& ret, int max_results = 1,
-             int max_id = -1) const;
+  void query(
+      const cv::Mat& features,
+      QueryResults& ret,
+      int max_results = 1,
+      int max_id = -1) const;
 
   /**
    * Queries the database with a vector
@@ -195,8 +213,11 @@ class DBOW_API Database {
    * @param max_id only entries with id <= max_id are returned in ret.
    *   < 0 means all
    */
-  void query(const BowVector& vec, QueryResults& ret, int max_results = 1,
-             int max_id = -1) const;
+  void query(
+      const BowVector& vec,
+      QueryResults& ret,
+      int max_results = 1,
+      int max_id = -1) const;
 
   /**
    * Returns the a feature vector associated with a database entry
@@ -223,16 +244,17 @@ class DBOW_API Database {
    * @param fs
    * @param name node name
    */
-  virtual void save(cv::FileStorage& fs,
-                    const std::string& name = "database") const;
+  virtual void save(cv::FileStorage& fs, const std::string& name = "database")
+      const;
 
   /**
    * Loads the database from the given file storage structure
    * @param fs
    * @param name node name
    */
-  virtual void load(const cv::FileStorage& fs,
-                    const std::string& name = "database");
+  virtual void load(
+      const cv::FileStorage& fs,
+      const std::string& name = "database");
 
   // --------------------------------------------------------------------------
 
@@ -241,33 +263,52 @@ class DBOW_API Database {
    * @param os stream to write to
    * @param db
    */
-  DBOW_API friend std::ostream& operator<<(std::ostream& os,
-                                           const Database& db);
+  DBOW_API friend std::ostream& operator<<(
+      std::ostream& os,
+      const Database& db);
 
  protected:
   /// Query with L1 scoring
-  void queryL1(const BowVector& vec, QueryResults& ret, int max_results,
-               int max_id) const;
+  void queryL1(
+      const BowVector& vec,
+      QueryResults& ret,
+      int max_results,
+      int max_id) const;
 
   /// Query with L2 scoring
-  void queryL2(const BowVector& vec, QueryResults& ret, int max_results,
-               int max_id) const;
+  void queryL2(
+      const BowVector& vec,
+      QueryResults& ret,
+      int max_results,
+      int max_id) const;
 
   /// Query with Chi square scoring
-  void queryChiSquare(const BowVector& vec, QueryResults& ret, int max_results,
-                      int max_id) const;
+  void queryChiSquare(
+      const BowVector& vec,
+      QueryResults& ret,
+      int max_results,
+      int max_id) const;
 
   /// Query with Bhattacharyya scoring
-  void queryBhattacharyya(const BowVector& vec, QueryResults& ret,
-                          int max_results, int max_id) const;
+  void queryBhattacharyya(
+      const BowVector& vec,
+      QueryResults& ret,
+      int max_results,
+      int max_id) const;
 
   /// Query with KL divergence scoring
-  void queryKL(const BowVector& vec, QueryResults& ret, int max_results,
-               int max_id) const;
+  void queryKL(
+      const BowVector& vec,
+      QueryResults& ret,
+      int max_results,
+      int max_id) const;
 
   /// Query with dot product scoring
-  void queryDotProduct(const BowVector& vec, QueryResults& ret, int max_results,
-                       int max_id) const;
+  void queryDotProduct(
+      const BowVector& vec,
+      QueryResults& ret,
+      int max_results,
+      int max_id) const;
 
  protected:
   /* Inverted file declaration */
@@ -297,7 +338,9 @@ class DBOW_API Database {
      * @param eid
      * @return true iff this entry id is the same as eid
      */
-    inline bool operator==(EntryId eid) const { return entry_id == eid; }
+    inline bool operator==(EntryId eid) const {
+      return entry_id == eid;
+    }
   };
 
   /// Row of InvertedFile
@@ -337,6 +380,6 @@ class DBOW_API Database {
 
 // --------------------------------------------------------------------------
 
-}  // namespace DBoW3
+} // namespace DBoW3
 
 #endif

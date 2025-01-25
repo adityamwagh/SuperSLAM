@@ -39,12 +39,12 @@ either expressed or implied, of Rafael Muñoz Salinas.
     defined DBOW_DSO_EXPORTS
 #define DBOW_API __declspec(dllexport)
 #pragma warning( \
-    disable : 4251)  // disable warning to templates with dll linkage.
+    disable : 4251) // disable warning to templates with dll linkage.
 #pragma warning( \
-    disable : 4290)  // disable warning due to exception specifications.
-#pragma warning(disable : 4996)  // disable warning regarding unsafe vsprintf.
-#pragma warning(disable : 4244)  // disable warning convesions with lost of
-                                 // data.
+    disable : 4290) // disable warning due to exception specifications.
+#pragma warning(disable : 4996) // disable warning regarding unsafe vsprintf.
+#pragma warning(disable : 4244) // disable warning convesions with lost of
+                                // data.
 
 #else
 #define DBOW_API

@@ -21,9 +21,9 @@
 #ifndef FRAMEDRAWER_H
 #define FRAMEDRAWER_H
 
+#include <opencv4/opencv2/core/core.hpp>
+#include <opencv4/opencv2/features2d/features2d.hpp>
 #include <mutex>
-#include <opencv2/core/core.hpp>
-#include <opencv2/features2d/features2d.hpp>
 
 #include "Map.h"
 #include "MapPoint.h"
@@ -63,6 +63,6 @@ class FrameDrawer {
   std::mutex mMutex;
 };
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM
 
-#endif  // FRAMEDRAWER_H
+#endif // FRAMEDRAWER_H

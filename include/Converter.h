@@ -21,8 +21,8 @@
 #ifndef CONVERTER_H
 #define CONVERTER_H
 
+#include <opencv4/opencv2/core/core.hpp>
 #include <Eigen/Dense>
-#include <opencv2/core/core.hpp>
 
 #include "thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
 #include "thirdparty/g2o/g2o/types/types_six_dof_expmap.h"
@@ -41,8 +41,9 @@ class Converter {
   static cv::Mat toCvMat(const Eigen::Matrix<double, 4, 4>& m);
   static cv::Mat toCvMat(const Eigen::Matrix3d& m);
   static cv::Mat toCvMat(const Eigen::Matrix<double, 3, 1>& m);
-  static cv::Mat toCvSE3(const Eigen::Matrix<double, 3, 3>& R,
-                         const Eigen::Matrix<double, 3, 1>& t);
+  static cv::Mat toCvSE3(
+      const Eigen::Matrix<double, 3, 3>& R,
+      const Eigen::Matrix<double, 3, 1>& t);
 
   static Eigen::Matrix<double, 3, 1> toVector3d(const cv::Mat& cvVector);
   static Eigen::Matrix<double, 3, 1> toVector3d(const cv::Point3f& cvPoint);
@@ -51,6 +52,6 @@ class Converter {
   static std::vector<float> toQuaternion(const cv::Mat& M);
 };
 
-}  // namespace SuperSLAM
+} // namespace SuperSLAM
 
-#endif  // CONVERTER_H
+#endif // CONVERTER_H
