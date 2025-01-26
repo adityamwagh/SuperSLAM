@@ -63,11 +63,6 @@ podman run --security-opt=label=disable --device /dev/dri:/dev/dri --device /dev
   superslam
 ```
 
-```bash
-python convert2onnx/convert_superpoint_to_onnx.py --weight_file superpoint_pth_file_path --output_dir superpoint_onnx_file_dir
-python convert2onnx/convert_superglue_to_onnx.py --weight_file superglue_pth_file_path --output_dir superglue_onnx_file_dir
-```
-
 ## Build and run
 ```bash
 git clone https://github.com/adityamwagh/SuperSLAM.git

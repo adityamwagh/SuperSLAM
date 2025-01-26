@@ -1,10 +1,11 @@
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+# Stage 1: Build stage
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04 as builder
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install general dependencies
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+# Install all dependencies, OpenCV, Eigen3, TensorRT and cuDNN
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
     g++ \
@@ -20,10 +21,6 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     wget \
     unzip \
     curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Pangolin dependencies
-RUN apt-get install --no-install-suggests --no-install-recommends \
     libgl1-mesa-dev \
     libwayland-dev \
     libxkbcommon-dev \
@@ -32,15 +29,7 @@ RUN apt-get install --no-install-suggests --no-install-recommends \
     libc++-dev \
     libepoxy-dev \
     libglew-dev \
-    libeigen3-dev
-
-# Install Eigen3
-RUN apt-get update && apt-get install -y \
     libeigen3-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install OpenCV dependencies
-RUN apt-get update && apt-get install -y \
     libgtk-3-dev \
     libavcodec-dev \
     libavformat-dev \
@@ -55,15 +44,7 @@ RUN apt-get update && apt-get install -y \
     libatlas-base-dev \
     libopencv-dev \
     python3-opencv \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install libyaml-cpp
-RUN apt-get update && apt-get install -y \
     libyaml-cpp-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install TensorRT 8.5.3 and cuDNN for CUDA 11.8
-RUN apt-get update && apt-get install -y \
     libcudnn8=8.9.7.29-1+cuda11.8 \
     libcudnn8-dev=8.9.7.29-1+cuda11.8 \
     libnvinfer8=8.5.3-1+cuda11.8 \
@@ -79,21 +60,21 @@ RUN apt-get update && apt-get install -y \
     tensorrt=8.5.3.1-1+cuda11.8 \
     tensorrt-dev=8.5.3.1-1+cuda11.8 \
     tensorrt-libs=8.5.3.1-1+cuda11.8 \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Install ROS 2 Humble
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
     && add-apt-repository universe \
     && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-    && apt-get update && apt-get install -y \
+    && apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-desktop \
     python3-colcon-common-extensions \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set up ROS 2 environment
-RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 
 # Set working directory
 WORKDIR /home/SuperSLAM
@@ -102,14 +83,22 @@ WORKDIR /home/SuperSLAM
 COPY . .
 
 # Download and install libtorch with CUDA support
-RUN mkdir -p thirdparty && \
-    wget -q https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu118.zip && \
-    unzip libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip -d thirdparty && \
-    rm libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip
+RUN mkdir -p thirdparty \
+    && wget -q https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu118.zip \
+    && unzip libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip -d thirdparty \
+    && rm libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip
 
 # Build third-party dependencies
-RUN chmod +x build_deps.sh && \
-    ./build_deps.sh
+RUN chmod +x build_deps.sh \
+    && ./build_deps.sh
+
+# Stage 2: Final stage
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
+
+# Copy necessary files from the builder stage
+COPY --from=builder /home/SuperSLAM /home/SuperSLAM
+COPY --from=builder /usr/local/cuda/lib64 /usr/local/cuda/lib64
+COPY --from=builder /opt/ros/humble /opt/ros/humble
 
 # Set library path
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:/home/SuperSLAM/thirdparty/libtorch/lib:$LD_LIBRARY_PATH
