@@ -197,3 +197,9 @@ sh build.sh
 The converted model is already provided in the [weights](./weights) folder, if you are using the pretrained model officially provided by [SuperPoint and SuperGlue](https://github.com/magicleap/SuperGluePretrainedNetwork), you do not need to go through this step.
 
 The default image size param is 320x240, if you need to modify the image size in the `utils/config.yaml` file, you should delete the old `.engine` file in the weights dir.
+
+
+```bash
+python convert2onnx/convert_superpoint_to_onnx.py --weight_file superpoint_pth_file_path --output_dir superpoint_onnx_file_dir
+python convert2onnx/convert_superglue_to_onnx.py --weight_file superglue_pth_file_path --output_dir superglue_onnx_file_dir
+```
