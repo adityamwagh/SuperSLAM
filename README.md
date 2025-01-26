@@ -12,7 +12,9 @@ Some of the future goals are to eventually replace the ORB_SLAM backend with a m
 
 ### Local Installation
 
-See [INSTALL.md](INSTALL.md)
+Easiest way to get started would be the `setup.sh` script.
+
+See [INSTALL.md](INSTALL.md) for more information.
 
 ### Docker/Podman Installation
 
