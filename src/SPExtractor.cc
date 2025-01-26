@@ -132,7 +132,7 @@ SPextractor::SPextractor(int _nfeatures, float _scaleFactor, int _nlevels,
     : nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels),
       iniThFAST(_iniThFAST), minThFAST(_minThFAST) {
   model = std::make_shared<SuperPoint>();
-  torch::load(model, "superpoint.pt");
+  torch::load(model, "weights/superpoint.pt");
 
   mvScaleFactor.resize(nlevels);
   mvLevelSigma2.resize(nlevels);
