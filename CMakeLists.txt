@@ -32,7 +32,7 @@ set(Pangolin_DIR "${PROJECT_SOURCE_DIR}/thirdparty/Pangolin/cmake/Pangolin")
 # Find dependencies
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
-# find_package(Pangolin REQUIRED)
+find_package(Pangolin REQUIRED)
 find_package(Torch REQUIRED)
 find_package(CUDA REQUIRED)
 find_package(yaml-cpp REQUIRED)
