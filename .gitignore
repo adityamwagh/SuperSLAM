@@ -51,3 +51,11 @@ build/
 *~
 lib/
 .cache
+data/
+
+mono_euroc
+mono_kitti
+mono_tum
+rgbd_tum
+stereo_euroc
+stereo_kitti
