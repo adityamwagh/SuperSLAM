@@ -84,26 +84,26 @@ Tracking::Tracking(System *pSys, ORBVocabulary *pVoc, FrameDrawer *pFrameDrawer,
   mMinFrames = 0;
   mMaxFrames = fps;
 
-  std::cout << std::endl << "Camera Parameters: " << std::endl;
-  std::cout << "- fx: " << fx << std::endl;
-  std::cout << "- fy: " << fy << std::endl;
-  std::cout << "- cx: " << cx << std::endl;
-  std::cout << "- cy: " << cy << std::endl;
-  std::cout << "- k1: " << DistCoef.at<float>(0) << std::endl;
-  std::cout << "- k2: " << DistCoef.at<float>(1) << std::endl;
+  std::cout << "\n" << "Camera Parameters: " << "\n";
+  std::cout << "- fx: " << fx << "\n";
+  std::cout << "- fy: " << fy << "\n";
+  std::cout << "- cx: " << cx << "\n";
+  std::cout << "- cy: " << cy << "\n";
+  std::cout << "- k1: " << DistCoef.at<float>(0) << "\n";
+  std::cout << "- k2: " << DistCoef.at<float>(1) << "\n";
   if (DistCoef.rows == 5)
-    std::cout << "- k3: " << DistCoef.at<float>(4) << std::endl;
-  std::cout << "- p1: " << DistCoef.at<float>(2) << std::endl;
-  std::cout << "- p2: " << DistCoef.at<float>(3) << std::endl;
-  std::cout << "- fps: " << fps << std::endl;
+    std::cout << "- k3: " << DistCoef.at<float>(4) << "\n";
+  std::cout << "- p1: " << DistCoef.at<float>(2) << "\n";
+  std::cout << "- p2: " << DistCoef.at<float>(3) << "\n";
+  std::cout << "- fps: " << fps << "\n";
 
   int nRGB = fSettings["Camera.RGB"];
   mbRGB = nRGB;
 
   if (mbRGB)
-    std::cout << "- color order: RGB (ignored if grayscale)" << std::endl;
+    std::cout << "- color order: RGB (ignored if grayscale)" << "\n";
   else
-    std::cout << "- color order: BGR (ignored if grayscale)" << std::endl;
+    std::cout << "- color order: BGR (ignored if grayscale)" << "\n";
 
   // Load ORB parameters
 
@@ -124,18 +124,18 @@ Tracking::Tracking(System *pSys, ORBVocabulary *pVoc, FrameDrawer *pFrameDrawer,
     mpIniORBextractor = new ORBextractor(2 * nFeatures, fScaleFactor, nLevels,
                                          fIniThFAST, fMinThFAST);
 
-  std::cout << std::endl << "ORB Extractor Parameters: " << std::endl;
-  std::cout << "- Number of Features: " << nFeatures << std::endl;
-  std::cout << "- Scale Levels: " << nLevels << std::endl;
-  std::cout << "- Scale Factor: " << fScaleFactor << std::endl;
-  std::cout << "- Initial Fast Threshold: " << fIniThFAST << std::endl;
-  std::cout << "- Minimum Fast Threshold: " << fMinThFAST << std::endl;
+  std::cout << "\n" << "ORB Extractor Parameters: " << "\n";
+  std::cout << "- Number of Features: " << nFeatures << "\n";
+  std::cout << "- Scale Levels: " << nLevels << "\n";
+  std::cout << "- Scale Factor: " << fScaleFactor << "\n";
+  std::cout << "- Initial Fast Threshold: " << fIniThFAST << "\n";
+  std::cout << "- Minimum Fast Threshold: " << fMinThFAST << "\n";
 
   if (sensor == System::STEREO || sensor == System::RGBD) {
     mThDepth = mbf * (float)fSettings["ThDepth"] / fx;
-    std::cout << std::endl
+    std::cout << "\n"
               << "Depth Threshold (Close/Far Points): " << mThDepth
-              << std::endl;
+              << "\n";
   }
 
   if (sensor == System::RGBD) {
@@ -422,7 +422,7 @@ void Tracking::Track() {
     if (mState == LOST) {
       if (mpMap->KeyFramesInMap() <= 5) {
         std::cout << "Track lost soon after initialisation, reseting..."
-                  << std::endl;
+                  << "\n";
         mpSystem->Reset();
         return;
       }
@@ -480,7 +480,7 @@ void Tracking::StereoInitialization() {
     }
 
     std::cout << "New map created with " << mpMap->MapPointsInMap() << " points"
-              << std::endl;
+              << "\n";
 
     mpLocalMapper->InsertKeyFrame(pKFini);
 
@@ -535,7 +535,7 @@ void Tracking::MonocularInitialization() {
     ORBmatcher matcher(0.9, true);
     int nmatches = matcher.SearchForInitialization(
         mInitialFrame, mCurrentFrame, mvbPrevMatched, mvIniMatches, 100);
-    std::cout << "Matches" << nmatches << std::endl;
+    std::cout << "Matches" << nmatches << "\n";
     // Check if there are enough correspondences
     if (nmatches < 100) {
       delete mpInitializer;
@@ -557,7 +557,7 @@ void Tracking::MonocularInitialization() {
         }
       }
 
-      std::cout << "Numver of Matches After" << std::endl;
+      std::cout << "Numver of Matches After" << "\n";
 
       // Set Frame Poses
       mInitialFrame.SetPose(cv::Mat::eye(4, 4, CV_32F));
@@ -572,7 +572,7 @@ void Tracking::MonocularInitialization() {
 }
 
 void Tracking::CreateInitialMapMonocular() {
-  std::cout << "Setting Monocular Map" << std::endl;
+  std::cout << "Setting Monocular Map" << "\n";
 
   // Create KeyFrames
   KeyFrame *pKFini = new KeyFrame(mInitialFrame, mpMap, mpKeyFrameDB);
@@ -618,7 +618,7 @@ void Tracking::CreateInitialMapMonocular() {
 
   // Bundle Adjustment
   std::cout << "New Map created with " << mpMap->MapPointsInMap() << " points"
-            << std::endl;
+            << "\n";
 
   Optimizer::GlobalBundleAdjustemnt(mpMap, 20);
 
@@ -627,7 +627,7 @@ void Tracking::CreateInitialMapMonocular() {
   float invMedianDepth = 1.0f / medianDepth;
 
   if (medianDepth < 0 || pKFcur->TrackedMapPoints(1) < 100) {
-    std::cout << "Wrong initialization, reseting..." << std::endl;
+    std::cout << "Wrong initialization, reseting..." << "\n";
     Reset();
     return;
   }
@@ -1379,7 +1379,7 @@ bool Tracking::Relocalization() {
 }
 
 void Tracking::Reset() {
-  std::cout << "System Reseting" << std::endl;
+  std::cout << "System Reseting" << "\n";
   if (mpViewer) {
     mpViewer->RequestStop();
     while (!mpViewer->isStopped())
@@ -1389,17 +1389,17 @@ void Tracking::Reset() {
   // Reset Local Mapping
   std::cout << "Reseting Local Mapper...";
   mpLocalMapper->RequestReset();
-  std::cout << " done" << std::endl;
+  std::cout << " done" << "\n";
 
   // Reset Loop Closing
   std::cout << "Reseting Loop Closing...";
   mpLoopClosing->RequestReset();
-  std::cout << " done" << std::endl;
+  std::cout << " done" << "\n";
 
   // Clear BoW Database
   std::cout << "Reseting Database...";
   mpKeyFrameDB->clear();
-  std::cout << " done" << std::endl;
+  std::cout << " done" << "\n";
 
   // Clear Map (this erase MapPoints and KeyFrames)
   mpMap->clear();

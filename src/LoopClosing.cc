@@ -373,7 +373,7 @@ bool LoopClosing::ComputeSim3() {
 }
 
 void LoopClosing::CorrectLoop() {
-  std::cout << "Loop detected!" << std::endl;
+  std::cout << "Loop detected!" << "\n";
 
   // Send a stop signal to Local Mapping
   // Avoid new keyframes are inserted while correcting the loop
@@ -616,7 +616,7 @@ void LoopClosing::ResetIfRequested() {
 }
 
 void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
-  std::cout << "Starting Global Bundle Adjustment" << std::endl;
+  std::cout << "Starting Global Bundle Adjustment" << "\n";
 
   int idx = mnFullBAIdx;
   Optimizer::GlobalBundleAdjustemnt(mpMap, 10, &mbStopGBA, nLoopKF, false);
@@ -632,8 +632,8 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
       return;
 
     if (!mbStopGBA) {
-      std::cout << "Global Bundle Adjustment finished" << std::endl;
-      std::cout << "Updating map ..." << std::endl;
+      std::cout << "Global Bundle Adjustment finished" << "\n";
+      std::cout << "Updating map ..." << "\n";
       mpLocalMapper->RequestStop();
       // Wait until Local Mapping has effectively stopped
 
@@ -705,7 +705,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
 
       mpLocalMapper->Release();
 
-      std::cout << "Map updated!" << std::endl;
+      std::cout << "Map updated!" << "\n";
     }
 
     mbFinishedGBA = true;

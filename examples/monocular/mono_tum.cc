@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
   if (argc != 4) {
     std::cerr << "Usage: ./mono_tum path_to_vocabulary path_to_settings "
                  "path_to_sequence"
-              << std::endl;
+              << "\n";
     return 1;
   }
 
@@ -146,7 +146,7 @@ int main(int argc, char **argv) {
     SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
 
   } catch (const std::exception &e) {
-    std::cerr << e.what() << std::endl;
+    std::cerr << e.what() << "\n";
     return 1;
   }
 

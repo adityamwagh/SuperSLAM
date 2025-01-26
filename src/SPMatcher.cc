@@ -119,7 +119,7 @@ int SPmatcher::SearchByProjection(Frame &F,
       nmatches++;
     }
   }
-  std::cout << "Number of Matches" << std::endl;
+  std::cout << "Number of Matches" << "\n";
   return nmatches;
 }
 
@@ -132,9 +132,9 @@ float SPmatcher::RadiusByViewingCos(const float &viewCos) {
 
 int SPmatcher::SearchByNN(Frame &F,
                           const std::vector<MapPoint *> &vpMapPoints) {
-  std::cout << "Matching Localmap" << std::endl;
-  std::cout << vpMapPoints.size() << std::endl;
-  std::cout << F.mDescriptors.rows << std::endl;
+  std::cout << "Matching Localmap" << "\n";
+  std::cout << vpMapPoints.size() << "\n";
+  std::cout << F.mDescriptors.rows << "\n";
 
   std::vector<cv::Mat> MPdescriptorAll;
   std::vector<int> select_indice;
@@ -186,17 +186,17 @@ int SPmatcher::SearchByNN(Frame &F,
     nmatches++;
   }
 
-  // std::cout << MPdescriptors.rows << std::endl;
-  // std::cout << nmatches << std::endl;
+  // std::cout << MPdescriptors.rows << "\n";
+  // std::cout << nmatches << "\n";
 
   return nmatches;
 }
 
 int SPmatcher::SearchByNN(KeyFrame *pKF, Frame &F,
                           std::vector<MapPoint *> &vpMapPointMatches) {
-  // std::cout << "Matching KeyFrame" << std::endl;
-  // std::cout << pKF->mDescriptors.rows << std::endl;
-  // std::cout << F.mDescriptors.rows << std::endl;
+  // std::cout << "Matching KeyFrame" << "\n";
+  // std::cout << pKF->mDescriptors.rows << "\n";
+  // std::cout << F.mDescriptors.rows << "\n";
 
   const std::vector<MapPoint *> vpMapPointsKF = pKF->GetMapPointMatches();
   vpMapPointMatches =
@@ -225,7 +225,7 @@ int SPmatcher::SearchByNN(KeyFrame *pKF, Frame &F,
     vpMapPointMatches[bestIdxF] = pMP;
     nmatches++;
   }
-  // std::cout << nmatches << std::endl;
+  // std::cout << nmatches << "\n";
 
   return nmatches;
 }
@@ -615,7 +615,7 @@ int SPmatcher::SearchForInitialization(Frame &F1, Frame &F2,
   for (size_t i1 = 0, iend1 = vnMatches12.size(); i1 < iend1; i1++)
     if (vnMatches12[i1] >= 0)
       vbPrevMatched[i1] = F2.mvKeysUn[vnMatches12[i1]].pt;
-  std::cout << nmatches << std::endl;
+  std::cout << nmatches << "\n";
   return nmatches;
 }
 

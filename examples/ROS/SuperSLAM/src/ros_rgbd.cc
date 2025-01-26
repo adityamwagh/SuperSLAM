@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
   if (argc != 3) {
     std::cerr
         << "Usage: ros2 run SuperSLAM RGBD path_to_vocabulary path_to_settings"
-        << std::endl;
+        << "\n";
     return 1;
   }
 

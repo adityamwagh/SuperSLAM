@@ -537,7 +537,7 @@ bool LocalMapping::Stop() {
   std::unique_lock<std::mutex> lock(mMutexStop);
   if (mbStopRequested && !mbNotStop) {
     mbStopped = true;
-    std::cout << "Local Mapping STOP" << std::endl;
+    std::cout << "Local Mapping STOP" << "\n";
     return true;
   }
 
@@ -567,7 +567,7 @@ void LocalMapping::Release() {
     delete *lit;
   mlNewKeyFrames.clear();
 
-  std::cout << "Local Mapping RELEASE" << std::endl;
+  std::cout << "Local Mapping RELEASE" << "\n";
 }
 
 bool LocalMapping::AcceptKeyFrames() {

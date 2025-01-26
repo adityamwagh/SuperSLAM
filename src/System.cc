@@ -38,46 +38,46 @@ System::System(const std::string &strVocFile,
     : mSensor(sensor), mpViewer(static_cast<Viewer *>(NULL)), mbReset(false),
       mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false) {
   // Output welcome message
-  std::cout << std::endl
+  std::cout << "\n"
             << "SuperSLAM Copyright (C) Aditya Wagh (adityamwagh@outlook.com)"
-            << std::endl
-            << "This program comes with ABSOLUTELY NO WARRANTY;" << std::endl
+            << "\n"
+            << "This program comes with ABSOLUTELY NO WARRANTY;" << "\n"
             << "This is free software, and you are welcome to redistribute it"
-            << std::endl
-            << "under certain conditions. See LICENSE.txt." << std::endl
-            << std::endl;
+            << "\n"
+            << "under certain conditions. See LICENSE.txt." << "\n"
+            << "\n";
 
   std::cout << "Input sensor was set to: ";
 
   if (mSensor == MONOCULAR)
-    std::cout << "Monocular" << std::endl;
+    std::cout << "Monocular" << "\n";
   else if (mSensor == STEREO)
-    std::cout << "Stereo" << std::endl;
+    std::cout << "Stereo" << "\n";
   else if (mSensor == RGBD)
-    std::cout << "RGB-D" << std::endl;
+    std::cout << "RGB-D" << "\n";
 
   // Check settings file
   cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
   if (!fsSettings.isOpened()) {
     std::cerr << "Failed to open settings file at: " << strSettingsFile
-              << std::endl;
+              << "\n";
     exit(-1);
   }
 
   // Load SuperPoint Vocabulary
-  std::cout << std::endl
+  std::cout << "\n"
             << "Loading SuperPoint Vocabulary. This could take a while..."
-            << std::endl;
+            << "\n";
 
   mpVocabulary = new ORBVocabulary();
   // bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
   // if(!bVocLoad)
   //{
-  //    std::cerr << "Wrong path to vocabulary. " << std::endl;
-  //    std::cerr << "Falied to open at: " << strVocFile << std::endl;
+  //    std::cerr << "Wrong path to vocabulary. " << "\n";
+  //    std::cerr << "Falied to open at: " << strVocFile << "\n";
   //    exit(-1);
   //}
-  // std::cout << "Vocabulary loaded!" << std::endl << std::endl;
+  // std::cout << "Vocabulary loaded!" << "\n" << "\n";
   mpVocabulary->load(strVocFile);
 
   // Create KeyFrame Database
@@ -130,7 +130,7 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight,
   if (mSensor != STEREO) {
     std::cerr << "ERROR: you called TrackStereo but input sensor was not set "
                  "to STEREO."
-              << std::endl;
+              << "\n";
     exit(-1);
   }
 
@@ -178,7 +178,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap,
   if (mSensor != RGBD) {
     std::cerr
         << "ERROR: you called TrackRGBD but input sensor was not set to RGBD."
-        << std::endl;
+        << "\n";
     exit(-1);
   }
 
@@ -225,7 +225,7 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
   if (mSensor != MONOCULAR) {
     std::cerr << "ERROR: you called TrackMonocular but input sensor was not "
                  "set to Monocular."
-              << std::endl;
+              << "\n";
     exit(-1);
   }
 
@@ -314,12 +314,12 @@ void System::Shutdown() {
 }
 
 void System::SaveTrajectoryTUM(const std::string &filename) {
-  std::cout << std::endl
+  std::cout << "\n"
             << "Saving camera trajectory to " << filename << " ..."
-            << std::endl;
+            << "\n";
   if (mSensor == MONOCULAR) {
     std::cerr << "ERROR: SaveTrajectoryTUM cannot be used for monocular."
-              << std::endl;
+              << "\n";
     return;
   }
 
@@ -373,16 +373,16 @@ void System::SaveTrajectoryTUM(const std::string &filename) {
 
     f << std::setprecision(6) << *lT << " " << std::setprecision(9)
       << twc.at<float>(0) << " " << twc.at<float>(1) << " " << twc.at<float>(2)
-      << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << std::endl;
+      << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << "\n";
   }
   f.close();
-  std::cout << std::endl << "trajectory saved!" << std::endl;
+  std::cout << "\n" << "trajectory saved!" << "\n";
 }
 
 void System::SaveKeyFrameTrajectoryTUM(const std::string &filename) {
-  std::cout << std::endl
+  std::cout << "\n"
             << "Saving keyframe trajectory to " << filename << " ..."
-            << std::endl;
+            << "\n";
 
   std::vector<KeyFrame *> vpKFs = mpMap->GetAllKeyFrames();
   sort(vpKFs.begin(), vpKFs.end(), KeyFrame::lId);
@@ -408,20 +408,20 @@ void System::SaveKeyFrameTrajectoryTUM(const std::string &filename) {
     cv::Mat t = pKF->GetCameraCenter();
     f << std::setprecision(6) << pKF->mTimeStamp << std::setprecision(7) << " "
       << t.at<float>(0) << " " << t.at<float>(1) << " " << t.at<float>(2) << " "
-      << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << std::endl;
+      << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << "\n";
   }
 
   f.close();
-  std::cout << std::endl << "trajectory saved!" << std::endl;
+  std::cout << "\n" << "trajectory saved!" << "\n";
 }
 
 void System::SaveTrajectoryKITTI(const std::string &filename) {
-  std::cout << std::endl
+  std::cout << "\n"
             << "Saving camera trajectory to " << filename << " ..."
-            << std::endl;
+            << "\n";
   if (mSensor == MONOCULAR) {
     std::cerr << "ERROR: SaveTrajectoryKITTI cannot be used for monocular."
-              << std::endl;
+              << "\n";
     return;
   }
 
@@ -455,7 +455,7 @@ void System::SaveTrajectoryKITTI(const std::string &filename) {
     cv::Mat Trw = cv::Mat::eye(4, 4, CV_32F);
 
     while (pKF->isBad()) {
-      //  std::cout << "bad parent" << std::endl;
+      //  std::cout << "bad parent" << "\n";
       Trw = Trw * pKF->mTcp;
       pKF = pKF->GetParent();
     }
@@ -472,10 +472,10 @@ void System::SaveTrajectoryKITTI(const std::string &filename) {
       << Rwc.at<float>(1, 1) << " " << Rwc.at<float>(1, 2) << " "
       << twc.at<float>(1) << " " << Rwc.at<float>(2, 0) << " "
       << Rwc.at<float>(2, 1) << " " << Rwc.at<float>(2, 2) << " "
-      << twc.at<float>(2) << std::endl;
+      << twc.at<float>(2) << "\n";
   }
   f.close();
-  std::cout << std::endl << "trajectory saved!" << std::endl;
+  std::cout << "\n" << "trajectory saved!" << "\n";
 }
 
 int System::GetTrackingState() {

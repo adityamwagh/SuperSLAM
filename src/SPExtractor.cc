@@ -383,7 +383,7 @@ void SPextractor::ComputeKeyPointsOctTree(
     // auto stop = std::chrono::high_resolution_clock::now();
     // auto duration =
     // std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    // std::cout << duration.count() << std::endl;
+    // std::cout << duration.count() << "\n";
 
     const int minBorderX = EDGE_THRESHOLD - 3;
     const int minBorderY = minBorderX;
@@ -488,7 +488,7 @@ void SPextractor::operator()(cv::InputArray _image, cv::InputArray _mask,
 
   std::vector<std::vector<cv::KeyPoint>> allKeypoints;
   ComputeKeyPointsOctTree(allKeypoints, descriptors);
-  std::cout << descriptors.rows << std::endl;
+  std::cout << descriptors.rows << "\n";
 
   int nkeypoints = 0;
   for (int level = 0; level < nlevels; ++level)
@@ -562,7 +562,7 @@ void SPextractor::operator()(cv::InputArray _image, cv::InputArray _mask,
 //     // int width = image.cols;
 //     // nms(kpt_mat, desc, _keypoints, descriptors, border, dist_thresh,
 //     width, height);
-//     // std::cout << "hihihi" << std::endl;
+//     // std::cout << "hihihi" << "\n";
 
 //     int nkeypoints = _keypoints.size();
 //     _descriptors.create(nkeypoints, 256, CV_32F);

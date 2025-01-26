@@ -18,7 +18,7 @@ static bool GetFileNames(
   DIR* pDir;
   struct dirent* ptr;
   if (!(pDir = opendir(path.c_str()))) {
-    std::cerr << "Current folder doesn't exist!" << std::endl;
+    std::cerr << "Current folder doesn't exist!" << "\n";
     return false;
   }
   while ((ptr = readdir(pDir)) != nullptr) {

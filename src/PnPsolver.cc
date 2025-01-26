@@ -594,11 +594,11 @@ void PnPsolver::estimate_R_and_t(double R[3][3], double t[3]) {
 
 void PnPsolver::print_pose(const double R[3][3], const double t[3]) {
   std::cout << R[0][0] << " " << R[0][1] << " " << R[0][2] << " " << t[0]
-            << std::endl;
+            << "\n";
   std::cout << R[1][0] << " " << R[1][1] << " " << R[1][2] << " " << t[1]
-            << std::endl;
+            << "\n";
   std::cout << R[2][0] << " " << R[2][1] << " " << R[2][2] << " " << t[2]
-            << std::endl;
+            << "\n";
 }
 
 void PnPsolver::solve_for_sign(void) {
@@ -846,7 +846,7 @@ void PnPsolver::qr_solve(CvMat *A, CvMat *b, CvMat *X) {
     if (eta == 0) {
       A1[k] = A2[k] = 0.0;
       std::cerr << "God damnit, A is singular, this shouldn't happen."
-                << std::endl;
+                << "\n";
       return;
     } else {
       double *ppAik = ppAkk, sum = 0.0, inv_eta = 1. / eta;

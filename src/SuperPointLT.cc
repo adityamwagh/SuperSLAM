@@ -100,7 +100,7 @@ void NMS2(std::vector<cv::KeyPoint> det, cv::Mat conf,
 SPDetector::SPDetector(std::shared_ptr<SuperPoint> _model, bool cuda)
     : model(_model) {
   bool use_cuda = cuda && torch::cuda::is_available();
-  std::cout << "Using CUDA?: " << use_cuda << std::endl;
+  std::cout << "Using CUDA?: " << use_cuda << "\n";
   torch::DeviceType device_type;
   if (use_cuda)
     device_type = torch::kCUDA;
