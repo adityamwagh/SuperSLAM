@@ -1,5 +1,5 @@
 # Stage 1: Build stage
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04 as builder
+FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -60,7 +60,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tensorrt=8.5.3.1-1+cuda11.8 \
     tensorrt-dev=8.5.3.1-1+cuda11.8 \
     tensorrt-libs=8.5.3.1-1+cuda11.8 \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Install ROS 2 Humble
@@ -82,23 +81,33 @@ WORKDIR /home/SuperSLAM
 # Copy project files
 COPY . .
 
-# Download and install libtorch with CUDA support
+# Download libtorch with CUDA support and Pangolin
 RUN mkdir -p thirdparty \
     && wget -q https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu118.zip \
     && unzip libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip -d thirdparty \
-    && rm libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip
+    && rm libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip \
+    && wget https://github.com/stevenlovegrove/Pangolin/archive/refs/tags/v0.9.2.zip \
+    && unzip v0.9.2.zip -d thirdparty \
+    && mv thirdparty/Pangolin-0.9.2 thirdparty/Pangolin \
+    && rm v0.9.2.zip
 
-# Build third-party dependencies
-RUN chmod +x build_deps.sh \
-    && ./build_deps.sh
-
-# Stage 2: Final stage
-FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
-
-# Copy necessary files from the builder stage
-COPY --from=builder /home/SuperSLAM /home/SuperSLAM
-COPY --from=builder /usr/local/cuda/lib64 /usr/local/cuda/lib64
-COPY --from=builder /opt/ros/humble /opt/ros/humble
+# Build third-party dependencies in parallel using Ninja
+RUN (cd thirdparty/Pangolin && \
+     mkdir -p build && \
+     cd build && \
+     cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release && \
+     ninja -j$(nproc)) & \
+    (cd thirdparty/g2o && \
+     mkdir -p build && \
+     cd build && \
+     cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release && \
+     ninja -j$(nproc)) & \
+    (cd thirdparty/DBoW3 && \
+     mkdir -p build && \
+     cd build && \
+     cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release && \
+     ninja -j$(nproc)) & \
+    wait
 
 # Set library path
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:/home/SuperSLAM/thirdparty/libtorch/lib:$LD_LIBRARY_PATH
