@@ -24,3 +24,4 @@ __pycache__/
 # Large downloaded files
 *.zip
 *.tar.gz
+*.tgz
