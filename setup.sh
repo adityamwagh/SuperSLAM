@@ -71,6 +71,7 @@ wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/
 sudo dpkg -i cuda-keyring_1.1-1_all.deb
 sudo apt-get update
 sudo apt-get -y install cuda-11-8
+rm cuda-keyring_1.1-1_all.deb
 
 # Install CUDA Toolkit 11.8
 echo "-- Installing CUDA Toolkit 11.8..."
@@ -185,19 +186,27 @@ fi
 SUPER_SLAM_DIR=$(pwd)
 echo "-- Running setup in repository directory: $SUPER_SLAM_DIR"
 
-# Download and extract libtorch
-echo "-- Downloading libtorch..."
-mkdir -p thirdparty
-wget -q https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu118.zip
-unzip libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip -d thirdparty
-rm libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip
+# Check if libtorch is already downloaded and extracted
+if [ ! -d "thirdparty/libtorch" ]; then
+    echo "-- Downloading libtorch..."
+    mkdir -p thirdparty
+    wget -q https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu118.zip
+    unzip libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip -d thirdparty
+    rm libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip
+else
+    echo "-- libtorch already exists in thirdparty/libtorch"
+fi
 
-# Download and setup Pangolin
-echo "-- Setting up Pangolin..."
-wget https://github.com/stevenlovegrove/Pangolin/archive/refs/tags/v0.9.2.zip
-unzip v0.9.2.zip -d thirdparty
-mv thirdparty/Pangolin-0.9.2 thirdparty/Pangolin
-rm v0.9.2.zip
+# Check if Pangolin is already downloaded and extracted
+if [ ! -d "thirdparty/Pangolin" ]; then
+    echo "-- Setting up Pangolin..."
+    wget https://github.com/stevenlovegrove/Pangolin/archive/refs/tags/v0.9.2.zip
+    unzip v0.9.2.zip -d thirdparty
+    mv thirdparty/Pangolin-0.9.2 thirdparty/Pangolin
+    rm v0.9.2.zip
+else
+    echo "-- Pangolin already exists in thirdparty/Pangolin"
+fi
 
 # Build third-party dependencies in parallel
 echo "-- Building third-party dependencies..."
@@ -205,7 +214,7 @@ echo "-- Building third-party dependencies..."
     cd thirdparty/Pangolin
     mkdir -p build && cd build
     cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release
-    ninja -j$(nproc)
+    sudo ninja install
 ) &
 
 (
@@ -231,17 +240,8 @@ if [[ "$SHELL_NAME" == "fish" ]]; then
 else
     echo "export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${SUPER_SLAM_DIR}/thirdparty/libtorch/lib:\$LD_LIBRARY_PATH" >> $SHELL_CONFIG
 fi
-source $SHELL_CONFIG
 
-# Verification
-echo "-- Verifying installations:"
-nvcc --version
-dpkg -l | grep tensorrt
-if command -v ros2 &> /dev/null; then
-    source /opt/ros/humble/setup.bash
-    ros2 run demo_nodes_cpp talker
-fi
 
 echo ""
 echo "-- Setup complete! Please run 'source $SHELL_CONFIG' or restart your terminal."
-echo "-- Then build the project with: sh build.sh"
+echo "-- Then build the project with: bash build.sh"
