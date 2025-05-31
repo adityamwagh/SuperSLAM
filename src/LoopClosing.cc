@@ -19,6 +19,7 @@
  */
 
 #include "LoopClosing.h"
+#include "Logging.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,10 +32,12 @@
 #include "Optimizer.h"
 #include "SPMatcher.h"
 #include "Sim3Solver.h"
+#include "Logging.h"
 
 namespace SuperSLAM {
 
 LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc,
+                         const SuperGlueConfig &superglue_config,
                          const bool bFixScale)
     : mbResetRequested(false),
       mbFinishRequested(false),
@@ -42,6 +45,7 @@ LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc,
       mpMap(pMap),
       mpKeyFrameDB(pDB),
       mpORBVocabulary(pVoc),
+      mSuperGlueConfig(superglue_config),
       mpMatchedKF(NULL),
       mLastLoopKFid(0),
       mbRunningGBA(false),
@@ -223,7 +227,7 @@ bool LoopClosing::ComputeSim3() {
 
   // We compute first ORB matches for each candidate
   // If enough matches are found, we setup a Sim3Solver
-  ORBmatcher matcher(0.75, true);
+  SPmatcher matcher(0.75, true, mSuperGlueConfig);
 
   std::vector<std::unique_ptr<Sim3Solver>> vpSim3Solvers;
   vpSim3Solvers.resize(nInitialCandidates);
@@ -372,7 +376,7 @@ bool LoopClosing::ComputeSim3() {
 }
 
 void LoopClosing::CorrectLoop() {
-  std::cout << "Loop detected!" << "\n";
+  SLOG_INFO("Loop detected!");
 
   // Send a stop signal to Local Mapping
   // Avoid new keyframes are inserted while correcting the loop
@@ -560,7 +564,7 @@ void LoopClosing::CorrectLoop() {
 }
 
 void LoopClosing::SearchAndFuse(const KeyFrameAndPose &CorrectedPosesMap) {
-  ORBmatcher matcher(0.8);
+  SPmatcher matcher(0.8, true, mSuperGlueConfig);
 
   for (KeyFrameAndPose::const_iterator mit = CorrectedPosesMap.begin(),
                                        mend = CorrectedPosesMap.end();
@@ -611,7 +615,7 @@ void LoopClosing::ResetIfRequested() {
 }
 
 void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
-  std::cout << "Starting Global Bundle Adjustment" << "\n";
+  SLOG_INFO("Starting Global Bundle Adjustment");
 
   int idx = mnFullBAIdx;
   Optimizer::GlobalBundleAdjustemnt(mpMap, 10, &mbStopGBA, nLoopKF, false);
@@ -626,8 +630,8 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
     if (idx != mnFullBAIdx) return;
 
     if (!mbStopGBA) {
-      std::cout << "Global Bundle Adjustment finished" << "\n";
-      std::cout << "Updating map ..." << "\n";
+      SLOG_INFO("Global Bundle Adjustment finished");
+      SLOG_INFO("Updating map ...");
       mpLocalMapper->RequestStop();
       // Wait until Local Mapping has effectively stopped
 
@@ -697,7 +701,7 @@ void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF) {
 
       mpLocalMapper->Release();
 
-      std::cout << "Map updated!" << "\n";
+      SLOG_INFO("Map updated!");
     }
 
     mbFinishedGBA = true;

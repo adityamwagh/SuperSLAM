@@ -23,6 +23,8 @@
 #include <algorithm>
 #include <iostream>
 
+#include "Logging.h"
+
 namespace SuperSLAM {
 
 void SPBowVector::convertSuperPointToBow(
@@ -155,8 +157,7 @@ void SPBowVector::prepareTrainingData(
   training_descriptors.clear();
 
   if (keypoints_list.size() != descriptors_list.size()) {
-    std::cerr << "SPBowVector: Keypoints and descriptors list sizes don't match"
-              << "\n";
+    SLOG_ERROR("SPBowVector: Keypoints and descriptors list sizes don't match");
     return;
   }
 
@@ -220,9 +221,8 @@ void SPBowVector::prepareTrainingData(
     }
   }
 
-  std::cout << "SPBowVector: Prepared " << training_descriptors.size()
-            << " training descriptors from " << descriptors_list.size()
-            << " images" << "\n";
+  SLOG_INFO("SPBowVector: Prepared {} training descriptors from {} images", 
+            training_descriptors.size(), descriptors_list.size());
 }
 
 }  // namespace SuperSLAM

@@ -13,6 +13,7 @@
 #include <cstdlib>
 
 #include "Timestamp.h"
+#include "Logging.h"
 
 bool DUtils::Random::m_already_seeded = false;
 

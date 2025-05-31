@@ -1,11 +1,12 @@
 #include "SuperGlueTRT.h"
+#include "Logging.h"
 
 // Simple logger for TensorRT 10.11.0
 class SimpleLogger : public nvinfer1::ILogger {
  public:
   void log(Severity severity, const char* msg) noexcept override {
     if (severity <= Severity::kWARNING) {
-      std::cout << "[TensorRT] " << msg << "\n";
+      SLOG_WARN("[TensorRT] {}", msg);
     }
   }
 };
@@ -25,30 +26,28 @@ SuperGlueTRT::~SuperGlueTRT() {
 }
 
 bool SuperGlueTRT::initialize() {
-  std::cout << "SuperGlueTRT: Initializing..." << "\n";
+  SLOG_INFO("SuperGlueTRT: Initializing...");
 
   if (!loadEngine()) {
-    std::cerr << "SuperGlueTRT: Failed to load engine" << "\n";
+    SLOG_ERROR("SuperGlueTRT: Failed to load engine");
     return false;
   }
 
   if (!allocateBuffers()) {
-    std::cerr << "SuperGlueTRT: Failed to allocate buffers" << "\n";
+    SLOG_ERROR("SuperGlueTRT: Failed to allocate buffers");
     return false;
   }
 
-  std::cout << "SuperGlueTRT: Initialization successful" << "\n";
+  SLOG_INFO("SuperGlueTRT: Initialization successful");
   return true;
 }
 
 bool SuperGlueTRT::loadEngine() {
-  std::cout << "SuperGlueTRT: Loading engine from " << config_.engine_file
-            << "\n";
+  SLOG_INFO("SuperGlueTRT: Loading engine from {}", config_.engine_file);
 
   std::ifstream file(config_.engine_file, std::ios::binary);
   if (!file.good()) {
-    std::cerr << "SuperGlueTRT: Cannot read engine file " << config_.engine_file
-              << "\n";
+    SLOG_ERROR("SuperGlueTRT: Cannot read engine file {}", config_.engine_file);
     return false;
   }
 
@@ -62,29 +61,28 @@ bool SuperGlueTRT::loadEngine() {
 
   runtime_ = nvinfer1::createInferRuntime(gLogger);
   if (!runtime_) {
-    std::cerr << "SuperGlueTRT: Failed to create runtime" << "\n";
+    SLOG_ERROR("SuperGlueTRT: Failed to create runtime");
     return false;
   }
 
   engine_ = runtime_->deserializeCudaEngine(engineData.data(), size);
   if (!engine_) {
-    std::cerr << "SuperGlueTRT: Failed to deserialize engine" << "\n";
+    SLOG_ERROR("SuperGlueTRT: Failed to deserialize engine");
     return false;
   }
 
   context_ = engine_->createExecutionContext();
   if (!context_) {
-    std::cerr << "SuperGlueTRT: Failed to create execution context"
-              << "\n";
+    SLOG_ERROR("SuperGlueTRT: Failed to create execution context");
     return false;
   }
 
-  std::cout << "SuperGlueTRT: Engine loaded successfully" << "\n";
+  SLOG_INFO("SuperGlueTRT: Engine loaded successfully");
   return true;
 }
 
 bool SuperGlueTRT::allocateBuffers() {
-  std::cout << "SuperGlueTRT: Allocating buffers..." << "\n";
+  SLOG_INFO("SuperGlueTRT: Allocating buffers...");
 
   int numIOTensors = engine_->getNbIOTensors();
 
@@ -99,22 +97,19 @@ bool SuperGlueTRT::allocateBuffers() {
 
     if (tensor.size == 0) {
       // Dynamic tensor - defer allocation until actual shape is known
-      std::cout << "SuperGlueTRT: Deferring allocation for dynamic tensor "
-                << tensor.name << "\n";
+      SLOG_DEBUG("SuperGlueTRT: Deferring allocation for dynamic tensor {}", tensor.name);
       tensor.devicePtr = nullptr;
       tensor.hostPtr = nullptr;
     } else {
       // Allocate device memory
       if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
-        std::cerr << "SuperGlueTRT: Failed to allocate device memory for "
-                  << tensor.name << "\n";
+        SLOG_ERROR("SuperGlueTRT: Failed to allocate device memory for {}", tensor.name);
         return false;
       }
 
       // Allocate host memory
       if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
-        std::cerr << "SuperGlueTRT: Failed to allocate host memory for "
-                  << tensor.name << "\n";
+        SLOG_ERROR("SuperGlueTRT: Failed to allocate host memory for {}", tensor.name);
         return false;
       }
     }
@@ -127,7 +122,7 @@ bool SuperGlueTRT::allocateBuffers() {
     }
   }
 
-  std::cout << "SuperGlueTRT: Buffers allocated successfully" << "\n";
+  SLOG_INFO("SuperGlueTRT: Buffers allocated successfully");
   return true;
 }
 
@@ -175,8 +170,7 @@ bool SuperGlueTRT::allocateDynamicTensors(
 
       // Set the input shape in the execution context
       if (!context_->setInputShape(tensor.name.c_str(), actualDims)) {
-        std::cerr << "SuperGlueTRT: Failed to set input shape for "
-                  << tensor.name << "\n";
+        SLOG_ERROR("SuperGlueTRT: Failed to set input shape for {}", tensor.name);
         return false;
       }
 
@@ -185,21 +179,16 @@ bool SuperGlueTRT::allocateDynamicTensors(
 
       // Allocate memory
       if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
-        std::cerr << "SuperGlueTRT: Failed to allocate device memory for "
-                     "dynamic tensor "
-                  << tensor.name << "\n";
+        SLOG_ERROR("SuperGlueTRT: Failed to allocate device memory for dynamic tensor {}", tensor.name);
         return false;
       }
 
       if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
-        std::cerr << "SuperGlueTRT: Failed to allocate host memory for dynamic "
-                     "tensor "
-                  << tensor.name << "\n";
+        SLOG_ERROR("SuperGlueTRT: Failed to allocate host memory for dynamic tensor {}", tensor.name);
         return false;
       }
 
-      std::cout << "SuperGlueTRT: Allocated dynamic tensor " << tensor.name
-                << " with size " << tensor.size << " bytes" << "\n";
+      SLOG_DEBUG("SuperGlueTRT: Allocated dynamic tensor {} with size {} bytes", tensor.name, tensor.size);
     }
   }
 
@@ -215,22 +204,16 @@ bool SuperGlueTRT::allocateDynamicTensors(
 
       // Allocate memory
       if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
-        std::cerr << "SuperGlueTRT: Failed to allocate device memory for "
-                     "dynamic output tensor "
-                  << tensor.name << "\n";
+        SLOG_ERROR("SuperGlueTRT: Failed to allocate device memory for dynamic output tensor {}", tensor.name);
         return false;
       }
 
       if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
-        std::cerr << "SuperGlueTRT: Failed to allocate host memory for dynamic "
-                     "output tensor "
-                  << tensor.name << "\n";
+        SLOG_ERROR("SuperGlueTRT: Failed to allocate host memory for dynamic output tensor {}", tensor.name);
         return false;
       }
 
-      std::cout << "SuperGlueTRT: Allocated dynamic output tensor "
-                << tensor.name << " with size " << tensor.size << " bytes"
-                << "\n";
+      SLOG_DEBUG("SuperGlueTRT: Allocated dynamic output tensor {} with size {} bytes", tensor.name, tensor.size);
     }
   }
 
@@ -242,35 +225,36 @@ bool SuperGlueTRT::match(const std::vector<cv::KeyPoint>& keypoints0,
                          const std::vector<cv::KeyPoint>& keypoints1,
                          const cv::Mat& descriptors1, MatchResult& result) {
   if (!context_) {
-    std::cerr << "SuperGlueTRT: Context not initialized" << "\n";
+    SLOG_ERROR("SuperGlueTRT: Context not initialized");
     return false;
   }
+  
+  SLOG_DEBUG("SuperGlueTRT: Matching {} keypoints from image0 with {} keypoints from image1", 
+             keypoints0.size(), keypoints1.size());
 
   // Allocate dynamic tensors with actual shapes
   if (!allocateDynamicTensors(keypoints0, keypoints1)) {
-    std::cerr << "SuperGlueTRT: Failed to allocate dynamic tensors"
-              << "\n";
+    SLOG_ERROR("SuperGlueTRT: Failed to allocate dynamic tensors");
     return false;
   }
 
   // Prepare inputs
   if (!prepareInputs(keypoints0, descriptors0, keypoints1, descriptors1)) {
-    std::cerr << "SuperGlueTRT: Failed to prepare inputs" << "\n";
+    SLOG_ERROR("SuperGlueTRT: Failed to prepare inputs");
     return false;
   }
 
   // Set tensor addresses for inputs
   for (auto& tensor : input_tensors_) {
     if (!context_->setTensorAddress(tensor.name.c_str(), tensor.devicePtr)) {
-      std::cerr << "SuperGlueTRT: Failed to set input tensor address for "
-                << tensor.name << "\n";
+      SLOG_ERROR("SuperGlueTRT: Failed to set input tensor address for {}", tensor.name);
       return false;
     }
 
     // Copy input to device
     if (cudaMemcpyAsync(tensor.devicePtr, tensor.hostPtr, tensor.size,
                         cudaMemcpyHostToDevice, stream_) != cudaSuccess) {
-      std::cerr << "SuperGlueTRT: Failed to copy input to device" << "\n";
+      SLOG_ERROR("SuperGlueTRT: Failed to copy input to device");
       return false;
     }
   }
@@ -278,15 +262,14 @@ bool SuperGlueTRT::match(const std::vector<cv::KeyPoint>& keypoints0,
   // Set tensor addresses for outputs
   for (auto& tensor : output_tensors_) {
     if (!context_->setTensorAddress(tensor.name.c_str(), tensor.devicePtr)) {
-      std::cerr << "SuperGlueTRT: Failed to set output tensor address for "
-                << tensor.name << "\n";
+      SLOG_ERROR("SuperGlueTRT: Failed to set output tensor address for {}", tensor.name);
       return false;
     }
   }
 
   // Execute inference
   if (!context_->enqueueV3(stream_)) {
-    std::cerr << "SuperGlueTRT: Failed to execute inference" << "\n";
+    SLOG_ERROR("SuperGlueTRT: Failed to execute inference");
     return false;
   }
 
@@ -294,8 +277,7 @@ bool SuperGlueTRT::match(const std::vector<cv::KeyPoint>& keypoints0,
   for (auto& tensor : output_tensors_) {
     if (cudaMemcpyAsync(tensor.hostPtr, tensor.devicePtr, tensor.size,
                         cudaMemcpyDeviceToHost, stream_) != cudaSuccess) {
-      std::cerr << "SuperGlueTRT: Failed to copy output from device"
-                << "\n";
+      SLOG_ERROR("SuperGlueTRT: Failed to copy output from device");
       return false;
     }
   }
@@ -312,7 +294,7 @@ bool SuperGlueTRT::prepareInputs(const std::vector<cv::KeyPoint>& keypoints0,
                                  const std::vector<cv::KeyPoint>& keypoints1,
                                  const cv::Mat& descriptors1) {
   if (input_tensors_.size() < 6) {
-    std::cerr << "SuperGlueTRT: Expected 6 input tensors" << "\n";
+    SLOG_ERROR("SuperGlueTRT: Expected 6 input tensors");
     return false;
   }
 
@@ -356,7 +338,7 @@ bool SuperGlueTRT::postprocessOutputs(
     const std::vector<cv::KeyPoint>& keypoints0,
     const std::vector<cv::KeyPoint>& keypoints1, MatchResult& result) {
   if (output_tensors_.empty()) {
-    std::cerr << "SuperGlueTRT: No output tensors" << "\n";
+    SLOG_ERROR("SuperGlueTRT: No output tensors");
     return false;
   }
 
@@ -374,13 +356,11 @@ bool SuperGlueTRT::postprocessOutputs(
   int rows = actualDims.d[actualDims.nbDims - 2];
   int cols = actualDims.d[actualDims.nbDims - 1];
 
-  std::cout << "SuperGlueTRT: Matching scores shape: " << rows << "x" << cols
-            << "\n";
+  SLOG_DEBUG("SuperGlueTRT: Matching scores shape: {}x{}", rows, cols);
 
   // Validate dimensions
   if (rows <= 0 || cols <= 0) {
-    std::cerr << "SuperGlueTRT: Invalid output dimensions: " << rows << "x"
-              << cols << "\n";
+    SLOG_ERROR("SuperGlueTRT: Invalid output dimensions: {}x{}", rows, cols);
     return false;
   }
 
@@ -437,8 +417,7 @@ bool SuperGlueTRT::postprocessOutputs(
     }
   }
 
-  std::cout << "SuperGlueTRT: Found " << result.matches.size() << " matches"
-            << "\n";
+  SLOG_INFO("SuperGlueTRT: Found {} matches", result.matches.size());
   return true;
 }
 
@@ -496,31 +475,33 @@ size_t SuperGlueTRT::getTensorSize(const nvinfer1::Dims& dims,
 void SuperGlueTRT::printTensorInfo(const std::string& name,
                                    const nvinfer1::Dims& dims,
                                    nvinfer1::DataType dtype) {
-  std::cout << "SuperGlueTRT: Tensor " << name << " - Shape: ";
+  std::string shape_str;
   for (int i = 0; i < dims.nbDims; ++i) {
-    std::cout << dims.d[i];
-    if (i < dims.nbDims - 1) std::cout << "x";
+    shape_str += std::to_string(dims.d[i]);
+    if (i < dims.nbDims - 1) shape_str += "x";
   }
-  std::cout << ", Type: ";
+  
+  std::string type_str;
   switch (dtype) {
     case nvinfer1::DataType::kFLOAT:
-      std::cout << "FLOAT";
+      type_str = "FLOAT";
       break;
     case nvinfer1::DataType::kHALF:
-      std::cout << "HALF";
+      type_str = "HALF";
       break;
     case nvinfer1::DataType::kINT8:
-      std::cout << "INT8";
+      type_str = "INT8";
       break;
     case nvinfer1::DataType::kINT32:
-      std::cout << "INT32";
+      type_str = "INT32";
       break;
     case nvinfer1::DataType::kBOOL:
-      std::cout << "BOOL";
+      type_str = "BOOL";
       break;
     default:
-      std::cout << "UNKNOWN";
+      type_str = "UNKNOWN";
       break;
   }
-  std::cout << "\n";
+  
+  SLOG_DEBUG("SuperGlueTRT: Tensor {} - Shape: {}, Type: {}", name, shape_str, type_str);
 }

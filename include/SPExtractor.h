@@ -21,12 +21,12 @@
 #ifndef SPEXTRACTOR_H
 #define SPEXTRACTOR_H
 
-#include <opencv4/opencv2/opencv.hpp>
 #include <list>
+#include <opencv4/opencv2/opencv.hpp>
 #include <vector>
 
-#include "SuperPointTRT.h"
 #include "ReadConfig.h"
+#include "SuperPointTRT.h"
 
 #ifdef EIGEN_MPL2_ONLY
 #undef EIGEN_MPL2_ONLY
@@ -38,11 +38,8 @@ class ExtractorNode {
  public:
   ExtractorNode() : bNoMore(false) {}
 
-  void DivideNode(
-      ExtractorNode& n1,
-      ExtractorNode& n2,
-      ExtractorNode& n3,
-      ExtractorNode& n4);
+  void DivideNode(ExtractorNode& n1, ExtractorNode& n2, ExtractorNode& n3,
+                  ExtractorNode& n4);
 
   std::vector<cv::KeyPoint> vKeys;
   cv::Point2i UL, UR, BL, BR;
@@ -52,90 +49,28 @@ class ExtractorNode {
 
 class SPextractor {
  public:
-  enum { HARRIS_SCORE = 0, FAST_SCORE = 1 };
-
-  SPextractor(
-      int nfeatures,
-      float scaleFactor,
-      int nlevels,
-      float iniThFAST,
-      float minThFAST,
-      const SuperPointConfig& config);
+  SPextractor(int nfeatures,  // Only number of features and config needed
+              const SuperPointConfig& config);
 
   ~SPextractor() {}
 
-  // Compute the SP features and descriptors on an image.
-  // SP are dispersed on the image using an octree.
-  // Mask is ignored in the current implementation.
-  void operator()(
-      cv::InputArray image,
-      cv::InputArray mask,
-      std::vector<cv::KeyPoint>& keypoints,
-      cv::OutputArray descriptors);
+  // Compute the SuperPoint features and descriptors on an image.
+  // Keypoints are dispersed on the image using an octree if more than nfeatures
+  // are found. Mask is ignored in the current implementation.
+  void operator()(cv::InputArray image, cv::InputArray mask,
+                  std::vector<cv::KeyPoint>& keypoints,
+                  cv::OutputArray descriptors);
 
-  int inline GetLevels() {
-    return nlevels;
-  }
-
-  float inline GetScaleFactor() {
-    return scaleFactor;
-  }
-
-  std::vector<float> inline GetScaleFactors() {
-    return mvScaleFactor;
-  }
-
-  std::vector<float> inline GetInverseScaleFactors() {
-    return mvInvScaleFactor;
-  }
-
-  std::vector<float> inline GetScaleSigmaSquares() {
-    return mvLevelSigma2;
-  }
-
-  std::vector<float> inline GetInverseScaleSigmaSquares() {
-    return mvInvLevelSigma2;
-  }
-
-  std::vector<cv::Mat> mvImagePyramid;
+  // TODO: Check if needed
+  static void ComputeNoMoreKeyPoints(std::list<cv::KeyPoint>& kpts);
 
  protected:
-  void ComputePyramid(cv::Mat image);
-  void ComputeKeyPointsOctTree(
-      std::vector<std::vector<cv::KeyPoint>>& allKeypoints,
-      cv::Mat& _desc);
-  std::vector<cv::KeyPoint> DistributeOctTree(
-      const std::vector<cv::KeyPoint>& vToDistributeKeys,
-      const int& minX,
-      const int& maxX,
-      const int& minY,
-      const int& maxY,
-      const int& nFeatures,
-      const int& level);
-
-  // void ComputeKeyPointsOld(std::vector<std::vector<cv::KeyPoint> >&
-  // allKeypoints); std::vector<cv::Point> pattern;
-
   int nfeatures;
-  double scaleFactor;
-  int nlevels;
-  float iniThFAST;
-  float minThFAST;
-
-  std::vector<int> mnFeaturesPerLevel;
-
-  std::vector<int> umax;
-
-  std::vector<float> mvScaleFactor;
-  std::vector<float> mvInvScaleFactor;
-  std::vector<float> mvLevelSigma2;
-  std::vector<float> mvInvLevelSigma2;
-
   std::shared_ptr<SuperPointTRT> model;
 };
 
-typedef SPextractor ORBextractor;
+// typedef SPextractor ORBextractor;  // Removed: No longer needed after refactoring
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM
 
 #endif

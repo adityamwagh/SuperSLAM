@@ -27,6 +27,7 @@
 #include "KeyFrameDatabase.h"
 #include "LoopClosing.h"
 #include "Map.h"
+#include "ReadConfig.h"
 #include "Tracking.h"
 
 namespace SuperSLAM {
@@ -37,7 +38,8 @@ class Map;
 
 class LocalMapping {
  public:
-  LocalMapping(Map* pMap, const float bMonocular);
+  LocalMapping(Map* pMap, const SuperGlueConfig& superglue_config,
+               const float bMonocular = 0);
 
   void SetLoopCloser(LoopClosing* pLoopCloser);
 
@@ -117,8 +119,10 @@ class LocalMapping {
 
   bool mbAcceptKeyFrames;
   std::mutex mMutexAccept;
+
+  SuperGlueConfig mSuperGlueConfig;
 };
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM
 
-#endif // LOCALMAPPING_H
+#endif  // LOCALMAPPING_H

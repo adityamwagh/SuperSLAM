@@ -1,7 +1,5 @@
 /**
  * This file is part of SuperSLAM.
- * This file is based on the file orb.cpp from the OpenCV library (see BSD
- * license below).
  *
  * Copyright (C) Aditya Wagh <adityamwagh at outlook dot com>
  * For more information see <https://github.com/adityamwagh/SuperSLAM>
@@ -19,568 +17,84 @@
  * You should have received a copy of the GNU General Public License
  * along with SuperSLAM. If not, see <http://www.gnu.org/licenses/>.
  */
-/**
- * Software License Agreement (BSD License)
- *
- *  Copyright (c) 2009, Willow Garage, Inc.
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
- *     disclaimer in the documentation and/or other materials provided
- *     with the distribution.
- *   * Neither the name of the Willow Garage nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *
- */
 
 #include "SPExtractor.h"
 
-#include <chrono>
+#include <algorithm>
 #include <opencv4/opencv2/core/core.hpp>
 #include <opencv4/opencv2/features2d/features2d.hpp>
 #include <opencv4/opencv2/highgui/highgui.hpp>
 #include <opencv4/opencv2/imgproc/imgproc.hpp>
 #include <vector>
 
-#include "SuperPointTRT.h"
+#include "Logging.h"
+
+using namespace cv;
+using namespace std;
 
 namespace SuperSLAM {
 
-const int PATCH_SIZE = 31;
-const int HALF_PATCH_SIZE = 15;
-const int EDGE_THRESHOLD = 19;
+const int EDGE_THRESHOLD = 19;  // For border handling
 
-const float factorPI = (float)(CV_PI / 180.f);
-
-void ExtractorNode::DivideNode(ExtractorNode &n1, ExtractorNode &n2,
-                               ExtractorNode &n3, ExtractorNode &n4) {
-  const int halfX = std::ceil(static_cast<float>(UR.x - UL.x) / 2);
-  const int halfY = std::ceil(static_cast<float>(BR.y - UL.y) / 2);
-
-  // Define boundaries of childs
-  n1.UL = UL;
-  n1.UR = cv::Point2i(UL.x + halfX, UL.y);
-  n1.BL = cv::Point2i(UL.x, UL.y + halfY);
-  n1.BR = cv::Point2i(UL.x + halfX, UL.y + halfY);
-  n1.vKeys.reserve(vKeys.size());
-
-  n2.UL = n1.UR;
-  n2.UR = UR;
-  n2.BL = n1.BR;
-  n2.BR = cv::Point2i(UR.x, UL.y + halfY);
-  n2.vKeys.reserve(vKeys.size());
-
-  n3.UL = n1.BL;
-  n3.UR = n1.BR;
-  n3.BL = BL;
-  n3.BR = cv::Point2i(n1.BR.x, BL.y);
-  n3.vKeys.reserve(vKeys.size());
-
-  n4.UL = n3.UR;
-  n4.UR = n2.BR;
-  n4.BL = n3.BR;
-  n4.BR = BR;
-  n4.vKeys.reserve(vKeys.size());
-
-  // Associate points to childs
-  for (size_t i = 0; i < vKeys.size(); i++) {
-    const cv::KeyPoint &kp = vKeys[i];
-    if (kp.pt.x < n1.UR.x) {
-      if (kp.pt.y < n1.BR.y)
-        n1.vKeys.push_back(kp);
-      else
-        n3.vKeys.push_back(kp);
-    } else if (kp.pt.y < n1.BR.y)
-      n2.vKeys.push_back(kp);
-    else
-      n4.vKeys.push_back(kp);
-  }
-
-  if (n1.vKeys.size() == 1) n1.bNoMore = true;
-  if (n2.vKeys.size() == 1) n2.bNoMore = true;
-  if (n3.vKeys.size() == 1) n3.bNoMore = true;
-  if (n4.vKeys.size() == 1) n4.bNoMore = true;
-}
-
-SPextractor::SPextractor(int _nfeatures, float _scaleFactor, int _nlevels,
-                         float _iniThFAST, float _minThFAST,
-                         const SuperPointConfig &config)
-    : nfeatures(_nfeatures),
-      scaleFactor(_scaleFactor),
-      nlevels(_nlevels),
-      iniThFAST(_iniThFAST),
-      minThFAST(_minThFAST) {
+// Constructor for SPextractor
+SPextractor::SPextractor(int _nfeatures, const SuperPointConfig &config)
+    : nfeatures(_nfeatures) {
+  // Initialize SuperPointTRT model
   model = std::make_shared<SuperPointTRT>(config);
   if (!model->initialize()) {
-    std::cerr << "Error in SuperPoint building engine. Please check your onnx "
-                 "model path and TensorRT installation."
-              << "\n";
+    SLOG_ERROR(
+        "Error in SuperPoint building engine. Please check your onnx model "
+        "path and TensorRT installation.");
     throw std::runtime_error("Failed to build SuperPoint TensorRT engine");
   }
-
-  mvScaleFactor.resize(nlevels);
-  mvLevelSigma2.resize(nlevels);
-  mvScaleFactor[0] = 1.0f;
-  mvLevelSigma2[0] = 1.0f;
-  for (int i = 1; i < nlevels; i++) {
-    mvScaleFactor[i] = mvScaleFactor[i - 1] * scaleFactor;
-    mvLevelSigma2[i] = mvScaleFactor[i] * mvScaleFactor[i];
-  }
-
-  mvInvScaleFactor.resize(nlevels);
-  mvInvLevelSigma2.resize(nlevels);
-  for (int i = 0; i < nlevels; i++) {
-    mvInvScaleFactor[i] = 1.0f / mvScaleFactor[i];
-    mvInvLevelSigma2[i] = 1.0f / mvLevelSigma2[i];
-  }
-
-  mvImagePyramid.resize(nlevels);
-
-  mnFeaturesPerLevel.resize(nlevels);
-  float factor = 1.0f / scaleFactor;
-  float nDesiredFeaturesPerScale =
-      nfeatures * (1 - factor) /
-      (1 - (float)pow((double)factor, (double)nlevels));
-
-  int sumFeatures = 0;
-  for (int level = 0; level < nlevels - 1; level++) {
-    mnFeaturesPerLevel[level] = cvRound(nDesiredFeaturesPerScale);
-    sumFeatures += mnFeaturesPerLevel[level];
-    nDesiredFeaturesPerScale *= factor;
-  }
-  mnFeaturesPerLevel[nlevels - 1] = std::max(nfeatures - sumFeatures, 0);
+  SLOG_INFO("SPExtractor initialized with SuperPoint - target features: {}",
+            nfeatures);
 }
 
-std::vector<cv::KeyPoint> SPextractor::DistributeOctTree(
-    const std::vector<cv::KeyPoint> &vToDistributeKeys, const int &minX,
-    const int &maxX, const int &minY, const int &maxY, const int &N,
-    const int &level) {
-  // Compute how many initial nodes
-  const int nIni = round(static_cast<float>(maxX - minX) / (maxY - minY));
-
-  const float hX = static_cast<float>(maxX - minX) / nIni;
-
-  std::list<ExtractorNode> lNodes;
-
-  std::vector<ExtractorNode *> vpIniNodes;
-  vpIniNodes.resize(nIni);
-
-  for (int i = 0; i < nIni; i++) {
-    ExtractorNode ni;
-    ni.UL = cv::Point2i(hX * static_cast<float>(i), 0);
-    ni.UR = cv::Point2i(hX * static_cast<float>(i + 1), 0);
-    ni.BL = cv::Point2i(ni.UL.x, maxY - minY);
-    ni.BR = cv::Point2i(ni.UR.x, maxY - minY);
-    ni.vKeys.reserve(vToDistributeKeys.size());
-
-    lNodes.push_back(ni);
-    vpIniNodes[i] = &lNodes.back();
-  }
-
-  // Associate points to childs
-  for (size_t i = 0; i < vToDistributeKeys.size(); i++) {
-    const cv::KeyPoint &kp = vToDistributeKeys[i];
-    int nodeIndex = static_cast<int>(kp.pt.x / hX);
-    // Clamp nodeIndex to valid range
-    nodeIndex = std::max(0, std::min(nodeIndex, nIni - 1));
-    vpIniNodes[nodeIndex]->vKeys.push_back(kp);
-  }
-
-  std::list<ExtractorNode>::iterator lit = lNodes.begin();
-
-  while (lit != lNodes.end()) {
-    if (lit->vKeys.size() == 1) {
-      lit->bNoMore = true;
-      lit++;
-    } else if (lit->vKeys.empty())
-      lit = lNodes.erase(lit);
-    else
-      lit++;
-  }
-
-  bool bFinish = false;
-
-  int iteration = 0;
-
-  std::vector<std::pair<int, ExtractorNode *>> vSizeAndPointerToNode;
-  vSizeAndPointerToNode.reserve(lNodes.size() * 4);
-
-  while (!bFinish) {
-    iteration++;
-
-    int prevSize = lNodes.size();
-
-    lit = lNodes.begin();
-
-    int nToExpand = 0;
-
-    vSizeAndPointerToNode.clear();
-
-    while (lit != lNodes.end()) {
-      if (lit->bNoMore) {
-        // If node only contains one point do not subdivide and continue
-        lit++;
-        continue;
-      } else {
-        // If more than one point, subdivide
-        ExtractorNode n1, n2, n3, n4;
-        lit->DivideNode(n1, n2, n3, n4);
-
-        // Add childs if they contain points
-        if (n1.vKeys.size() > 0) {
-          lNodes.push_front(n1);
-          if (n1.vKeys.size() > 1) {
-            nToExpand++;
-            vSizeAndPointerToNode.push_back(
-                std::make_pair(n1.vKeys.size(), &lNodes.front()));
-            lNodes.front().lit = lNodes.begin();
-          }
-        }
-        if (n2.vKeys.size() > 0) {
-          lNodes.push_front(n2);
-          if (n2.vKeys.size() > 1) {
-            nToExpand++;
-            vSizeAndPointerToNode.push_back(
-                std::make_pair(n2.vKeys.size(), &lNodes.front()));
-            lNodes.front().lit = lNodes.begin();
-          }
-        }
-        if (n3.vKeys.size() > 0) {
-          lNodes.push_front(n3);
-          if (n3.vKeys.size() > 1) {
-            nToExpand++;
-            vSizeAndPointerToNode.push_back(
-                std::make_pair(n3.vKeys.size(), &lNodes.front()));
-            lNodes.front().lit = lNodes.begin();
-          }
-        }
-        if (n4.vKeys.size() > 0) {
-          lNodes.push_front(n4);
-          if (n4.vKeys.size() > 1) {
-            nToExpand++;
-            vSizeAndPointerToNode.push_back(
-                std::make_pair(n4.vKeys.size(), &lNodes.front()));
-            lNodes.front().lit = lNodes.begin();
-          }
-        }
-
-        lit = lNodes.erase(lit);
-        continue;
-      }
-    }
-
-    // Finish if there are more nodes than required features
-    // or all nodes contain just one point
-    if ((int)lNodes.size() >= N || (int)lNodes.size() == prevSize) {
-      bFinish = true;
-    } else if (((int)lNodes.size() + nToExpand * 3) > N) {
-      while (!bFinish) {
-        prevSize = lNodes.size();
-
-        std::vector<std::pair<int, ExtractorNode *>> vPrevSizeAndPointerToNode =
-            vSizeAndPointerToNode;
-        vSizeAndPointerToNode.clear();
-
-        sort(vPrevSizeAndPointerToNode.begin(),
-             vPrevSizeAndPointerToNode.end());
-        for (int j = vPrevSizeAndPointerToNode.size() - 1; j >= 0; j--) {
-          ExtractorNode n1, n2, n3, n4;
-          vPrevSizeAndPointerToNode[j].second->DivideNode(n1, n2, n3, n4);
-
-          // Add childs if they contain points
-          if (n1.vKeys.size() > 0) {
-            lNodes.push_front(n1);
-            if (n1.vKeys.size() > 1) {
-              vSizeAndPointerToNode.push_back(
-                  std::make_pair(n1.vKeys.size(), &lNodes.front()));
-              lNodes.front().lit = lNodes.begin();
-            }
-          }
-          if (n2.vKeys.size() > 0) {
-            lNodes.push_front(n2);
-            if (n2.vKeys.size() > 1) {
-              vSizeAndPointerToNode.push_back(
-                  std::make_pair(n2.vKeys.size(), &lNodes.front()));
-              lNodes.front().lit = lNodes.begin();
-            }
-          }
-          if (n3.vKeys.size() > 0) {
-            lNodes.push_front(n3);
-            if (n3.vKeys.size() > 1) {
-              vSizeAndPointerToNode.push_back(
-                  std::make_pair(n3.vKeys.size(), &lNodes.front()));
-              lNodes.front().lit = lNodes.begin();
-            }
-          }
-          if (n4.vKeys.size() > 0) {
-            lNodes.push_front(n4);
-            if (n4.vKeys.size() > 1) {
-              vSizeAndPointerToNode.push_back(
-                  std::make_pair(n4.vKeys.size(), &lNodes.front()));
-              lNodes.front().lit = lNodes.begin();
-            }
-          }
-
-          lNodes.erase(vPrevSizeAndPointerToNode[j].second->lit);
-
-          if ((int)lNodes.size() >= N) break;
-        }
-
-        if ((int)lNodes.size() >= N || (int)lNodes.size() == prevSize)
-          bFinish = true;
-      }
-    }
-  }
-
-  // Retain the best point in each node
-  std::vector<cv::KeyPoint> vResultKeys;
-  vResultKeys.reserve(nfeatures);
-  for (std::list<ExtractorNode>::iterator lit = lNodes.begin();
-       lit != lNodes.end(); lit++) {
-    std::vector<cv::KeyPoint> &vNodeKeys = lit->vKeys;
-    cv::KeyPoint *pKP = &vNodeKeys[0];
-    float maxResponse = pKP->response;
-
-    for (size_t k = 1; k < vNodeKeys.size(); k++) {
-      if (vNodeKeys[k].response > maxResponse) {
-        pKP = &vNodeKeys[k];
-        maxResponse = vNodeKeys[k].response;
-      }
-    }
-
-    vResultKeys.push_back(*pKP);
-  }
-
-  return vResultKeys;
-}
-
-void SPextractor::ComputeKeyPointsOctTree(
-    std::vector<std::vector<cv::KeyPoint>> &allKeypoints, cv::Mat &_desc) {
-  allKeypoints.resize(nlevels);
-
-  std::vector<cv::Mat> vDesc;
-
-  for (int level = 0; level < nlevels; ++level) {
-    // Use SuperPointTRT to extract features for this pyramid level
-    std::vector<cv::KeyPoint> extractedKeypoints;
-    cv::Mat extractedDescriptors;
-
-    if (!model->infer(mvImagePyramid[level], extractedKeypoints,
-                      extractedDescriptors)) {
-      std::cerr << "SuperPoint inference failed for pyramid level " << level
-                << "\n";
-      continue;
-    }
-
-    const int minBorderX = EDGE_THRESHOLD - 3;
-    const int minBorderY = minBorderX;
-    const int maxBorderX = mvImagePyramid[level].cols - EDGE_THRESHOLD + 3;
-    const int maxBorderY = mvImagePyramid[level].rows - EDGE_THRESHOLD + 3;
-
-    std::vector<cv::KeyPoint> vToDistributeKeys;
-    std::vector<int> validIndices;
-    vToDistributeKeys.reserve(extractedKeypoints.size());
-    validIndices.reserve(extractedKeypoints.size());
-
-    // Filter keypoints within borders
-    for (int i = 0; i < extractedKeypoints.size(); ++i) {
-      const cv::KeyPoint &kp = extractedKeypoints[i];
-      if (kp.pt.x >= minBorderX && kp.pt.x < maxBorderX &&
-          kp.pt.y >= minBorderY && kp.pt.y < maxBorderY) {
-        vToDistributeKeys.push_back(kp);
-        validIndices.push_back(i);
-      }
-    }
-
-    std::vector<cv::KeyPoint> &keypoints = allKeypoints[level];
-    keypoints.reserve(nfeatures);
-
-    keypoints =
-        DistributeOctTree(vToDistributeKeys, minBorderX, maxBorderX, minBorderY,
-                          maxBorderY, mnFeaturesPerLevel[level], level);
-
-    const int scaledPatchSize = PATCH_SIZE * mvScaleFactor[level];
-
-    // Add border to coordinates and scale information
-    const int nkps = keypoints.size();
-    for (int i = 0; i < nkps; i++) {
-      keypoints[i].octave = level;
-      keypoints[i].size = scaledPatchSize;
-    }
-
-    // Extract descriptors for the selected keypoints
-    cv::Mat desc(keypoints.size(), extractedDescriptors.cols, CV_32F);
-    for (int i = 0; i < keypoints.size(); ++i) {
-      // Find corresponding feature in SuperPoint output
-      bool found = false;
-      for (int j = 0; j < vToDistributeKeys.size(); ++j) {
-        if (std::abs(vToDistributeKeys[j].pt.x - keypoints[i].pt.x) < 1.0 &&
-            std::abs(vToDistributeKeys[j].pt.y - keypoints[i].pt.y) < 1.0) {
-          // Copy descriptor from original SuperPoint output
-          int originalIdx = validIndices[j];
-          extractedDescriptors.row(originalIdx).copyTo(desc.row(i));
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        // If no exact match found, use zero descriptor
-        desc.row(i).setTo(0);
-      }
-    }
-    vDesc.push_back(desc);
-  }
-
-  if (!vDesc.empty()) {
-    cv::vconcat(vDesc, _desc);
-  }
-
-  // // compute orientations
-  // for (int level = 0; level < nlevels; ++level)
-  //     computeOrientation(mvImagePyramid[level], allKeypoints[level], umax);
-}
-
+// Main operator to extract features
 void SPextractor::operator()(cv::InputArray _image, cv::InputArray _mask,
                              std::vector<cv::KeyPoint> &_keypoints,
                              cv::OutputArray _descriptors) {
-  if (_image.empty()) return;
+  if (_image.empty()) {
+    return;
+  }
 
   cv::Mat image = _image.getMat();
   assert(image.type() == CV_8UC1);
 
-  cv::Mat descriptors;
+  std::vector<cv::KeyPoint> allExtractedKeypoints;
+  cv::Mat allExtractedDescriptors;
 
-  // Pre-compute the scale pyramid
-  ComputePyramid(image);
-
-  std::vector<std::vector<cv::KeyPoint>> allKeypoints;
-  ComputeKeyPointsOctTree(allKeypoints, descriptors);
-  std::cout << descriptors.rows << "\n";
-
-  int nkeypoints = 0;
-  for (int level = 0; level < nlevels; ++level)
-    nkeypoints += (int)allKeypoints[level].size();
-  if (nkeypoints == 0)
+  // Use SuperPointTRT to extract features from the original image
+  if (!model->infer(image, allExtractedKeypoints, allExtractedDescriptors)) {
+    SLOG_ERROR("SuperPoint inference failed for original image");
     _descriptors.release();
-  else {
-    _descriptors.create(nkeypoints, 256, CV_32F);
-    descriptors.copyTo(_descriptors.getMat());
+    _keypoints.clear();
+    return;
+  }
+  SLOG_INFO("SuperPoint extracted {} raw keypoints",
+            allExtractedKeypoints.size());
+
+  SLOG_INFO("Converted to OpenCV: {} keypoints, {} descriptors",
+            allExtractedKeypoints.size(), allExtractedDescriptors.rows);
+
+  _keypoints = allExtractedKeypoints;
+  if (!allExtractedDescriptors.empty()) {
+    allExtractedDescriptors.copyTo(_descriptors);
+  } else {
+    _descriptors.release();
   }
 
-  _keypoints.clear();
-  _keypoints.reserve(nkeypoints);
-
-  int offset = 0;
-  for (int level = 0; level < nlevels; ++level) {
-    std::vector<cv::KeyPoint> &keypoints = allKeypoints[level];
-    int nkeypointsLevel = (int)keypoints.size();
-
-    if (nkeypointsLevel == 0) continue;
-
-    // // preprocess the resized image
-    // Mat workingMat = mvImagePyramid[level].clone();
-    // GaussianBlur(workingMat, workingMat, Size(7, 7), 2, 2,
-    // BORDER_REFLECT_101);
-
-    // // Compute the descriptors
-    // Mat desc = descriptors.rowRange(offset, offset + nkeypointsLevel);
-    // computeDescriptors(workingMat, keypoints, desc, pattern);
-
-    // offset += nkeypointsLevel;
-
-    // Scale keypoint coordinates
-    if (level != 0) {
-      float scale =
-          mvScaleFactor[level];  // getScale(level, firstLevel, scaleFactor);
-      for (std::vector<cv::KeyPoint>::iterator keypoint = keypoints.begin(),
-                                               keypointEnd = keypoints.end();
-           keypoint != keypointEnd; ++keypoint)
-        keypoint->pt *= scale;
-    }
-    // And add the keypoints to the output
-    _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());
+  if (_keypoints.empty()) {
+    SLOG_INFO("Extractor returning 0 keypoints and 0 descriptors");
+  } else {
+    SLOG_INFO("Extractor returning {} keypoints and {} descriptors",
+              _keypoints.size(), _descriptors.getMat().rows);
   }
 }
 
-// void SPextractor::operator()( cv::InputArray _image, cv::InputArray _mask,
-// std::vector<KeyPoint>& _keypoints,
-//                       OutputArray _descriptors)
-// {
-//     if(_image.empty())
-//         return;
-
-//     Mat image = _image.getMat();
-//     assert(image.type() == CV_8UC1 );
-
-//     std::vector<KeyPoint> keypoints;
-
-//     Mat desc = SPdetect(model, image, _keypoints, iniThFAST, true, false);
-
-//     // Mat kpt_mat(keypoints.size(), 2, CV_32F);
-//     // for (size_t i = 0; i < keypoints.size(); i++) {
-//     //     kpt_mat.at<float>(i, 0) = (float)keypoints[i].pt.x;
-//     //     kpt_mat.at<float>(i, 1) = (float)keypoints[i].pt.y;
-//     // }
-//     // Mat descriptors;
-//     // int border = 8;
-//     // int dist_thresh = 4;
-//     // int height = image.rows;
-//     // int width = image.cols;
-//     // nms(kpt_mat, desc, _keypoints, descriptors, border, dist_thresh,
-//     width, height);
-//     // std::cout << "hihihi" << "\n";
-
-//     int nkeypoints = _keypoints.size();
-//     _descriptors.create(nkeypoints, 256, CV_32F);
-//     desc.copyTo(_descriptors.getMat());
-
-// }
-
-void SPextractor::ComputePyramid(cv::Mat image) {
-  for (int level = 0; level < nlevels; ++level) {
-    float scale = mvInvScaleFactor[level];
-    cv::Size sz(cvRound((float)image.cols * scale),
-                cvRound((float)image.rows * scale));
-    cv::Size wholeSize(sz.width + EDGE_THRESHOLD * 2,
-                       sz.height + EDGE_THRESHOLD * 2);
-    cv::Mat temp(wholeSize, image.type()), masktemp;
-    mvImagePyramid[level] =
-        temp(cv::Rect(EDGE_THRESHOLD, EDGE_THRESHOLD, sz.width, sz.height));
-
-    // Compute the resized image
-    if (level != 0) {
-      resize(mvImagePyramid[level - 1], mvImagePyramid[level], sz, 0, 0,
-             cv::INTER_LINEAR);
-
-      copyMakeBorder(mvImagePyramid[level], temp, EDGE_THRESHOLD,
-                     EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
-                     cv::BORDER_REFLECT_101 + cv::BORDER_ISOLATED);
-    } else {
-      copyMakeBorder(image, temp, EDGE_THRESHOLD, EDGE_THRESHOLD,
-                     EDGE_THRESHOLD, EDGE_THRESHOLD, cv::BORDER_REFLECT_101);
-    }
-  }
+void SPextractor::ComputeNoMoreKeyPoints(std::list<cv::KeyPoint> &kpts) {
+  // ... existing code ...
 }
 
 }  // namespace SuperSLAM

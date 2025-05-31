@@ -22,6 +22,8 @@
 
 #include <mutex>
 
+#include "Logging.h"
+
 namespace SuperSLAM {
 
 Map::Map() : mnMaxKFid(0), mnBigChangeIdx(0) {}

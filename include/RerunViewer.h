@@ -1,176 +1,108 @@
-/**
- * This file is part of SuperSLAM.
- *
- * Copyright (C) Aditya Wagh <adityamwagh at outlook dot com>
- * For more information see <https://github.com/adityamwagh/SuperSLAM>
- *
- * SuperSLAM is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * SuperSLAM is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with SuperSLAM. If not, see <http://www.gnu.org/licenses/>.
- */
-
 #ifndef RERUNVIEWER_H
 #define RERUNVIEWER_H
 
-#include <memory>
-#include <mutex>
-#include <opencv4/opencv2/opencv.hpp>
+#include <memory>  // For std::shared_ptr
+#include <mutex>   // For std::mutex
 #include <rerun.hpp>
-#include <string>
-#include <thread>
-#include <vector>
+#include <thread>         // for std::thread
+#include <unordered_map>  // For std::unordered_map
+#include <opencv2/opencv.hpp>
 
 #include "Frame.h"
-#include "KeyFrame.h"
+#include "KeyFrame.h"  // Added for KeyFrame type
 #include "Map.h"
-#include "MapPoint.h"
-#include "System.h"
-#include "Tracking.h"
+#include "MapPoint.h"  // Added for MapPoint type
 
-namespace SuperSLAM {
-
-class System;
-class Tracking;
-class Map;
-class KeyFrame;
-class MapPoint;
-
-/**
- * @brief Rerun.io-based visualization for SuperSLAM
- *
- * This class provides real-time visualization of SLAM data using Rerun.io,
- * including camera trajectory, map points, keyframes, and feature tracks.
- */
-class RerunViewer {
+namespace SuperSLAM
+{
+class RerunViewer
+{
  public:
-  RerunViewer(System* pSystem, Tracking* pTracking, Map* pMap,
-              const std::string& strSettingPath);
-  ~RerunViewer();
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+  typedef std::shared_ptr<RerunViewer> Ptr;
 
-  // Main viewer thread
-  void Run();
+  RerunViewer();
 
-  // Control functions
+  void SetMap(Map* map);
+
+  void SetCameras(float fx_left, float fy_left, float cx_left, float cy_left,
+                  float fx_right, float fy_right, float cx_right, float cy_right,
+                  float baseline);
+
+  void Close();
+
+  void AddCurrentFrame(Frame* current_frame);
+
+  void AddStereoFrames(Frame* current_frame, const cv::Mat& left_image, const cv::Mat& right_image);
+
+  void UpdateMap();
+
+  // Log in rerun viewer
+  void LogInfo(std::string msg, std::string log_type);
+
+  // Log in rerun viewer with id of most recent active keyframe as index
+  void LogInfoMKF(std::string msg, unsigned long maxkeyframe_id,
+                  std::string log_type);
+
+  void Plot(std::string plot_name, double value, unsigned long maxkeyframe_id);
+
+  // Log keyframe in rerun viewer
+  void LogKeyFrame(KeyFrame* keyframe);
+
+  // Add methods that might be called from Tracking or System
   void RequestFinish();
-  void RequestStop();
   bool isFinished();
+  void RequestStop();
   bool isStopped();
   void Release();
+  bool Stop();  // Added based on old RerunViewer
+  void Run();   // Added based on old RerunViewer
 
-  // Logging functions for real-time visualization
-  void LogFrame(const cv::Mat& image,
-                const std::vector<cv::KeyPoint>& keypoints, const cv::Mat& pose,
-                double timestamp);
-  void LogTrajectory(const cv::Mat& pose, double timestamp);
-  void LogMapPoints(const std::vector<MapPoint*>& map_points);
-  void LogKeyFrame(KeyFrame* pKF);
-  void LogFeatureMatches(const std::vector<cv::KeyPoint>& kpts1,
-                         const std::vector<cv::KeyPoint>& kpts2,
-                         const std::vector<cv::DMatch>& matches);
-  void LogSuperPointFeatures(const cv::Mat& image,
-                             const std::vector<cv::KeyPoint>& keypoints,
-                             const cv::Mat& descriptors);
-  void LogLoopClosure(KeyFrame* pKF1, KeyFrame* pKF2,
-                      const std::vector<cv::DMatch>& matches);
+  // Helper methods for thread management (from old RerunViewer, ensure
+  // consistency)
+  bool CheckFinish();
+  void SetFinish();
 
  private:
-  // Rerun recorder
-  std::shared_ptr<rerun::RecordingStream> rec_;
+  const rerun::RecordingStream rec = rerun::RecordingStream("SuperSLAM_Viewer");
 
-  // SLAM components
-  System* mpSystem;
-  Tracking* mpTracker;
-  Map* mpMap;
+  Frame* current_frame_{nullptr};
+  Map* map_{nullptr};
+  
+  // Stereo images for display
+  cv::Mat current_left_image_;
+  cv::Mat current_right_image_;
+  bool has_stereo_images_{false};
+  
+  // Camera parameters
+  float fx_left_, fy_left_, cx_left_, cy_left_;
+  float fx_right_, fy_right_, cx_right_, cy_right_;
+  float baseline_;
+  bool cameras_set_{false};
 
-  // Threading
-  std::thread* mptViewer;
+  bool viewer_running_{true};
+  bool mbFinishRequested{false};
+  bool mbFinished{false};
+  bool mbStopRequested{false};
+  bool mbStopped{false};
 
-  // Timing
-  double mT;  // 1/fps in ms
-
-  // Viewpoint parameters
-  float mViewpointX, mViewpointY, mViewpointZ, mViewpointF;
-
-  // Control flags
-  bool mbFinishRequested;
-  bool mbFinished;
-  std::mutex mMutexFinish;
-
-  bool mbStopped;
-  bool mbStopRequested;
-  std::mutex mMutexStop;
-
-  // Data tracking
-  std::vector<cv::Point3f> trajectory_points_;
-  std::vector<double> trajectory_timestamps_;
-  std::mutex mMutexTrajectory;
-
-  std::vector<cv::Point3f> map_points_;
-  std::mutex mMutexMapPoints;
-
-  // Current frame data
-  cv::Mat current_image_;
-  std::vector<cv::KeyPoint> current_keypoints_;
-  cv::Mat current_pose_;
-  double current_timestamp_;
-  std::mutex mMutexCurrentFrame;
-
-  // Active data structures (like the example)
   std::unordered_map<unsigned long, KeyFrame*> all_keyframes_;
   std::unordered_map<unsigned long, KeyFrame*> active_keyframes_;
   std::unordered_map<unsigned long, MapPoint*> active_landmarks_;
+
   std::mutex viewer_data_mutex_;
+  std::mutex mMutexFinish;
+  std::mutex mMutexStop;
 
-  // Visualization settings
-  struct VisualizationSettings {
-    bool show_trajectory = true;
-    bool show_map_points = true;
-    bool show_keyframes = true;
-    bool show_current_frame = true;
-    bool show_feature_tracks = true;
-    bool show_loop_closures = true;
+  // Different color for logging info of different components
+  std::unordered_map<std::string, rerun::Color> log_color{
+      {"vo", rerun::Color(255, 255, 255)},
+      {"frontend", rerun::Color(0, 255, 255)},
+      {"backend", rerun::Color(0, 255, 0)},
+      {"loopclosing", rerun::Color(255, 165, 0)}};
 
-    // Colors
-    std::array<float, 3> trajectory_color = {0.0f, 1.0f, 0.0f};    // Green
-    std::array<float, 3> map_points_color = {1.0f, 0.0f, 0.0f};    // Red
-    std::array<float, 3> keyframe_color = {0.0f, 0.0f, 1.0f};      // Blue
-    std::array<float, 3> current_pose_color = {1.0f, 1.0f, 0.0f};  // Yellow
-    std::array<float, 3> features_color = {0.0f, 1.0f, 1.0f};      // Cyan
-
-    // Sizes
-    float trajectory_line_width = 2.0f;
-    float map_point_size = 0.02f;
-    float keyframe_size = 0.1f;
-    float feature_size = 3.0f;
-  } settings_;
-
-  // Helper functions
-  bool CheckFinish();
-  void SetFinish();
-  bool Stop();
-
-  void UpdateVisualization();
-  void DrawTrajectory();
-  void DrawMapPoints();
-  void DrawKeyFrames();
-  void DrawCurrentFrame();
-
-  // Conversion utilities
-  rerun::Position3D cvMatToRerunPosition(const cv::Mat& pose);
-  rerun::Transform3D cvMatToRerunTransform(const cv::Mat& pose);
-  std::vector<rerun::Position3D> keypointsToRerunPoints(
-      const std::vector<cv::KeyPoint>& keypoints, float depth = 1.0f);
-
-  void LoadViewerSettings(const std::string& strSettingPath);
+  std::thread* mptViewer{nullptr};
+  double mT;
 };
 
 }  // namespace SuperSLAM

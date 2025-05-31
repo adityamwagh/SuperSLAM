@@ -19,6 +19,7 @@
  */
 
 #include "LocalMapping.h"
+#include "Logging.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,15 +30,18 @@
 #include "LoopClosing.h"
 #include "Optimizer.h"
 #include "SPMatcher.h"
+#include "Logging.h"
 
 namespace SuperSLAM {
 
-LocalMapping::LocalMapping(Map *pMap, const float bMonocular)
+LocalMapping::LocalMapping(Map *pMap, const SuperGlueConfig &superglue_config,
+                           const float bMonocular)
     : mbMonocular(bMonocular),
       mbResetRequested(false),
       mbFinishRequested(false),
       mbFinished(true),
       mpMap(pMap),
+      mSuperGlueConfig(superglue_config),
       mbAbortBA(false),
       mbStopped(false),
       mbStopRequested(false),
@@ -193,7 +197,7 @@ void LocalMapping::CreateNewMapPoints() {
   const std::vector<KeyFrame *> vpNeighKFs =
       mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
 
-  ORBmatcher matcher(0.6, false);
+  SPmatcher matcher(0.6, false, mSuperGlueConfig);
 
   cv::Mat Rcw1 = mpCurrentKeyFrame->GetRotation();
   cv::Mat Rwc1 = Rcw1.t();
@@ -423,6 +427,8 @@ void LocalMapping::SearchInNeighbors() {
   const std::vector<KeyFrame *> vpNeighKFs =
       mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
   std::vector<KeyFrame *> vpTargetKFs;
+  int nInitialCandidates = 0;
+  std::vector<MapPoint *> vpFuseCandidates;
   for (std::vector<KeyFrame *>::const_iterator vit = vpNeighKFs.begin(),
                                                vend = vpNeighKFs.end();
        vit != vend; vit++) {
@@ -432,43 +438,20 @@ void LocalMapping::SearchInNeighbors() {
     vpTargetKFs.push_back(pKFi);
     pKFi->mnFuseTargetForKF = mpCurrentKeyFrame->mnId;
 
-    // Extend to some second neighbors
-    const std::vector<KeyFrame *> vpSecondNeighKFs =
-        pKFi->GetBestCovisibilityKeyFrames(5);
-    for (std::vector<KeyFrame *>::const_iterator
-             vit2 = vpSecondNeighKFs.begin(),
-             vend2 = vpSecondNeighKFs.end();
-         vit2 != vend2; vit2++) {
-      KeyFrame *pKFi2 = *vit2;
-      if (pKFi2->isBad() ||
-          pKFi2->mnFuseTargetForKF == mpCurrentKeyFrame->mnId ||
-          pKFi2->mnId == mpCurrentKeyFrame->mnId)
-        continue;
-      vpTargetKFs.push_back(pKFi2);
-    }
+    // Extend Covisibility Graph
+    pKFi->AddConnection(mpCurrentKeyFrame, 1);
+    mpCurrentKeyFrame->AddConnection(pKFi, 1);
+    nInitialCandidates++;
   }
 
   // Search matches by projection from current KF in target KFs
-  ORBmatcher matcher;
+  SPmatcher matcher(0.8f, true, mSuperGlueConfig);
   std::vector<MapPoint *> vpMapPointMatches =
       mpCurrentKeyFrame->GetMapPointMatches();
   for (std::vector<KeyFrame *>::iterator vit = vpTargetKFs.begin(),
                                          vend = vpTargetKFs.end();
        vit != vend; vit++) {
     KeyFrame *pKFi = *vit;
-
-    matcher.Fuse(pKFi, vpMapPointMatches);
-  }
-
-  // Search matches by projection from target KFs in current KF
-  std::vector<MapPoint *> vpFuseCandidates;
-  vpFuseCandidates.reserve(vpTargetKFs.size() * vpMapPointMatches.size());
-
-  for (std::vector<KeyFrame *>::iterator vitKF = vpTargetKFs.begin(),
-                                         vendKF = vpTargetKFs.end();
-       vitKF != vendKF; vitKF++) {
-    KeyFrame *pKFi = *vitKF;
-
     std::vector<MapPoint *> vpMapPointsKFi = pKFi->GetMapPointMatches();
 
     for (std::vector<MapPoint *>::iterator vitMP = vpMapPointsKFi.begin(),
@@ -529,7 +512,7 @@ bool LocalMapping::Stop() {
   std::unique_lock<std::mutex> lock(mMutexStop);
   if (mbStopRequested && !mbNotStop) {
     mbStopped = true;
-    std::cout << "Local Mapping STOP" << "\n";
+    SLOG_INFO("Local Mapping STOP");
     return true;
   }
 
@@ -558,7 +541,7 @@ void LocalMapping::Release() {
     delete *lit;
   mlNewKeyFrames.clear();
 
-  std::cout << "Local Mapping RELEASE" << "\n";
+  SLOG_INFO("Local Mapping RELEASE");
 }
 
 bool LocalMapping::AcceptKeyFrames() {

@@ -35,8 +35,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 
 # Add debug and backtrace support
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -rdynamic")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -rdynamic")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -rdynamic")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -rdynamic")
 endif()
 
 # Add custom CMake modules path
@@ -45,9 +45,19 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 # Find dependencies
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
-set(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda-11.8")
 find_package(CUDA REQUIRED)
 find_package(yaml-cpp REQUIRED)
+
+# Configure spdlog
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG v1.12.0
+)
+FetchContent_MakeAvailable(spdlog)
+
+# Set PIC flag for spdlog when building as static library
+set_target_properties(spdlog PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Configure Rerun
 FetchContent_Declare(
@@ -110,6 +120,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   nvinfer
   nvonnxparser
   yaml-cpp
+  spdlog::spdlog
   tensorrtbuffer
   rerun_sdk
   ${OpenCV_LIBRARIES}
@@ -122,51 +133,12 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 # Build examples
 set(EXAMPLES_OUTPUT_DIR ${PROJECT_SOURCE_DIR}/examples)
 
-# RGB-D examples
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXAMPLES_OUTPUT_DIR}/RGB-D)
-add_executable(rgbd_tum examples/RGB-D/rgbd_tum.cc)
-target_link_libraries(rgbd_tum ${PROJECT_NAME})
-
-# Stereo examples
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXAMPLES_OUTPUT_DIR}/stereo)
-add_executable(stereo_kitti examples/stereo/stereo_kitti.cc)
-target_link_libraries(stereo_kitti ${PROJECT_NAME})
-
-add_executable(stereo_euroc examples/stereo/stereo_euroc.cc)
-target_link_libraries(stereo_euroc ${PROJECT_NAME})
-
-# Monocular examples
+# KITTI Monocular examples with Rerun visualization
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXAMPLES_OUTPUT_DIR}/monocular)
-add_executable(mono_tum examples/monocular/mono_tum.cc)
-target_link_libraries(mono_tum ${PROJECT_NAME})
+add_executable(mono_kitti_rerun examples/monocular/mono_kitti_rerun.cc)
+target_link_libraries(mono_kitti_rerun ${PROJECT_NAME})
 
-add_executable(mono_kitti examples/monocular/mono_kitti.cc)
-target_link_libraries(mono_kitti ${PROJECT_NAME})
-
-add_executable(mono_euroc examples/monocular/mono_euroc.cc)
-target_link_libraries(mono_euroc ${PROJECT_NAME})
-
-# TUM example with Rerun visualization
-add_executable(mono_tum_rerun examples/monocular/mono_tum_rerun.cc)
-target_link_libraries(mono_tum_rerun ${PROJECT_NAME})
-
-# New simplified monocular example with Rerun
-add_executable(mono_rerun examples/monocular/mono_rerun.cc)
-target_link_libraries(mono_rerun ${PROJECT_NAME})
-
-# New TUM example with Rerun visualization
-add_executable(new_mono_tum examples/new_mono_tum.cc)
-target_link_libraries(new_mono_tum ${PROJECT_NAME})
-
-# RGB-D Rerun examples
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXAMPLES_OUTPUT_DIR}/RGB-D)
-add_executable(rgbd_rerun examples/RGB-D/rgbd_rerun.cc)
-target_link_libraries(rgbd_rerun ${PROJECT_NAME})
-
-# Stereo Rerun examples
+# Stereo examples with Rerun visualization
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXAMPLES_OUTPUT_DIR}/stereo)
 add_executable(stereo_kitti_rerun examples/stereo/stereo_kitti_rerun.cc)
 target_link_libraries(stereo_kitti_rerun ${PROJECT_NAME})
-
-add_executable(stereo_euroc_rerun examples/stereo/stereo_euroc_rerun.cc)
-target_link_libraries(stereo_euroc_rerun ${PROJECT_NAME})

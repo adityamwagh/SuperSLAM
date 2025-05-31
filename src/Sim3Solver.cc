@@ -27,6 +27,7 @@
 #include "KeyFrame.h"
 #include "Random.h"
 #include "SPMatcher.h"
+#include "Logging.h"
 
 namespace SuperSLAM {
 

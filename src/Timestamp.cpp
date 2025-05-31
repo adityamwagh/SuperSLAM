@@ -33,6 +33,7 @@
 #endif
 
 #include "Timestamp.h"
+#include "Logging.h"
 
 using namespace DUtils;
 

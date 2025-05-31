@@ -23,6 +23,7 @@
 #include <mutex>
 
 #include "SPMatcher.h"
+#include "Logging.h"
 
 namespace SuperSLAM {
 
@@ -281,7 +282,7 @@ void MapPoint::ComputeDistinctiveDescriptors() {
     Distances[i][i] = 0;
     for (size_t j = i + 1; j < N; j++) {
       int distij =
-          ORBmatcher::DescriptorDistance(vDescriptors[i], vDescriptors[j]);
+          SPmatcher::DescriptorDistance(vDescriptors[i], vDescriptors[j]);
       Distances[i][j] = distij;
       Distances[j][i] = distij;
     }

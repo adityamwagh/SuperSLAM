@@ -24,6 +24,7 @@
 
 #include "KeyFrame.h"
 #include "thirdparty/DBoW3/src/DBoW3.h"
+#include "Logging.h"
 
 namespace SuperSLAM {
 

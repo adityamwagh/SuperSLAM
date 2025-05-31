@@ -19,11 +19,13 @@
  */
 
 #include "KeyFrame.h"
+#include "Logging.h"
 
 #include <mutex>
 
 #include "Converter.h"
 #include "SPMatcher.h"
+#include "Logging.h"
 
 namespace SuperSLAM {
 
@@ -96,20 +98,17 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB)
 
 void KeyFrame::ComputeBoW() {
   if (mBowVec.empty() || mFeatVec.empty()) {
-    std::cout << "ComputeBoW: Starting BoW computation..." << "\n";
+    SLOG_DEBUG("ComputeBoW: Starting BoW computation...");
 
     // Check if descriptors are SuperPoint (256-dim float) or ORB (32-dim
     // binary)
     if (!mDescriptors.empty()) {
-      std::cout << "ComputeBoW: Descriptor type=" << mDescriptors.type()
-                << ", size=" << mDescriptors.rows << "x" << mDescriptors.cols
-                << "\n";
+      SLOG_DEBUG("ComputeBoW: Descriptor type={}, size={}x{}", 
+                mDescriptors.type(), mDescriptors.rows, mDescriptors.cols);
 
       // SuperPoint descriptors are CV_32F with 256 columns
       if (mDescriptors.type() == CV_32F && mDescriptors.cols == 256) {
-        std::cout << "ComputeBoW: Detected SuperPoint descriptors, skipping "
-                     "BoW computation"
-                  << "\n";
+        SLOG_DEBUG("ComputeBoW: Detected SuperPoint descriptors, skipping BoW computation");
         // For now, create empty BoW vectors to avoid crashes
         // TODO: Implement proper SuperPoint vocabulary
         mBowVec.clear();
@@ -120,15 +119,14 @@ void KeyFrame::ComputeBoW() {
 
     std::vector<cv::Mat> vCurrentDesc =
         Converter::toDescriptorVector(mDescriptors);
-    std::cout << "ComputeBoW: Converting to descriptor vector, count="
-              << vCurrentDesc.size() << "\n";
+    SLOG_DEBUG("ComputeBoW: Converting to descriptor vector, count={}", vCurrentDesc.size());
 
     // Feature vector associate features with nodes in the 4th level (from
     // leaves up) We assume the vocabulary tree has 6 levels, change the 4
     // otherwise
-    std::cout << "ComputeBoW: Calling vocabulary transform..." << "\n";
+    SLOG_DEBUG("ComputeBoW: Calling vocabulary transform...");
     mpORBvocabulary->transform(vCurrentDesc, mBowVec, mFeatVec, 4);
-    std::cout << "ComputeBoW: BoW computation complete" << "\n";
+    SLOG_DEBUG("ComputeBoW: BoW computation complete");
   }
 }
 

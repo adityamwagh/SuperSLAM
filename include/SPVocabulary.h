@@ -37,4 +37,4 @@ typedef SPVocabulary ORBVocabulary;
 
 } // namespace SuperSLAM
 
-#endif // ORBVOCABULARY_H
+#endif // SPVOCABULARY_H

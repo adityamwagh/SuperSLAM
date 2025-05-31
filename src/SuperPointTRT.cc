@@ -1,60 +1,67 @@
 #include "SuperPointTRT.h"
 
+#include <fstream>
+#include <iostream>
+
+#include "Logging.h"
+
 // Simple logger for TensorRT 10.11.0
 class SimpleLogger : public nvinfer1::ILogger {
  public:
   void log(Severity severity, const char* msg) noexcept override {
     if (severity <= Severity::kWARNING) {
-      std::cout << "[TensorRT] " << msg << "\n";
+      SLOG_INFO("[TensorRT] {}", msg);
     }
   }
 };
 
 static SimpleLogger gLogger;
 
-SuperPointTRT::SuperPointTRT(const SuperPointConfig& config) : config_(config) {
-  cudaStreamCreate(&stream_);
-}
+SuperPointTRT::SuperPointTRT(const SuperPointConfig& config)
+    : config_(config), engine_(nullptr), context_(nullptr), stream_(nullptr) {}
 
 SuperPointTRT::~SuperPointTRT() {
   freeBuffers();
   if (context_) delete context_;
   if (engine_) delete engine_;
   if (runtime_) delete runtime_;
-  cudaStreamDestroy(stream_);
+  if (stream_) cudaStreamDestroy(stream_);
 }
 
 bool SuperPointTRT::initialize() {
-  std::cout << "SuperPointTRT: Initializing..." << "\n";
+  SLOG_INFO("SuperPointTRT: Initializing...");
 
+  // Create CUDA stream
+  if (cudaStreamCreate(&stream_) != cudaSuccess) {
+    SLOG_ERROR("SuperPointTRT: Failed to create CUDA stream");
+    return false;
+  }
+
+  // Load engine
   if (!loadEngine()) {
-    std::cerr << "SuperPointTRT: Failed to load engine" << "\n";
     return false;
   }
 
+  // Allocate buffers
   if (!allocateBuffers()) {
-    std::cerr << "SuperPointTRT: Failed to allocate buffers" << "\n";
     return false;
   }
 
-  std::cout << "SuperPointTRT: Initialization successful" << "\n";
+  SLOG_INFO("SuperPointTRT: Initialization successful");
   return true;
 }
 
 bool SuperPointTRT::loadEngine() {
-  std::cout << "SuperPointTRT: Loading engine from " << config_.engine_file
-            << "\n";
+  SLOG_INFO("SuperPointTRT: Loading engine from {}", config_.engine_file);
 
   std::ifstream file(config_.engine_file, std::ios::binary);
   if (!file.good()) {
-    std::cerr << "SuperPointTRT: Cannot read engine file "
-              << config_.engine_file << "\n";
-    std::cerr << "SuperPointTRT: Please rebuild the engine for TensorRT "
-                 "10.11.0 using:"
-              << "\n";
-    std::cerr << "trtexec --onnx=" << config_.onnx_file
-              << " --saveEngine=" << config_.engine_file << " --fp16"
-              << "\n";
+    SLOG_ERROR("SuperPointTRT: Cannot read engine file {}",
+               config_.engine_file);
+    SLOG_ERROR(
+        "SuperPointTRT: Please rebuild the engine for TensorRT 10.11.0 using:");
+    SLOG_ERROR("trtexec --onnx={} --saveEngine={} --fp16", config_.onnx_file,
+               config_.engine_file);
     return false;
   }
 
@@ -68,41 +75,37 @@ bool SuperPointTRT::loadEngine() {
 
   runtime_ = nvinfer1::createInferRuntime(gLogger);
   if (!runtime_) {
-    std::cerr << "SuperPointTRT: Failed to create runtime" << "\n";
+    SLOG_ERROR("SuperPointTRT: Failed to create runtime");
     return false;
   }
 
   engine_ = runtime_->deserializeCudaEngine(engineData.data(), size);
   if (!engine_) {
-    std::cerr << "SuperPointTRT: Failed to deserialize engine" << "\n";
-    std::cerr
-        << "SuperPointTRT: This is likely due to TensorRT version mismatch."
-        << "\n";
-    std::cerr << "SuperPointTRT: The engine was built with a different "
-                 "TensorRT version."
-              << "\n";
-    std::cerr << "SuperPointTRT: Please rebuild the engine for TensorRT "
-                 "10.11.0 using:"
-              << "\n";
-    std::cerr << "trtexec --onnx=" << config_.onnx_file
-              << " --saveEngine=" << config_.engine_file << " --fp16"
-              << "\n";
+    SLOG_ERROR("SuperPointTRT: Failed to deserialize engine");
+    SLOG_ERROR(
+        "SuperPointTRT: This is likely due to TensorRT version mismatch.");
+    SLOG_ERROR(
+        "SuperPointTRT: The engine was built with a different TensorRT "
+        "version.");
+    SLOG_ERROR(
+        "SuperPointTRT: Please rebuild the engine for TensorRT 10.11.0 using:");
+    SLOG_ERROR("trtexec --onnx={} --saveEngine={} --fp16", config_.onnx_file,
+               config_.engine_file);
     return false;
   }
 
   context_ = engine_->createExecutionContext();
   if (!context_) {
-    std::cerr << "SuperPointTRT: Failed to create execution context"
-              << "\n";
+    SLOG_ERROR("SuperPointTRT: Failed to create execution context");
     return false;
   }
 
-  std::cout << "SuperPointTRT: Engine loaded successfully" << "\n";
+  SLOG_INFO("SuperPointTRT: Engine loaded successfully");
   return true;
 }
 
 bool SuperPointTRT::allocateBuffers() {
-  std::cout << "SuperPointTRT: Allocating buffers..." << "\n";
+  SLOG_INFO("SuperPointTRT: Allocating buffers...");
 
   int numIOTensors = engine_->getNbIOTensors();
 
@@ -121,64 +124,119 @@ bool SuperPointTRT::allocateBuffers() {
         input_width_ = tensor.dims.d[tensor.dims.nbDims - 1];
       }
 
-      // For dynamic shapes, allocate maximum possible size or defer allocation
+      // For dynamic shapes, defer actual memory allocation
       if (input_height_ <= 0 || input_width_ <= 0) {
-        // Allocate a reasonable maximum size for dynamic shapes
-        const size_t max_size = 1 * 1 * 1024 * 1024 *
-                                getElementSize(tensor.dtype);  // 1M pixels max
-        tensor.size = max_size;
+        SLOG_INFO(
+            "SuperPointTRT: Dynamic input shape detected, deferring buffer "
+            "allocation");
+        tensor.size = 0;     // Mark as not allocated
         input_height_ = -1;  // Mark as dynamic
         input_width_ = -1;
       } else {
         tensor.size = getTensorSize(tensor.dims, tensor.dtype);
-      }
 
-      // Allocate device memory
-      if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
-        std::cerr << "SuperPointTRT: Failed to allocate device memory for "
-                  << tensor.name << "\n";
-        return false;
-      }
+        // Allocate device memory
+        if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
+          SLOG_ERROR("SuperPointTRT: Failed to allocate device memory for {}",
+                     tensor.name);
+          return false;
+        }
 
-      // Allocate host memory
-      if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
-        std::cerr << "SuperPointTRT: Failed to allocate host memory for "
-                  << tensor.name << "\n";
-        return false;
+        // Allocate host memory
+        if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
+          SLOG_ERROR("SuperPointTRT: Failed to allocate host memory for {}",
+                     tensor.name);
+          return false;
+        }
       }
 
       input_tensors_.push_back(tensor);
     } else {
-      // For output tensors with dynamic shapes, also allocate max size
+      // For output tensors with dynamic shapes, also defer allocation
       tensor.size = getTensorSize(tensor.dims, tensor.dtype);
-      if (tensor.size == 0) {
-        const size_t max_size =
-            10 * 1024 * 1024 *
-            getElementSize(tensor.dtype);  // 10MB max for outputs
-        tensor.size = max_size;
-      }
+      if (tensor.size == 0 || tensor.dims.d[tensor.dims.nbDims - 2] <= 0 ||
+          tensor.dims.d[tensor.dims.nbDims - 1] <= 0) {
+        SLOG_INFO(
+            "SuperPointTRT: Dynamic output shape detected, deferring buffer "
+            "allocation");
+        tensor.size = 0;  // Mark as not allocated
+      } else {
+        // Allocate device memory
+        if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
+          SLOG_ERROR("SuperPointTRT: Failed to allocate device memory for {}",
+                     tensor.name);
+          return false;
+        }
 
-      // Allocate device memory
-      if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
-        std::cerr << "SuperPointTRT: Failed to allocate device memory for "
-                  << tensor.name << "\n";
-        return false;
-      }
-
-      // Allocate host memory
-      if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
-        std::cerr << "SuperPointTRT: Failed to allocate host memory for "
-                  << tensor.name << "\n";
-        return false;
+        // Allocate host memory
+        if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
+          SLOG_ERROR("SuperPointTRT: Failed to allocate host memory for {}",
+                     tensor.name);
+          return false;
+        }
       }
 
       output_tensors_.push_back(tensor);
     }
   }
 
-  std::cout << "SuperPointTRT: Input dimensions: " << input_height_ << "x"
-            << input_width_ << "\n";
-  std::cout << "SuperPointTRT: Buffers allocated successfully" << "\n";
+  SLOG_INFO("SuperPointTRT: Input dimensions: {}x{}", input_height_,
+            input_width_);
+  SLOG_INFO("SuperPointTRT: Buffers allocated successfully");
+  return true;
+}
+
+bool SuperPointTRT::allocateDynamicBuffers(int height, int width) {
+  SLOG_INFO("SuperPointTRT: Allocating dynamic buffers for {}x{}", height,
+            width);
+
+  // Allocate input tensors
+  for (auto& tensor : input_tensors_) {
+    if (tensor.size == 0) {  // Not allocated yet
+      // Calculate size for current input dimensions
+      tensor.size = height * width * getElementSize(tensor.dtype);
+
+      // Allocate device memory
+      if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
+        SLOG_ERROR("SuperPointTRT: Failed to allocate device memory for {}",
+                   tensor.name);
+        return false;
+      }
+
+      // Allocate host memory
+      if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
+        SLOG_ERROR("SuperPointTRT: Failed to allocate host memory for {}",
+                   tensor.name);
+        return false;
+      }
+    }
+  }
+
+  // Allocate output tensors based on current context shapes
+  for (auto& tensor : output_tensors_) {
+    if (tensor.size == 0) {  // Not allocated yet
+      nvinfer1::Dims outputDims = context_->getTensorShape(tensor.name.c_str());
+      tensor.dims = outputDims;
+      tensor.size = getTensorSize(outputDims, tensor.dtype);
+
+      if (tensor.size > 0) {
+        // Allocate device memory
+        if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
+          SLOG_ERROR("SuperPointTRT: Failed to allocate device memory for {}",
+                     tensor.name);
+          return false;
+        }
+
+        // Allocate host memory
+        if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
+          SLOG_ERROR("SuperPointTRT: Failed to allocate host memory for {}",
+                     tensor.name);
+          return false;
+        }
+      }
+    }
+  }
+
   return true;
 }
 
@@ -199,13 +257,13 @@ bool SuperPointTRT::infer(const cv::Mat& image,
                           std::vector<cv::KeyPoint>& keypoints,
                           cv::Mat& descriptors) {
   if (!context_) {
-    std::cerr << "SuperPointTRT: Context not initialized" << "\n";
+    SLOG_ERROR("SuperPointTRT: Context not initialized");
     return false;
   }
 
   // Preprocess image (this sets dynamic shapes if needed)
   if (!preprocessImage(image)) {
-    std::cerr << "SuperPointTRT: Failed to preprocess image" << "\n";
+    SLOG_ERROR("SuperPointTRT: Failed to preprocess image");
     return false;
   }
 
@@ -222,8 +280,8 @@ bool SuperPointTRT::infer(const cv::Mat& image,
   // Set tensor addresses for inputs
   for (auto& tensor : input_tensors_) {
     if (!context_->setTensorAddress(tensor.name.c_str(), tensor.devicePtr)) {
-      std::cerr << "SuperPointTRT: Failed to set input tensor address for "
-                << tensor.name << "\n";
+      SLOG_ERROR("SuperPointTRT: Failed to set input tensor address for {}",
+                 tensor.name);
       return false;
     }
 
@@ -234,7 +292,7 @@ bool SuperPointTRT::infer(const cv::Mat& image,
     // Copy input to device
     if (cudaMemcpyAsync(tensor.devicePtr, tensor.hostPtr, copySize,
                         cudaMemcpyHostToDevice, stream_) != cudaSuccess) {
-      std::cerr << "SuperPointTRT: Failed to copy input to device" << "\n";
+      SLOG_ERROR("SuperPointTRT: Failed to copy input to device");
       return false;
     }
   }
@@ -242,15 +300,15 @@ bool SuperPointTRT::infer(const cv::Mat& image,
   // Set tensor addresses for outputs
   for (auto& tensor : output_tensors_) {
     if (!context_->setTensorAddress(tensor.name.c_str(), tensor.devicePtr)) {
-      std::cerr << "SuperPointTRT: Failed to set output tensor address for "
-                << tensor.name << "\n";
+      SLOG_ERROR("SuperPointTRT: Failed to set output tensor address for {}",
+                 tensor.name);
       return false;
     }
   }
 
   // Execute inference
   if (!context_->enqueueV3(stream_)) {
-    std::cerr << "SuperPointTRT: Failed to execute inference" << "\n";
+    SLOG_ERROR("SuperPointTRT: Failed to execute inference");
     return false;
   }
 
@@ -259,16 +317,15 @@ bool SuperPointTRT::infer(const cv::Mat& image,
     // For dynamic shapes, calculate actual output size
     size_t outputSize = getTensorSize(tensor.dims, tensor.dtype);
     if (outputSize > tensor.size) {
-      std::cerr << "SuperPointTRT: Output size (" << outputSize
-                << ") exceeds allocated buffer (" << tensor.size << ")"
-                << "\n";
+      SLOG_ERROR(
+          "SuperPointTRT: Output size ({}) exceeds allocated buffer ({})",
+          outputSize, tensor.size);
       outputSize = tensor.size;  // Use allocated size to prevent overflow
     }
 
     if (cudaMemcpyAsync(tensor.hostPtr, tensor.devicePtr, outputSize,
                         cudaMemcpyDeviceToHost, stream_) != cudaSuccess) {
-      std::cerr << "SuperPointTRT: Failed to copy output from device"
-                << "\n";
+      SLOG_ERROR("SuperPointTRT: Failed to copy output from device");
       return false;
     }
   }
@@ -281,8 +338,35 @@ bool SuperPointTRT::infer(const cv::Mat& image,
 }
 
 bool SuperPointTRT::preprocessImage(const cv::Mat& image) {
-  if (input_tensors_.empty()) {
-    std::cerr << "SuperPointTRT: No input tensors allocated" << "\n";
+  // For dynamic shapes, we need to allocate buffers after setting input shape
+  if (input_height_ == -1 && input_width_ == -1) {
+    // First time with dynamic shapes - need to set input shape and allocate
+    // buffers
+    int target_height = image.rows;
+    int target_width = image.cols;
+
+    // Set input shape
+    nvinfer1::Dims inputDims = input_tensors_[0].dims;
+    inputDims.d[inputDims.nbDims - 2] = target_height;
+    inputDims.d[inputDims.nbDims - 1] = target_width;
+
+    if (!context_->setInputShape(input_tensors_[0].name.c_str(), inputDims)) {
+      SLOG_ERROR("SuperPointTRT: Failed to set input shape");
+      return false;
+    }
+
+    // Now allocate buffers for this specific input size
+    if (!allocateDynamicBuffers(target_height, target_width)) {
+      SLOG_ERROR("SuperPointTRT: Failed to allocate dynamic buffers");
+      return false;
+    }
+
+    input_height_ = target_height;
+    input_width_ = target_width;
+  }
+
+  if (input_tensors_.empty() || input_tensors_[0].hostPtr == nullptr) {
+    SLOG_ERROR("SuperPointTRT: No input tensors allocated");
     return false;
   }
 
@@ -295,22 +379,18 @@ bool SuperPointTRT::preprocessImage(const cv::Mat& image) {
     processedImage = image.clone();
   }
 
-  // For dynamic shapes, always use current image dimensions
+  // For subsequent calls, check if we need to resize input or reallocate
   int target_height = processedImage.rows;
   int target_width = processedImage.cols;
 
-  // Always update input tensor shape for dynamic inputs (pyramid levels have
-  // different sizes)
-  nvinfer1::Dims inputDims = input_tensors_[0].dims;
-  if (inputDims.d[inputDims.nbDims - 2] <= 0 ||
-      inputDims.d[inputDims.nbDims - 1] <= 0 ||
-      inputDims.d[inputDims.nbDims - 2] != target_height ||
-      inputDims.d[inputDims.nbDims - 1] != target_width) {
+  // If input size changed, update shape
+  if (target_height != input_height_ || target_width != input_width_) {
+    nvinfer1::Dims inputDims = input_tensors_[0].dims;
     inputDims.d[inputDims.nbDims - 2] = target_height;
     inputDims.d[inputDims.nbDims - 1] = target_width;
 
     if (!context_->setInputShape(input_tensors_[0].name.c_str(), inputDims)) {
-      std::cerr << "SuperPointTRT: Failed to set input shape" << "\n";
+      SLOG_ERROR("SuperPointTRT: Failed to set input shape");
       return false;
     }
 
@@ -318,7 +398,8 @@ bool SuperPointTRT::preprocessImage(const cv::Mat& image) {
     input_width_ = target_width;
   }
 
-  // Resize to expected input size
+  // Resize to expected input size (usually this will be no-op since we match
+  // the input)
   if (processedImage.rows != target_height ||
       processedImage.cols != target_width) {
     cv::resize(processedImage, processedImage,
@@ -339,9 +420,9 @@ bool SuperPointTRT::preprocessImage(const cv::Mat& image) {
 bool SuperPointTRT::postprocessOutputs(std::vector<cv::KeyPoint>& keypoints,
                                        cv::Mat& descriptors) {
   if (output_tensors_.size() < 2) {
-    std::cerr << "SuperPointTRT: Expected at least 2 output tensors (scores, "
-                 "descriptors)"
-              << "\n";
+    SLOG_ERROR(
+        "SuperPointTRT: Expected at least 2 output tensors (scores, "
+        "descriptors)");
     return false;
   }
 
@@ -362,10 +443,9 @@ bool SuperPointTRT::postprocessOutputs(std::vector<cv::KeyPoint>& keypoints,
   int descHeight = descDims.d[descDims.nbDims - 2];
   int descWidth = descDims.d[descDims.nbDims - 1];
 
-  std::cout << "SuperPointTRT: Scores shape: " << scoreHeight << "x"
-            << scoreWidth << "\n";
-  std::cout << "SuperPointTRT: Descriptors shape: " << descChannels << "x"
-            << descHeight << "x" << descWidth << "\n";
+  SLOG_INFO("SuperPointTRT: Scores shape: {}x{}", scoreHeight, scoreWidth);
+  SLOG_INFO("SuperPointTRT: Descriptors shape: {}x{}x{}", descChannels,
+            descHeight, descWidth);
 
   // Extract keypoints above threshold
   std::vector<std::pair<float, std::pair<int, int>>> candidates;
@@ -435,8 +515,7 @@ bool SuperPointTRT::postprocessOutputs(std::vector<cv::KeyPoint>& keypoints,
     }
   }
 
-  std::cout << "SuperPointTRT: Extracted " << numKeypoints << " keypoints"
-            << "\n";
+  SLOG_INFO("SuperPointTRT: Extracted {} keypoints", numKeypoints);
   return true;
 }
 
@@ -473,31 +552,36 @@ size_t SuperPointTRT::getTensorSize(const nvinfer1::Dims& dims,
 void SuperPointTRT::printTensorInfo(const std::string& name,
                                     const nvinfer1::Dims& dims,
                                     nvinfer1::DataType dtype) {
-  std::cout << "SuperPointTRT: Tensor " << name << " - Shape: ";
+  std::string shape_str = "";
   for (int i = 0; i < dims.nbDims; ++i) {
-    std::cout << dims.d[i];
-    if (i < dims.nbDims - 1) std::cout << "x";
+    shape_str += std::to_string(dims.d[i]);
+    if (i < dims.nbDims - 1) {
+      shape_str += "x";
+    }
   }
-  std::cout << ", Type: ";
+
+  std::string type_str;
   switch (dtype) {
     case nvinfer1::DataType::kFLOAT:
-      std::cout << "FLOAT";
+      type_str = "FLOAT";
       break;
     case nvinfer1::DataType::kHALF:
-      std::cout << "HALF";
+      type_str = "HALF";
       break;
     case nvinfer1::DataType::kINT8:
-      std::cout << "INT8";
+      type_str = "INT8";
       break;
     case nvinfer1::DataType::kINT32:
-      std::cout << "INT32";
+      type_str = "INT32";
       break;
     case nvinfer1::DataType::kBOOL:
-      std::cout << "BOOL";
+      type_str = "BOOL";
       break;
     default:
-      std::cout << "UNKNOWN";
+      type_str = "UNKNOWN";
       break;
   }
-  std::cout << "\n";
+
+  SLOG_INFO("SuperPointTRT: Tensor {} - Shape: {}, Type: {}", name, shape_str,
+            type_str);
 }

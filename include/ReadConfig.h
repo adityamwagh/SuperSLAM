@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "Utils.h"
+#include "Logging.h"
 
 struct SuperPointConfig {
   int max_keypoints{};
@@ -35,10 +36,9 @@ struct Configs {
   SuperGlueConfig superglue_config;
 
   Configs(const std::string& config_file, const std::string& model_dir) {
-    std::cout << "Config file is " << config_file << "\n";
+    SLOG_INFO("Config file is {}", config_file);
     if (!FileExists(config_file)) {
-      std::cerr << "Config file " << config_file << " doesn't exist."
-                << "\n";
+      SLOG_ERROR("Config file {} doesn't exist.", config_file);
       return;
     }
     YAML::Node file_node = YAML::LoadFile(config_file);

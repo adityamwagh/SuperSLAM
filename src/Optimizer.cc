@@ -35,6 +35,7 @@
 #include "thirdparty/g2o/g2o/solvers/linear_solver_eigen.h"
 #include "thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
 #include "thirdparty/g2o/g2o/types/types_six_dof_expmap.h"
+#include "Logging.h"
 
 namespace SuperSLAM {
 

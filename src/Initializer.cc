@@ -26,6 +26,7 @@
 #include "Random.h"
 #include "SPMatcher.h"
 #include "thirdparty/DBoW2/DUtils/Random.h"
+#include "Logging.h"
 
 namespace SuperSLAM {
 

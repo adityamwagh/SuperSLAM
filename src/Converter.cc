@@ -19,6 +19,7 @@
  */
 
 #include "Converter.h"
+#include "Logging.h"
 
 namespace SuperSLAM {
 
@@ -122,10 +123,10 @@ std::vector<float> Converter::toQuaternion(const cv::Mat &M) {
   Eigen::Quaterniond q(eigMat);
 
   std::vector<float> v(4);
-  v[0] = q.x();
-  v[1] = q.y();
-  v[2] = q.z();
-  v[3] = q.w();
+  v[0] = static_cast<float>(q.x());
+  v[1] = static_cast<float>(q.y());
+  v[2] = static_cast<float>(q.z());
+  v[3] = static_cast<float>(q.w());
 
   return v;
 }

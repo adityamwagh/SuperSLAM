@@ -1,160 +1,144 @@
+#include <cuda_runtime.h>
 #include <NvInfer.h>
 #include <NvOnnxParser.h>
-#include <cuda_runtime.h>
 
 #include <fstream>
 #include <iostream>
+#include <Logging.h>
 #include <memory>
 #include <vector>
 
 // Simple logger for TensorRT 10.11.0
 class SimpleLogger : public nvinfer1::ILogger {
- public:
-  void log(Severity severity, const char* msg) noexcept override {
-    if (severity <= Severity::kWARNING) {
-      std::cout << "[TensorRT] " << msg << "\n";
+  public:
+    void log(Severity severity, const char* msg) noexcept override {
+      if (severity <= Severity::kWARNING) { SLOG_WARN("[TensorRT] {}", msg); }
     }
-  }
 };
 
 static SimpleLogger gLogger;
 
-template <typename T>
-struct TensorRTDestroy {
-  void operator()(T* obj) const {
-    if (obj) delete obj;
-  }
+template <typename T> struct TensorRTDestroy {
+    void operator()(T* obj) const {
+      if (obj) { delete obj; }
+    }
 };
 
-template <typename T>
-using TensorRTUniquePtr = std::unique_ptr<T, TensorRTDestroy<T>>;
+template <typename T> using TensorRTUniquePtr = std::unique_ptr<T, TensorRTDestroy<T>>;
 
-bool buildEngineFromOnnx(const std::string& onnxFile,
-                         const std::string& engineFile) {
-  std::cout << "Building engine from " << onnxFile << " to " << engineFile
-            << "\n";
+bool buildEngineFromOnnx(const std::string& onnxFile, const std::string& engineFile) {
+  SLOG_INFO("Building engine from {} to {}", onnxFile, engineFile);
 
   // Create builder
-  TensorRTUniquePtr<nvinfer1::IBuilder> builder(
-      nvinfer1::createInferBuilder(gLogger));
+  TensorRTUniquePtr<nvinfer1::IBuilder> builder(nvinfer1::createInferBuilder(gLogger));
   if (!builder) {
-    std::cerr << "Failed to create TensorRT builder" << "\n";
+    SLOG_ERROR("Failed to create TensorRT builder");
     return false;
   }
 
   // Create network
-  const auto explicitBatch =
-      1U << static_cast<uint32_t>(
-          nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
-  TensorRTUniquePtr<nvinfer1::INetworkDefinition> network(
-      builder->createNetworkV2(explicitBatch));
+  const auto explicitBatch
+    = 1U << static_cast<uint32_t>(nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
+  TensorRTUniquePtr<nvinfer1::INetworkDefinition> network(builder->createNetworkV2(explicitBatch));
   if (!network) {
-    std::cerr << "Failed to create network" << "\n";
+    SLOG_ERROR("Failed to create network");
     return false;
   }
 
   // Create ONNX parser
-  TensorRTUniquePtr<nvonnxparser::IParser> parser(
-      nvonnxparser::createParser(*network, gLogger));
+  TensorRTUniquePtr<nvonnxparser::IParser> parser(nvonnxparser::createParser(*network, gLogger));
   if (!parser) {
-    std::cerr << "Failed to create ONNX parser" << "\n";
+    SLOG_ERROR("Failed to create ONNX parser");
     return false;
   }
 
   // Parse ONNX file
-  if (!parser->parseFromFile(
-          onnxFile.c_str(),
-          static_cast<int>(nvinfer1::ILogger::Severity::kWARNING))) {
-    std::cerr << "Failed to parse ONNX file" << "\n";
+  if (!parser->parseFromFile(onnxFile.c_str(), static_cast<int>(nvinfer1::ILogger::Severity::kWARNING))) {
+    SLOG_ERROR("Failed to parse ONNX file");
     for (int i = 0; i < parser->getNbErrors(); ++i) {
-      std::cerr << "Parser error " << i << ": " << parser->getError(i)->desc()
-                << "\n";
+      SLOG_ERROR("Parser error {}: {}", i, parser->getError(i)->desc());
     }
     return false;
   }
 
   // Create builder config
-  TensorRTUniquePtr<nvinfer1::IBuilderConfig> config(
-      builder->createBuilderConfig());
+  TensorRTUniquePtr<nvinfer1::IBuilderConfig> config(builder->createBuilderConfig());
   if (!config) {
-    std::cerr << "Failed to create builder config" << "\n";
+    SLOG_ERROR("Failed to create builder config");
     return false;
   }
 
   // Set configuration
   config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE,
-                             1U << 30);           // 1GB
-  config->setFlag(nvinfer1::BuilderFlag::kFP16);  // Enable FP16
+                             8ULL << 30);        // 8GB
+  config->setFlag(nvinfer1::BuilderFlag::kFP16); // Enable FP16
 
   // Print network info
-  std::cout << "Network inputs: " << network->getNbInputs() << "\n";
+  SLOG_INFO("Network inputs: {}", network->getNbInputs());
   for (int i = 0; i < network->getNbInputs(); ++i) {
     auto input = network->getInput(i);
-    auto dims = input->getDimensions();
-    std::cout << "Input " << i << ": " << input->getName() << " - ";
+    auto dims  = input->getDimensions();
+    SLOG_INFO("Input {}: {} - ", i, input->getName());
     for (int j = 0; j < dims.nbDims; ++j) {
-      std::cout << dims.d[j];
-      if (j < dims.nbDims - 1) std::cout << "x";
+      SLOG_INFO("{}", dims.d[ j ]);
+      if (j < dims.nbDims - 1) { SLOG_INFO("x"); }
     }
-    std::cout << "\n";
   }
 
-  std::cout << "Network outputs: " << network->getNbOutputs() << "\n";
+  SLOG_INFO("Network outputs: {}", network->getNbOutputs());
   for (int i = 0; i < network->getNbOutputs(); ++i) {
     auto output = network->getOutput(i);
-    auto dims = output->getDimensions();
-    std::cout << "Output " << i << ": " << output->getName() << " - ";
+    auto dims   = output->getDimensions();
+    SLOG_INFO("Output {}: {} - ", i, output->getName());
     for (int j = 0; j < dims.nbDims; ++j) {
-      std::cout << dims.d[j];
-      if (j < dims.nbDims - 1) std::cout << "x";
+      SLOG_INFO("{}", dims.d[ j ]);
+      if (j < dims.nbDims - 1) { SLOG_INFO("x"); }
     }
-    std::cout << "\n";
   }
 
   // Build serialized network
-  std::cout << "Building TensorRT engine..." << "\n";
+  SLOG_INFO("Building TensorRT engine...");
   TensorRTUniquePtr<nvinfer1::IHostMemory> serializedEngine(
-      builder->buildSerializedNetwork(*network, *config));
+    builder->buildSerializedNetwork(*network, *config));
   if (!serializedEngine) {
-    std::cerr << "Failed to build serialized engine" << "\n";
+    SLOG_ERROR("Failed to build serialized engine");
     return false;
   }
 
   // Save engine to file
   std::ofstream engineFile_stream(engineFile, std::ios::binary);
   if (!engineFile_stream) {
-    std::cerr << "Failed to open engine file for writing: " << engineFile
-              << "\n";
+    SLOG_ERROR("Failed to open engine file for writing");
     return false;
   }
 
-  engineFile_stream.write(static_cast<const char*>(serializedEngine->data()),
-                          serializedEngine->size());
+  engineFile_stream.write(static_cast<const char*>(serializedEngine->data()), serializedEngine->size());
   engineFile_stream.close();
 
-  std::cout << "Engine saved to " << engineFile
-            << " (size: " << serializedEngine->size() << " bytes)" << "\n";
+  SLOG_INFO("Engine saved to {}", engineFile);
   return true;
 }
 
 int main(int argc, char* argv[]) {
   if (argc != 3) {
-    std::cout << "Usage: " << argv[0] << " <onnx_file> <engine_file>"
-              << "\n";
+    SLOG_ERROR("Usage: {} <onnx_file> <engine_file>", argv[ 0 ]);
     return 1;
   }
 
-  std::string onnxFile = argv[1];
-  std::string engineFile = argv[2];
+  // Initialize logging
+  SuperSLAM::Logger::initialize();
 
   // Initialize CUDA
   cudaSetDevice(0);
 
+  std::string onnxFile   = argv[ 1 ];
+  std::string engineFile = argv[ 2 ];
+
   if (buildEngineFromOnnx(onnxFile, engineFile)) {
-    std::cout << "Successfully built engine!" << "\n";
+    SLOG_INFO("Successfully built engine!");
     return 0;
   } else {
-    std::cerr << "Failed to build engine!" << "\n";
+    SLOG_ERROR("Failed to build engine!");
     return 1;
   }
 }
