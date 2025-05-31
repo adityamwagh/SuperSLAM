@@ -29,6 +29,15 @@ Camera.RGB: 1
 
 # Close/Far threshold. Baseline times.
 ThDepth: 40
+#--------------------------------------------------------------------------------------------
+# SuperPoint/SuperGlue Parameters
+#--------------------------------------------------------------------------------------------
+
+# SuperPoint model configuration file
+SuperPoint.config_file: "utils/config.yaml"
+
+# SuperPoint model directory (where .engine files are located)
+SuperPoint.model_dir: "weights/"
 
 #--------------------------------------------------------------------------------------------
 # ORB Parameters

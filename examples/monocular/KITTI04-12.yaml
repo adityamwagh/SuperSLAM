@@ -19,7 +19,17 @@ Camera.p2: 0.0
 Camera.fps: 10.0
 
 # Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale)
+
 Camera.RGB: 1
+#--------------------------------------------------------------------------------------------
+# SuperPoint/SuperGlue Parameters
+#--------------------------------------------------------------------------------------------
+
+# SuperPoint model configuration file
+SuperPoint.config_file: "utils/config.yaml"
+
+# SuperPoint model directory (where .engine files are located)
+SuperPoint.model_dir: "weights/"
 
 #--------------------------------------------------------------------------------------------
 # ORB Parameters

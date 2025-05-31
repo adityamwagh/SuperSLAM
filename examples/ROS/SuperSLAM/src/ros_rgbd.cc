@@ -38,7 +38,7 @@
 using namespace std::chrono_literals;
 
 class ImageGrabber : public rclcpp::Node {
-public:
+ public:
   ImageGrabber(std::shared_ptr<SuperSLAM::System> pSLAM)
       : Node("image_grabber"), mpSLAM(std::move(pSLAM)) {
     rgb_sub_.subscribe(this, "/camera/rgb/image_raw");
@@ -51,7 +51,7 @@ public:
                                       std::placeholders::_2));
   }
 
-private:
+ private:
   void GrabRGBD(const sensor_msgs::msg::Image::ConstSharedPtr &msgRGB,
                 const sensor_msgs::msg::Image::ConstSharedPtr &msgD);
 

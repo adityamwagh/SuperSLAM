@@ -22,8 +22,6 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
-#include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/image.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -32,19 +30,22 @@
 #include <iostream>
 #include <memory>
 #include <opencv4/opencv2/core/core.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
 
 #include "../../../include/System.h"
 
 using namespace std::chrono_literals;
 
 class ImageGrabber : public rclcpp::Node {
-public:
+ public:
   ImageGrabber(const ImageGrabber &) = default;
   ImageGrabber(ImageGrabber &&) = default;
   ImageGrabber &operator=(const ImageGrabber &) = default;
   ImageGrabber &operator=(ImageGrabber &&) = default;
   ImageGrabber(std::shared_ptr<SuperSLAM::System> pSLAM, bool do_rectify)
-      : Node("image_grabber"), mpSLAM(std::move(pSLAM)),
+      : Node("image_grabber"),
+        mpSLAM(std::move(pSLAM)),
         do_rectify(do_rectify) {
     if (do_rectify) {
       // Load settings related to stereo calibration
@@ -102,7 +103,7 @@ public:
                                       std::placeholders::_2));
   }
 
-private:
+ private:
   void GrabStereo(const sensor_msgs::msg::Image::ConstSharedPtr &msgLeft,
                   const sensor_msgs::msg::Image::ConstSharedPtr &msgRight);
 

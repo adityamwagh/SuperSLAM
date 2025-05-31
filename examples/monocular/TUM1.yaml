@@ -43,6 +43,16 @@ ORBextractor.iniThFAST: 20
 ORBextractor.minThFAST: 7
 
 #--------------------------------------------------------------------------------------------
+# SuperPoint/SuperGlue Parameters
+#--------------------------------------------------------------------------------------------
+
+# SuperPoint model configuration file
+SuperPoint.config_file: "utils/config.yaml"
+
+# SuperPoint model directory (where .engine files are located)
+SuperPoint.model_dir: "weights/"
+
+#--------------------------------------------------------------------------------------------
 # Viewer Parameters
 #--------------------------------------------------------------------------------------------
 Viewer.KeyFrameSize: 0.05
