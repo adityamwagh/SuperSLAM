@@ -59,3 +59,12 @@ mono_tum
 rgbd_tum
 stereo_euroc
 stereo_kitti
+mono_rerun
+mono_tum_rerun
+new_mono_tum
+rgbd_rerun
+stereo_euroc_rerun
+stereo_kitti_rerun
+
+KeyFrameTrajectory_EuRoC.txt
+build_engines
