@@ -29,12 +29,14 @@ University) For more information see
 #include "Frame.h"
 #include "KeyFrame.h"
 #include "MapPoint.h"
+#include "SuperGlueTRT.h"
+#include "ReadConfig.h"
 
 namespace SuperSLAM {
 
 class SPmatcher {
  public:
-  SPmatcher(float nnratio = 0.6, bool checkOri = true);
+  SPmatcher(float nnratio = 0.6, bool checkOri = true, const SuperGlueConfig& config = SuperGlueConfig());
 
   // Computes the Hamming distance between two SP descriptors
   static float DescriptorDistance(const cv::Mat& a, const cv::Mat& b);
@@ -90,6 +92,14 @@ class SPmatcher {
       std::vector<MapPoint*>& vpMapPointMatches);
   int SearchByNN(Frame& CurrentFrame, const Frame& LastFrame);
   int SearchByNN(Frame& F, const std::vector<MapPoint*>& vpMapPoints);
+
+  // SuperGlue-based matching
+  int SearchBySuperGlue(
+      const std::vector<cv::KeyPoint>& keypoints0,
+      const cv::Mat& descriptors0,
+      const std::vector<cv::KeyPoint>& keypoints1,
+      const cv::Mat& descriptors1,
+      std::vector<cv::DMatch>& matches);
 
   // Matching for the Map Initialization (only used in the monocular case)
   int SearchForInitialization(
@@ -156,6 +166,7 @@ class SPmatcher {
 
   float mfNNratio;
   bool mbCheckOrientation;
+  std::shared_ptr<SuperGlueTRT> superglue_matcher;
 };
 
 typedef SPmatcher ORBmatcher; // alias for compatible

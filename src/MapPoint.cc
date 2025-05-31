@@ -30,13 +30,25 @@ long unsigned int MapPoint::nNextId = 0;
 std::mutex MapPoint::mGlobalMutex;
 
 MapPoint::MapPoint(const cv::Mat &Pos, KeyFrame *pRefKF, Map *pMap)
-    : mnFirstKFid(pRefKF->mnId), mnFirstFrame(pRefKF->mnFrameId), nObs(0),
-      mnTrackReferenceForFrame(0), mnLastFrameSeen(0), mnBALocalForKF(0),
-      mnFuseCandidateForKF(0), mnLoopPointForKF(0), mnCorrectedByKF(0),
-      mnCorrectedReference(0), mnBAGlobalForKF(0), mpRefKF(pRefKF),
-      mnVisible(1), mnFound(1), mbBad(false),
-      mpReplaced(static_cast<MapPoint *>(NULL)), mfMinDistance(0),
-      mfMaxDistance(0), mpMap(pMap) {
+    : mnFirstKFid(pRefKF->mnId),
+      mnFirstFrame(pRefKF->mnFrameId),
+      nObs(0),
+      mnTrackReferenceForFrame(0),
+      mnLastFrameSeen(0),
+      mnBALocalForKF(0),
+      mnFuseCandidateForKF(0),
+      mnLoopPointForKF(0),
+      mnCorrectedByKF(0),
+      mnCorrectedReference(0),
+      mnBAGlobalForKF(0),
+      mpRefKF(pRefKF),
+      mnVisible(1),
+      mnFound(1),
+      mbBad(false),
+      mpReplaced(static_cast<MapPoint *>(NULL)),
+      mfMinDistance(0),
+      mfMaxDistance(0),
+      mpMap(pMap) {
   Pos.copyTo(mWorldPos);
   mNormalVector = cv::Mat::zeros(3, 1, CV_32F);
 
@@ -48,12 +60,23 @@ MapPoint::MapPoint(const cv::Mat &Pos, KeyFrame *pRefKF, Map *pMap)
 
 MapPoint::MapPoint(const cv::Mat &Pos, Map *pMap, Frame *pFrame,
                    const int &idxF)
-    : mnFirstKFid(-1), mnFirstFrame(pFrame->mnId), nObs(0),
-      mnTrackReferenceForFrame(0), mnLastFrameSeen(0), mnBALocalForKF(0),
-      mnFuseCandidateForKF(0), mnLoopPointForKF(0), mnCorrectedByKF(0),
-      mnCorrectedReference(0), mnBAGlobalForKF(0),
-      mpRefKF(static_cast<KeyFrame *>(NULL)), mnVisible(1), mnFound(1),
-      mbBad(false), mpReplaced(NULL), mpMap(pMap) {
+    : mnFirstKFid(-1),
+      mnFirstFrame(pFrame->mnId),
+      nObs(0),
+      mnTrackReferenceForFrame(0),
+      mnLastFrameSeen(0),
+      mnBALocalForKF(0),
+      mnFuseCandidateForKF(0),
+      mnLoopPointForKF(0),
+      mnCorrectedByKF(0),
+      mnCorrectedReference(0),
+      mnBAGlobalForKF(0),
+      mpRefKF(static_cast<KeyFrame *>(NULL)),
+      mnVisible(1),
+      mnFound(1),
+      mbBad(false),
+      mpReplaced(NULL),
+      mpMap(pMap) {
   Pos.copyTo(mWorldPos);
   cv::Mat Ow = pFrame->GetCameraCenter();
   mNormalVector = mWorldPos - Ow;
@@ -99,8 +122,7 @@ KeyFrame *MapPoint::GetReferenceKeyFrame() {
 
 void MapPoint::AddObservation(KeyFrame *pKF, size_t idx) {
   std::unique_lock<std::mutex> lock(mMutexFeatures);
-  if (mObservations.count(pKF))
-    return;
+  if (mObservations.count(pKF)) return;
   mObservations[pKF] = idx;
 
   if (pKF->mvuRight[idx] >= 0)
@@ -122,17 +144,14 @@ void MapPoint::EraseObservation(KeyFrame *pKF) {
 
       mObservations.erase(pKF);
 
-      if (mpRefKF == pKF)
-        mpRefKF = mObservations.begin()->first;
+      if (mpRefKF == pKF) mpRefKF = mObservations.begin()->first;
 
       // If only 2 observations or less, discard point
-      if (nObs <= 2)
-        bBad = true;
+      if (nObs <= 2) bBad = true;
     }
   }
 
-  if (bBad)
-    SetBadFlag();
+  if (bBad) SetBadFlag();
 }
 
 std::map<KeyFrame *, size_t> MapPoint::GetObservations() {
@@ -171,8 +190,7 @@ MapPoint *MapPoint::GetReplaced() {
 }
 
 void MapPoint::Replace(MapPoint *pMP) {
-  if (pMP->mnId == this->mnId)
-    return;
+  if (pMP->mnId == this->mnId) return;
 
   int nvisible, nfound;
   std::map<KeyFrame *, size_t> obs;
@@ -236,13 +254,11 @@ void MapPoint::ComputeDistinctiveDescriptors() {
 
   {
     std::unique_lock<std::mutex> lock1(mMutexFeatures);
-    if (mbBad)
-      return;
+    if (mbBad) return;
     observations = mObservations;
   }
 
-  if (observations.empty())
-    return;
+  if (observations.empty()) return;
 
   vDescriptors.reserve(observations.size());
 
@@ -255,8 +271,7 @@ void MapPoint::ComputeDistinctiveDescriptors() {
       vDescriptors.push_back(pKF->mDescriptors.row(mit->second));
   }
 
-  if (vDescriptors.empty())
-    return;
+  if (vDescriptors.empty()) return;
 
   // Compute distances between them
   const size_t N = vDescriptors.size();
@@ -317,15 +332,13 @@ void MapPoint::UpdateNormalAndDepth() {
   {
     std::unique_lock<std::mutex> lock1(mMutexFeatures);
     std::unique_lock<std::mutex> lock2(mMutexPos);
-    if (mbBad)
-      return;
+    if (mbBad) return;
     observations = mObservations;
     pRefKF = mpRefKF;
     Pos = mWorldPos.clone();
   }
 
-  if (observations.empty())
-    return;
+  if (observations.empty()) return;
 
   cv::Mat normal = cv::Mat::zeros(3, 1, CV_32F);
   int n = 0;
@@ -395,4 +408,4 @@ int MapPoint::PredictScale(const float &currentDist, Frame *pF) {
   return nScale;
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

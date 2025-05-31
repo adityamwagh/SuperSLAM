@@ -63,7 +63,7 @@
 #include <opencv4/opencv2/imgproc/imgproc.hpp>
 #include <vector>
 
-#include "SuperPointLT.h"
+#include "SuperPointTRT.h"
 
 namespace SuperSLAM {
 
@@ -117,22 +117,27 @@ void ExtractorNode::DivideNode(ExtractorNode &n1, ExtractorNode &n2,
       n4.vKeys.push_back(kp);
   }
 
-  if (n1.vKeys.size() == 1)
-    n1.bNoMore = true;
-  if (n2.vKeys.size() == 1)
-    n2.bNoMore = true;
-  if (n3.vKeys.size() == 1)
-    n3.bNoMore = true;
-  if (n4.vKeys.size() == 1)
-    n4.bNoMore = true;
+  if (n1.vKeys.size() == 1) n1.bNoMore = true;
+  if (n2.vKeys.size() == 1) n2.bNoMore = true;
+  if (n3.vKeys.size() == 1) n3.bNoMore = true;
+  if (n4.vKeys.size() == 1) n4.bNoMore = true;
 }
 
 SPextractor::SPextractor(int _nfeatures, float _scaleFactor, int _nlevels,
-                         float _iniThFAST, float _minThFAST)
-    : nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels),
-      iniThFAST(_iniThFAST), minThFAST(_minThFAST) {
-  model = std::make_shared<SuperPoint>();
-  torch::load(model, "weights/superpoint.pt");
+                         float _iniThFAST, float _minThFAST,
+                         const SuperPointConfig &config)
+    : nfeatures(_nfeatures),
+      scaleFactor(_scaleFactor),
+      nlevels(_nlevels),
+      iniThFAST(_iniThFAST),
+      minThFAST(_minThFAST) {
+  model = std::make_shared<SuperPointTRT>(config);
+  if (!model->initialize()) {
+    std::cerr << "Error in SuperPoint building engine. Please check your onnx "
+                 "model path and TensorRT installation."
+              << "\n";
+    throw std::runtime_error("Failed to build SuperPoint TensorRT engine");
+  }
 
   mvScaleFactor.resize(nlevels);
   mvLevelSigma2.resize(nlevels);
@@ -196,7 +201,10 @@ std::vector<cv::KeyPoint> SPextractor::DistributeOctTree(
   // Associate points to childs
   for (size_t i = 0; i < vToDistributeKeys.size(); i++) {
     const cv::KeyPoint &kp = vToDistributeKeys[i];
-    vpIniNodes[kp.pt.x / hX]->vKeys.push_back(kp);
+    int nodeIndex = static_cast<int>(kp.pt.x / hX);
+    // Clamp nodeIndex to valid range
+    nodeIndex = std::max(0, std::min(nodeIndex, nIni - 1));
+    vpIniNodes[nodeIndex]->vKeys.push_back(kp);
   }
 
   std::list<ExtractorNode>::iterator lit = lNodes.begin();
@@ -336,8 +344,7 @@ std::vector<cv::KeyPoint> SPextractor::DistributeOctTree(
 
           lNodes.erase(vPrevSizeAndPointerToNode[j].second->lit);
 
-          if ((int)lNodes.size() >= N)
-            break;
+          if ((int)lNodes.size() >= N) break;
         }
 
         if ((int)lNodes.size() >= N || (int)lNodes.size() == prevSize)
@@ -374,16 +381,17 @@ void SPextractor::ComputeKeyPointsOctTree(
 
   std::vector<cv::Mat> vDesc;
 
-  const float W = 30;
-
   for (int level = 0; level < nlevels; ++level) {
-    // auto start = std::chrono::high_resolution_clock::now();
-    SPDetector detector(model, false);
-    detector.detect(mvImagePyramid[level]);
-    // auto stop = std::chrono::high_resolution_clock::now();
-    // auto duration =
-    // std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-    // std::cout << duration.count() << "\n";
+    // Use SuperPointTRT to extract features for this pyramid level
+    std::vector<cv::KeyPoint> extractedKeypoints;
+    cv::Mat extractedDescriptors;
+
+    if (!model->infer(mvImagePyramid[level], extractedKeypoints,
+                      extractedDescriptors)) {
+      std::cerr << "SuperPoint inference failed for pyramid level " << level
+                << "\n";
+      continue;
+    }
 
     const int minBorderX = EDGE_THRESHOLD - 3;
     const int minBorderY = minBorderX;
@@ -391,54 +399,17 @@ void SPextractor::ComputeKeyPointsOctTree(
     const int maxBorderY = mvImagePyramid[level].rows - EDGE_THRESHOLD + 3;
 
     std::vector<cv::KeyPoint> vToDistributeKeys;
-    vToDistributeKeys.reserve(nfeatures * 10);
+    std::vector<int> validIndices;
+    vToDistributeKeys.reserve(extractedKeypoints.size());
+    validIndices.reserve(extractedKeypoints.size());
 
-    const float width = (maxBorderX - minBorderX);
-    const float height = (maxBorderY - minBorderY);
-
-    const int nCols = width / W;
-    const int nRows = height / W;
-    const int wCell = std::ceil(width / nCols);
-    const int hCell = std::ceil(height / nRows);
-
-    for (int i = 0; i < nRows; i++) {
-      const float iniY = minBorderY + i * hCell;
-      float maxY = iniY + hCell + 6;
-
-      if (iniY >= maxBorderY - 3)
-        continue;
-      if (maxY > maxBorderY)
-        maxY = maxBorderY;
-
-      for (int j = 0; j < nCols; j++) {
-        const float iniX = minBorderX + j * wCell;
-        float maxX = iniX + wCell + 6;
-        if (iniX >= maxBorderX - 6)
-          continue;
-        if (maxX > maxBorderX)
-          maxX = maxBorderX;
-
-        std::vector<cv::KeyPoint> vKeysCell;
-        // FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),
-        //      vKeysCell,iniThFAST,true);
-        detector.getKeyPoints(iniThFAST, iniX, maxX, iniY, maxY, vKeysCell,
-                              true);
-
-        if (vKeysCell.empty()) {
-          // FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),
-          //      vKeysCell,minThFAST,true);
-          detector.getKeyPoints(minThFAST, iniX, maxX, iniY, maxY, vKeysCell,
-                                true);
-        }
-
-        if (!vKeysCell.empty()) {
-          for (std::vector<cv::KeyPoint>::iterator vit = vKeysCell.begin();
-               vit != vKeysCell.end(); vit++) {
-            (*vit).pt.x += j * wCell;
-            (*vit).pt.y += i * hCell;
-            vToDistributeKeys.push_back(*vit);
-          }
-        }
+    // Filter keypoints within borders
+    for (int i = 0; i < extractedKeypoints.size(); ++i) {
+      const cv::KeyPoint &kp = extractedKeypoints[i];
+      if (kp.pt.x >= minBorderX && kp.pt.x < maxBorderX &&
+          kp.pt.y >= minBorderY && kp.pt.y < maxBorderY) {
+        vToDistributeKeys.push_back(kp);
+        validIndices.push_back(i);
       }
     }
 
@@ -454,18 +425,36 @@ void SPextractor::ComputeKeyPointsOctTree(
     // Add border to coordinates and scale information
     const int nkps = keypoints.size();
     for (int i = 0; i < nkps; i++) {
-      keypoints[i].pt.x += minBorderX;
-      keypoints[i].pt.y += minBorderY;
       keypoints[i].octave = level;
       keypoints[i].size = scaledPatchSize;
     }
 
-    cv::Mat desc;
-    detector.computeDescriptors(keypoints, desc);
+    // Extract descriptors for the selected keypoints
+    cv::Mat desc(keypoints.size(), extractedDescriptors.cols, CV_32F);
+    for (int i = 0; i < keypoints.size(); ++i) {
+      // Find corresponding feature in SuperPoint output
+      bool found = false;
+      for (int j = 0; j < vToDistributeKeys.size(); ++j) {
+        if (std::abs(vToDistributeKeys[j].pt.x - keypoints[i].pt.x) < 1.0 &&
+            std::abs(vToDistributeKeys[j].pt.y - keypoints[i].pt.y) < 1.0) {
+          // Copy descriptor from original SuperPoint output
+          int originalIdx = validIndices[j];
+          extractedDescriptors.row(originalIdx).copyTo(desc.row(i));
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        // If no exact match found, use zero descriptor
+        desc.row(i).setTo(0);
+      }
+    }
     vDesc.push_back(desc);
   }
 
-  cv::vconcat(vDesc, _desc);
+  if (!vDesc.empty()) {
+    cv::vconcat(vDesc, _desc);
+  }
 
   // // compute orientations
   // for (int level = 0; level < nlevels; ++level)
@@ -475,8 +464,7 @@ void SPextractor::ComputeKeyPointsOctTree(
 void SPextractor::operator()(cv::InputArray _image, cv::InputArray _mask,
                              std::vector<cv::KeyPoint> &_keypoints,
                              cv::OutputArray _descriptors) {
-  if (_image.empty())
-    return;
+  if (_image.empty()) return;
 
   cv::Mat image = _image.getMat();
   assert(image.type() == CV_8UC1);
@@ -508,8 +496,7 @@ void SPextractor::operator()(cv::InputArray _image, cv::InputArray _mask,
     std::vector<cv::KeyPoint> &keypoints = allKeypoints[level];
     int nkeypointsLevel = (int)keypoints.size();
 
-    if (nkeypointsLevel == 0)
-      continue;
+    if (nkeypointsLevel == 0) continue;
 
     // // preprocess the resized image
     // Mat workingMat = mvImagePyramid[level].clone();
@@ -525,7 +512,7 @@ void SPextractor::operator()(cv::InputArray _image, cv::InputArray _mask,
     // Scale keypoint coordinates
     if (level != 0) {
       float scale =
-          mvScaleFactor[level]; // getScale(level, firstLevel, scaleFactor);
+          mvScaleFactor[level];  // getScale(level, firstLevel, scaleFactor);
       for (std::vector<cv::KeyPoint>::iterator keypoint = keypoints.begin(),
                                                keypointEnd = keypoints.end();
            keypoint != keypointEnd; ++keypoint)
@@ -596,4 +583,4 @@ void SPextractor::ComputePyramid(cv::Mat image) {
   }
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

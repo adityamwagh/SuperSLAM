@@ -40,36 +40,51 @@ Frame::Frame(const Frame &frame)
     : mpORBvocabulary(frame.mpORBvocabulary),
       mpORBextractorLeft(frame.mpORBextractorLeft),
       mpORBextractorRight(frame.mpORBextractorRight),
-      mTimeStamp(frame.mTimeStamp), mK(frame.mK.clone()),
-      mDistCoef(frame.mDistCoef.clone()), mbf(frame.mbf), mb(frame.mb),
-      mThDepth(frame.mThDepth), N(frame.N), mvKeys(frame.mvKeys),
-      mvKeysRight(frame.mvKeysRight), mvKeysUn(frame.mvKeysUn),
-      mvuRight(frame.mvuRight), mvDepth(frame.mvDepth), mBowVec(frame.mBowVec),
-      mFeatVec(frame.mFeatVec), mDescriptors(frame.mDescriptors.clone()),
+      mTimeStamp(frame.mTimeStamp),
+      mK(frame.mK.clone()),
+      mDistCoef(frame.mDistCoef.clone()),
+      mbf(frame.mbf),
+      mb(frame.mb),
+      mThDepth(frame.mThDepth),
+      N(frame.N),
+      mvKeys(frame.mvKeys),
+      mvKeysRight(frame.mvKeysRight),
+      mvKeysUn(frame.mvKeysUn),
+      mvuRight(frame.mvuRight),
+      mvDepth(frame.mvDepth),
+      mBowVec(frame.mBowVec),
+      mFeatVec(frame.mFeatVec),
+      mDescriptors(frame.mDescriptors.clone()),
       mDescriptorsRight(frame.mDescriptorsRight.clone()),
-      mvpMapPoints(frame.mvpMapPoints), mvbOutlier(frame.mvbOutlier),
-      mnId(frame.mnId), mpReferenceKF(frame.mpReferenceKF),
-      mnScaleLevels(frame.mnScaleLevels), mfScaleFactor(frame.mfScaleFactor),
+      mvpMapPoints(frame.mvpMapPoints),
+      mvbOutlier(frame.mvbOutlier),
+      mnId(frame.mnId),
+      mpReferenceKF(frame.mpReferenceKF),
+      mnScaleLevels(frame.mnScaleLevels),
+      mfScaleFactor(frame.mfScaleFactor),
       mfLogScaleFactor(frame.mfLogScaleFactor),
       mvScaleFactors(frame.mvScaleFactors),
       mvInvScaleFactors(frame.mvInvScaleFactors),
       mvLevelSigma2(frame.mvLevelSigma2),
       mvInvLevelSigma2(frame.mvInvLevelSigma2) {
   for (int i = 0; i < FRAME_GRID_COLS; i++)
-    for (int j = 0; j < FRAME_GRID_ROWS; j++)
-      mGrid[i][j] = frame.mGrid[i][j];
+    for (int j = 0; j < FRAME_GRID_ROWS; j++) mGrid[i][j] = frame.mGrid[i][j];
 
-  if (!frame.mTcw.empty())
-    SetPose(frame.mTcw);
+  if (!frame.mTcw.empty()) SetPose(frame.mTcw);
 }
 
 Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight,
              const double &timeStamp, ORBextractor *extractorLeft,
              ORBextractor *extractorRight, ORBVocabulary *voc, cv::Mat &K,
              cv::Mat &distCoef, const float &bf, const float &thDepth)
-    : mpORBvocabulary(voc), mpORBextractorLeft(extractorLeft),
-      mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()),
-      mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
+    : mpORBvocabulary(voc),
+      mpORBextractorLeft(extractorLeft),
+      mpORBextractorRight(extractorRight),
+      mTimeStamp(timeStamp),
+      mK(K.clone()),
+      mDistCoef(distCoef.clone()),
+      mbf(bf),
+      mThDepth(thDepth),
       mpReferenceKF(static_cast<KeyFrame *>(NULL)) {
   // Frame ID
   mnId = nNextId++;
@@ -91,8 +106,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight,
 
   N = mvKeys.size();
 
-  if (mvKeys.empty())
-    return;
+  if (mvKeys.empty()) return;
 
   UndistortKeyPoints();
 
@@ -130,10 +144,14 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth,
              const double &timeStamp, ORBextractor *extractor,
              ORBVocabulary *voc, cv::Mat &K, cv::Mat &distCoef, const float &bf,
              const float &thDepth)
-    : mpORBvocabulary(voc), mpORBextractorLeft(extractor),
+    : mpORBvocabulary(voc),
+      mpORBextractorLeft(extractor),
       mpORBextractorRight(static_cast<ORBextractor *>(NULL)),
-      mTimeStamp(timeStamp), mK(K.clone()), mDistCoef(distCoef.clone()),
-      mbf(bf), mThDepth(thDepth) {
+      mTimeStamp(timeStamp),
+      mK(K.clone()),
+      mDistCoef(distCoef.clone()),
+      mbf(bf),
+      mThDepth(thDepth) {
   // Frame ID
   mnId = nNextId++;
 
@@ -151,8 +169,7 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth,
 
   N = mvKeys.size();
 
-  if (mvKeys.empty())
-    return;
+  if (mvKeys.empty()) return;
 
   UndistortKeyPoints();
 
@@ -189,10 +206,14 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth,
 Frame::Frame(const cv::Mat &imGray, const double &timeStamp,
              ORBextractor *extractor, ORBVocabulary *voc, cv::Mat &K,
              cv::Mat &distCoef, const float &bf, const float &thDepth)
-    : mpORBvocabulary(voc), mpORBextractorLeft(extractor),
+    : mpORBvocabulary(voc),
+      mpORBextractorLeft(extractor),
       mpORBextractorRight(static_cast<ORBextractor *>(NULL)),
-      mTimeStamp(timeStamp), mK(K.clone()), mDistCoef(distCoef.clone()),
-      mbf(bf), mThDepth(thDepth) {
+      mTimeStamp(timeStamp),
+      mK(K.clone()),
+      mDistCoef(distCoef.clone()),
+      mbf(bf),
+      mThDepth(thDepth) {
   // Frame ID
   mnId = nNextId++;
 
@@ -210,8 +231,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp,
 
   N = mvKeys.size();
 
-  if (mvKeys.empty())
-    return;
+  if (mvKeys.empty()) return;
 
   UndistortKeyPoints();
 
@@ -294,18 +314,15 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit) {
   const float &PcZ = Pc.at<float>(2);
 
   // Check positive depth
-  if (PcZ < 0.0f)
-    return false;
+  if (PcZ < 0.0f) return false;
 
   // Project in image and check it is not outside
   const float invz = 1.0f / PcZ;
   const float u = fx * PcX * invz + cx;
   const float v = fy * PcY * invz + cy;
 
-  if (u < mnMinX || u > mnMaxX)
-    return false;
-  if (v < mnMinY || v > mnMaxY)
-    return false;
+  if (u < mnMinX || u > mnMaxX) return false;
+  if (v < mnMinY || v > mnMaxY) return false;
 
   // Check distance is in the scale invariance region of the MapPoint
   const float maxDistance = pMP->GetMaxDistanceInvariance();
@@ -313,16 +330,14 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit) {
   const cv::Mat PO = P - mOw;
   const float dist = cv::norm(PO);
 
-  if (dist < minDistance || dist > maxDistance)
-    return false;
+  if (dist < minDistance || dist > maxDistance) return false;
 
   // Check viewing angle
   cv::Mat Pn = pMP->GetNormal();
 
   const float viewCos = PO.dot(Pn) / dist;
 
-  if (viewCos < viewingCosLimit)
-    return false;
+  if (viewCos < viewingCosLimit) return false;
 
   // Predict scale in the image
   const int nPredictedLevel = pMP->PredictScale(dist, this);
@@ -346,49 +361,41 @@ std::vector<size_t> Frame::GetFeaturesInArea(const float &x, const float &y,
 
   const int nMinCellX =
       std::max(0, (int)std::floor((x - mnMinX - r) * mfGridElementWidthInv));
-  if (nMinCellX >= FRAME_GRID_COLS)
-    return vIndices;
+  if (nMinCellX >= FRAME_GRID_COLS) return vIndices;
 
   const int nMaxCellX =
       std::min((int)FRAME_GRID_COLS - 1,
                (int)std::ceil((x - mnMinX + r) * mfGridElementWidthInv));
-  if (nMaxCellX < 0)
-    return vIndices;
+  if (nMaxCellX < 0) return vIndices;
 
   const int nMinCellY =
       std::max(0, (int)std::floor((y - mnMinY - r) * mfGridElementHeightInv));
-  if (nMinCellY >= FRAME_GRID_ROWS)
-    return vIndices;
+  if (nMinCellY >= FRAME_GRID_ROWS) return vIndices;
 
   const int nMaxCellY =
       std::min((int)FRAME_GRID_ROWS - 1,
                (int)std::ceil((y - mnMinY + r) * mfGridElementHeightInv));
-  if (nMaxCellY < 0)
-    return vIndices;
+  if (nMaxCellY < 0) return vIndices;
 
   const bool bCheckLevels = (minLevel > 0) || (maxLevel >= 0);
 
   for (int ix = nMinCellX; ix <= nMaxCellX; ix++) {
     for (int iy = nMinCellY; iy <= nMaxCellY; iy++) {
       const std::vector<size_t> vCell = mGrid[ix][iy];
-      if (vCell.empty())
-        continue;
+      if (vCell.empty()) continue;
 
       for (size_t j = 0, jend = vCell.size(); j < jend; j++) {
         const cv::KeyPoint &kpUn = mvKeysUn[vCell[j]];
         if (bCheckLevels) {
-          if (kpUn.octave < minLevel)
-            continue;
+          if (kpUn.octave < minLevel) continue;
           if (maxLevel >= 0)
-            if (kpUn.octave > maxLevel)
-              continue;
+            if (kpUn.octave > maxLevel) continue;
         }
 
         const float distx = kpUn.pt.x - x;
         const float disty = kpUn.pt.y - y;
 
-        if (fabs(distx) < r && fabs(disty) < r)
-          vIndices.push_back(vCell[j]);
+        if (fabs(distx) < r && fabs(disty) < r) vIndices.push_back(vCell[j]);
       }
     }
   }
@@ -486,8 +493,7 @@ void Frame::ComputeStereoMatches() {
   // Assign keypoints to row table
   std::vector<std::vector<size_t>> vRowIndices(nRows, std::vector<size_t>());
 
-  for (int i = 0; i < nRows; i++)
-    vRowIndices[i].reserve(200);
+  for (int i = 0; i < nRows; i++) vRowIndices[i].reserve(200);
 
   const int Nr = mvKeysRight.size();
 
@@ -498,8 +504,7 @@ void Frame::ComputeStereoMatches() {
     const int maxr = ceil(kpY + r);
     const int minr = floor(kpY - r);
 
-    for (int yi = minr; yi <= maxr; yi++)
-      vRowIndices[yi].push_back(iR);
+    for (int yi = minr; yi <= maxr; yi++) vRowIndices[yi].push_back(iR);
   }
 
   // Set limits for search
@@ -519,14 +524,12 @@ void Frame::ComputeStereoMatches() {
 
     const std::vector<size_t> &vCandidates = vRowIndices[vL];
 
-    if (vCandidates.empty())
-      continue;
+    if (vCandidates.empty()) continue;
 
     const float minU = uL - maxD;
     const float maxU = uL - minD;
 
-    if (maxU < 0)
-      continue;
+    if (maxU < 0) continue;
 
     int bestDist = ORBmatcher::TH_HIGH;
     size_t bestIdxR = 0;
@@ -538,8 +541,7 @@ void Frame::ComputeStereoMatches() {
       const size_t iR = vCandidates[iC];
       const cv::KeyPoint &kpR = mvKeysRight[iR];
 
-      if (kpR.octave < levelL - 1 || kpR.octave > levelL + 1)
-        continue;
+      if (kpR.octave < levelL - 1 || kpR.octave > levelL + 1) continue;
 
       const float &uR = kpR.pt.x;
 
@@ -600,8 +602,7 @@ void Frame::ComputeStereoMatches() {
         vDists[L + incR] = dist;
       }
 
-      if (bestincR == -L || bestincR == L)
-        continue;
+      if (bestincR == -L || bestincR == L) continue;
 
       // Sub-pixel match (Parabola fitting)
       const float dist1 = vDists[L + bestincR - 1];
@@ -611,8 +612,7 @@ void Frame::ComputeStereoMatches() {
       const float deltaR =
           (dist1 - dist3) / (2.0f * (dist1 + dist3 - 2.0f * dist2));
 
-      if (deltaR < -1 || deltaR > 1)
-        continue;
+      if (deltaR < -1 || deltaR > 1) continue;
 
       // Re-scaled coordinate
       float bestuR = mvScaleFactors[kpL.octave] *
@@ -679,4 +679,4 @@ cv::Mat Frame::UnprojectStereo(const int &i) {
     return cv::Mat();
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

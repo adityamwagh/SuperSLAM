@@ -20,7 +20,6 @@
 
 #include "System.h"
 
-#include <pangolin/pangolin.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -35,8 +34,11 @@ namespace SuperSLAM {
 System::System(const std::string &strVocFile,
                const std::string &strSettingsFile, const eSensor sensor,
                const bool bUseViewer)
-    : mSensor(sensor), mpViewer(static_cast<Viewer *>(NULL)), mbReset(false),
-      mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false) {
+    : mSensor(sensor),
+      mpViewer(static_cast<RerunViewer *>(NULL)),
+      mbReset(false),
+      mbActivateLocalizationMode(false),
+      mbDeactivateLocalizationMode(false) {
   // Output welcome message
   std::cout << "\n"
             << "SuperSLAM Copyright (C) Aditya Wagh (adityamwagh@outlook.com)"
@@ -59,8 +61,7 @@ System::System(const std::string &strVocFile,
   // Check settings file
   cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
   if (!fsSettings.isOpened()) {
-    std::cerr << "Failed to open settings file at: " << strSettingsFile
-              << "\n";
+    std::cerr << "Failed to open settings file at: " << strSettingsFile << "\n";
     exit(-1);
   }
 
@@ -86,15 +87,11 @@ System::System(const std::string &strVocFile,
   // Create the Map
   mpMap = new Map();
 
-  // Create Drawers. These are used by the Viewer
-  mpFrameDrawer = new FrameDrawer(mpMap);
-  mpMapDrawer = new MapDrawer(mpMap, strSettingsFile);
-
   // Initialize the Tracking thread
   //(it will live in the main thread of execution, the one that called this
   // constructor)
-  mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer, mpMapDrawer,
-                           mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor);
+  mpTracker = new Tracking(this, mpVocabulary, mpMap, mpKeyFrameDatabase,
+                           strSettingsFile, mSensor);
 
   // Initialize the Local Mapping thread and launch
   mpLocalMapper = new LocalMapping(mpMap, mSensor == MONOCULAR);
@@ -108,9 +105,8 @@ System::System(const std::string &strVocFile,
 
   // Initialize the Viewer thread and launch
   if (bUseViewer) {
-    mpViewer = new Viewer(this, mpFrameDrawer, mpMapDrawer, mpTracker,
-                          strSettingsFile);
-    mptViewer = new std::thread(&Viewer::Run, mpViewer);
+    mpViewer = new RerunViewer(this, mpTracker, mpMap, strSettingsFile);
+    mptViewer = new std::thread(&RerunViewer::Run, mpViewer);
     mpTracker->SetViewer(mpViewer);
   }
 
@@ -142,7 +138,7 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight,
 
       // Wait until Local Mapping has effectively stopped
       while (!mpLocalMapper->isStopped()) {
-        usleep(1000);
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
       }
 
       mpTracker->InformOnlyTracking(true);
@@ -190,7 +186,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap,
 
       // Wait until Local Mapping has effectively stopped
       while (!mpLocalMapper->isStopped()) {
-        usleep(1000);
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
       }
 
       mpTracker->InformOnlyTracking(true);
@@ -237,7 +233,7 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp) {
 
       // Wait until Local Mapping has effectively stopped
       while (!mpLocalMapper->isStopped()) {
-        usleep(1000);
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
       }
 
       mpTracker->InformOnlyTracking(true);
@@ -300,17 +296,16 @@ void System::Shutdown() {
   if (mpViewer) {
     mpViewer->RequestFinish();
     while (!mpViewer->isFinished())
-      usleep(5000);
+      std::this_thread::sleep_for(std::chrono::microseconds(5000));
   }
 
   // Wait until all thread have effectively stopped
   while (!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() ||
          mpLoopCloser->isRunningGBA()) {
-    usleep(5000);
+    std::this_thread::sleep_for(std::chrono::microseconds(5000));
   }
 
-  if (mpViewer)
-    pangolin::BindToContext("SuperSLAM: Map Viewer");
+  if (mpViewer) mpViewer->Release();
 }
 
 void System::SaveTrajectoryTUM(const std::string &filename) {
@@ -349,8 +344,7 @@ void System::SaveTrajectoryTUM(const std::string &filename) {
            lit = mpTracker->mlRelativeFramePoses.begin(),
            lend = mpTracker->mlRelativeFramePoses.end();
        lit != lend; lit++, lRit++, lT++, lbL++) {
-    if (*lbL)
-      continue;
+    if (*lbL) continue;
 
     KeyFrame *pKF = *lRit;
 
@@ -400,8 +394,7 @@ void System::SaveKeyFrameTrajectoryTUM(const std::string &filename) {
 
     // pKF->SetPose(pKF->GetPose()*Two);
 
-    if (pKF->isBad())
-      continue;
+    if (pKF->isBad()) continue;
 
     cv::Mat R = pKF->GetRotation().t();
     std::vector<float> q = Converter::toQuaternion(R);
@@ -493,4 +486,4 @@ std::vector<cv::KeyPoint> System::GetTrackedKeyPointsUn() {
   return mTrackedKeyPointsUn;
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

@@ -33,9 +33,15 @@
 namespace SuperSLAM {
 
 LocalMapping::LocalMapping(Map *pMap, const float bMonocular)
-    : mbMonocular(bMonocular), mbResetRequested(false),
-      mbFinishRequested(false), mbFinished(true), mpMap(pMap), mbAbortBA(false),
-      mbStopped(false), mbStopRequested(false), mbNotStop(false),
+    : mbMonocular(bMonocular),
+      mbResetRequested(false),
+      mbFinishRequested(false),
+      mbFinished(true),
+      mpMap(pMap),
+      mbAbortBA(false),
+      mbStopped(false),
+      mbStopRequested(false),
+      mbNotStop(false),
       mbAcceptKeyFrames(true) {}
 
 void LocalMapping::SetLoopCloser(LoopClosing *pLoopCloser) {
@@ -83,10 +89,9 @@ void LocalMapping::Run() {
     } else if (Stop()) {
       // Safe area to stop
       while (isStopped() && !CheckFinish()) {
-        usleep(3000);
+        std::this_thread::sleep_for(std::chrono::microseconds(3000));
       }
-      if (CheckFinish())
-        break;
+      if (CheckFinish()) break;
     }
 
     ResetIfRequested();
@@ -94,10 +99,9 @@ void LocalMapping::Run() {
     // Tracking will see that Local Mapping is busy
     SetAcceptKeyFrames(true);
 
-    if (CheckFinish())
-      break;
+    if (CheckFinish()) break;
 
-    usleep(3000);
+    std::this_thread::sleep_for(std::chrono::microseconds(3000));
   }
 
   SetFinish();
@@ -136,8 +140,8 @@ void LocalMapping::ProcessNewKeyFrame() {
           pMP->AddObservation(mpCurrentKeyFrame, i);
           pMP->UpdateNormalAndDepth();
           pMP->ComputeDistinctiveDescriptors();
-        } else // this can only happen for new stereo points inserted by the
-               // Tracking
+        } else  // this can only happen for new stereo points inserted by the
+                // Tracking
         {
           mlpRecentAddedMapPoints.push_back(pMP);
         }
@@ -185,8 +189,7 @@ void LocalMapping::MapPointCulling() {
 void LocalMapping::CreateNewMapPoints() {
   // Retrieve neighbor keyframes in covisibility graph
   int nn = 10;
-  if (mbMonocular)
-    nn = 20;
+  if (mbMonocular) nn = 20;
   const std::vector<KeyFrame *> vpNeighKFs =
       mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
 
@@ -213,8 +216,7 @@ void LocalMapping::CreateNewMapPoints() {
 
   // Search matches with epipolar restriction and triangulate
   for (size_t i = 0; i < vpNeighKFs.size(); i++) {
-    if (i > 0 && CheckNewKeyFrames())
-      return;
+    if (i > 0 && CheckNewKeyFrames()) return;
 
     KeyFrame *pKF2 = vpNeighKFs[i];
 
@@ -224,14 +226,12 @@ void LocalMapping::CreateNewMapPoints() {
     const float baseline = cv::norm(vBaseline);
 
     if (!mbMonocular) {
-      if (baseline < pKF2->mb)
-        continue;
+      if (baseline < pKF2->mb) continue;
     } else {
       const float medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
       const float ratioBaselineDepth = baseline / medianDepthKF2;
 
-      if (ratioBaselineDepth < 0.01)
-        continue;
+      if (ratioBaselineDepth < 0.01) continue;
     }
 
     // Compute Fundamental Matrix
@@ -308,8 +308,7 @@ void LocalMapping::CreateNewMapPoints() {
 
         x3D = vt.row(3).t();
 
-        if (x3D.at<float>(3) == 0)
-          continue;
+        if (x3D.at<float>(3) == 0) continue;
 
         // Euclidean coordinates
         x3D = x3D.rowRange(0, 3) / x3D.at<float>(3);
@@ -319,18 +318,16 @@ void LocalMapping::CreateNewMapPoints() {
       } else if (bStereo2 && cosParallaxStereo2 < cosParallaxStereo1) {
         x3D = pKF2->UnprojectStereo(idx2);
       } else
-        continue; // No stereo and very low parallax
+        continue;  // No stereo and very low parallax
 
       cv::Mat x3Dt = x3D.t();
 
       // Check triangulation in front of cameras
       float z1 = Rcw1.row(2).dot(x3Dt) + tcw1.at<float>(2);
-      if (z1 <= 0)
-        continue;
+      if (z1 <= 0) continue;
 
       float z2 = Rcw2.row(2).dot(x3Dt) + tcw2.at<float>(2);
-      if (z2 <= 0)
-        continue;
+      if (z2 <= 0) continue;
 
       // Check reprojection error in first keyframe
       const float &sigmaSquare1 = mpCurrentKeyFrame->mvLevelSigma2[kp1.octave];
@@ -343,8 +340,7 @@ void LocalMapping::CreateNewMapPoints() {
         float v1 = fy1 * y1 * invz1 + cy1;
         float errX1 = u1 - kp1.pt.x;
         float errY1 = v1 - kp1.pt.y;
-        if ((errX1 * errX1 + errY1 * errY1) > 5.991 * sigmaSquare1)
-          continue;
+        if ((errX1 * errX1 + errY1 * errY1) > 5.991 * sigmaSquare1) continue;
       } else {
         float u1 = fx1 * x1 * invz1 + cx1;
         float u1_r = u1 - mpCurrentKeyFrame->mbf * invz1;
@@ -367,8 +363,7 @@ void LocalMapping::CreateNewMapPoints() {
         float v2 = fy2 * y2 * invz2 + cy2;
         float errX2 = u2 - kp2.pt.x;
         float errY2 = v2 - kp2.pt.y;
-        if ((errX2 * errX2 + errY2 * errY2) > 5.991 * sigmaSquare2)
-          continue;
+        if ((errX2 * errX2 + errY2 * errY2) > 5.991 * sigmaSquare2) continue;
       } else {
         float u2 = fx2 * x2 * invz2 + cx2;
         float u2_r = u2 - mpCurrentKeyFrame->mbf * invz2;
@@ -388,8 +383,7 @@ void LocalMapping::CreateNewMapPoints() {
       cv::Mat normal2 = x3D - Ow2;
       float dist2 = cv::norm(normal2);
 
-      if (dist1 == 0 || dist2 == 0)
-        continue;
+      if (dist1 == 0 || dist2 == 0) continue;
 
       const float ratioDist = dist2 / dist1;
       const float ratioOctave = mpCurrentKeyFrame->mvScaleFactors[kp1.octave] /
@@ -425,8 +419,7 @@ void LocalMapping::CreateNewMapPoints() {
 void LocalMapping::SearchInNeighbors() {
   // Retrieve neighbor keyframes
   int nn = 10;
-  if (mbMonocular)
-    nn = 20;
+  if (mbMonocular) nn = 20;
   const std::vector<KeyFrame *> vpNeighKFs =
       mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
   std::vector<KeyFrame *> vpTargetKFs;
@@ -482,8 +475,7 @@ void LocalMapping::SearchInNeighbors() {
                                            vendMP = vpMapPointsKFi.end();
          vitMP != vendMP; vitMP++) {
       MapPoint *pMP = *vitMP;
-      if (!pMP)
-        continue;
+      if (!pMP) continue;
       if (pMP->isBad() || pMP->mnFuseCandidateForKF == mpCurrentKeyFrame->mnId)
         continue;
       pMP->mnFuseCandidateForKF = mpCurrentKeyFrame->mnId;
@@ -557,8 +549,7 @@ bool LocalMapping::stopRequested() {
 void LocalMapping::Release() {
   std::unique_lock<std::mutex> lock(mMutexStop);
   std::unique_lock<std::mutex> lock2(mMutexFinish);
-  if (mbFinished)
-    return;
+  if (mbFinished) return;
   mbStopped = false;
   mbStopRequested = false;
   for (std::list<KeyFrame *>::iterator lit = mlNewKeyFrames.begin(),
@@ -583,8 +574,7 @@ void LocalMapping::SetAcceptKeyFrames(bool flag) {
 bool LocalMapping::SetNotStop(bool flag) {
   std::unique_lock<std::mutex> lock(mMutexStop);
 
-  if (flag && mbStopped)
-    return false;
+  if (flag && mbStopped) return false;
 
   mbNotStop = flag;
 
@@ -605,8 +595,7 @@ void LocalMapping::KeyFrameCulling() {
                                          vend = vpLocalKeyFrames.end();
        vit != vend; vit++) {
     KeyFrame *pKF = *vit;
-    if (pKF->mnId == 0)
-      continue;
+    if (pKF->mnId == 0) continue;
     const std::vector<MapPoint *> vpMapPoints = pKF->GetMapPointMatches();
 
     int nObs = 3;
@@ -633,14 +622,12 @@ void LocalMapping::KeyFrameCulling() {
                      mend = observations.end();
                  mit != mend; mit++) {
               KeyFrame *pKFi = mit->first;
-              if (pKFi == pKF)
-                continue;
+              if (pKFi == pKF) continue;
               const int &scaleLeveli = pKFi->mvKeysUn[mit->second].octave;
 
               if (scaleLeveli <= scaleLevel + 1) {
                 nObs++;
-                if (nObs >= thObs)
-                  break;
+                if (nObs >= thObs) break;
               }
             }
             if (nObs >= thObs) {
@@ -651,8 +638,7 @@ void LocalMapping::KeyFrameCulling() {
       }
     }
 
-    if (nRedundantObservations > 0.9 * nMPs)
-      pKF->SetBadFlag();
+    if (nRedundantObservations > 0.9 * nMPs) pKF->SetBadFlag();
   }
 }
 
@@ -671,10 +657,9 @@ void LocalMapping::RequestReset() {
   while (1) {
     {
       std::unique_lock<std::mutex> lock2(mMutexReset);
-      if (!mbResetRequested)
-        break;
+      if (!mbResetRequested) break;
     }
-    usleep(3000);
+    std::this_thread::sleep_for(std::chrono::microseconds(3000));
   }
 }
 
@@ -709,4 +694,4 @@ bool LocalMapping::isFinished() {
   return mbFinished;
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

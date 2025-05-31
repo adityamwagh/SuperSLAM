@@ -23,6 +23,7 @@
 
 #include <opencv4/opencv2/opencv.hpp>
 #include <vector>
+#include <Eigen/Core>
 
 #include "KeyFrame.h"
 #include "MapPoint.h"
@@ -180,6 +181,9 @@ class Frame {
 
   // ORB descriptor, each row associated to a keypoint.
   cv::Mat mDescriptors, mDescriptorsRight;
+  
+  // SuperPoint features (259 x N matrix: score, x, y, descriptors)
+  Eigen::Matrix<double, 259, Eigen::Dynamic> mSuperPointFeatures, mSuperPointFeaturesRight;
 
   // MapPoints associated to keypoints, NULL pointer if no association.
   std::vector<MapPoint*> mvpMapPoints;

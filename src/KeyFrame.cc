@@ -30,33 +30,65 @@ namespace SuperSLAM {
 long unsigned int KeyFrame::nNextId = 0;
 
 KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB)
-    : mnFrameId(F.mnId), mTimeStamp(F.mTimeStamp), mnGridCols(FRAME_GRID_COLS),
+    : mnFrameId(F.mnId),
+      mTimeStamp(F.mTimeStamp),
+      mnGridCols(FRAME_GRID_COLS),
       mnGridRows(FRAME_GRID_ROWS),
       mfGridElementWidthInv(F.mfGridElementWidthInv),
       mfGridElementHeightInv(F.mfGridElementHeightInv),
-      mnTrackReferenceForFrame(0), mnFuseTargetForKF(0), mnBALocalForKF(0),
-      mnBAFixedForKF(0), mnLoopQuery(0), mnLoopWords(0), mnRelocQuery(0),
-      mnRelocWords(0), mnBAGlobalForKF(0), fx(F.fx), fy(F.fy), cx(F.cx),
-      cy(F.cy), invfx(F.invfx), invfy(F.invfy), mbf(F.mbf), mb(F.mb),
-      mThDepth(F.mThDepth), N(F.N), mvKeys(F.mvKeys), mvKeysUn(F.mvKeysUn),
-      mvuRight(F.mvuRight), mvDepth(F.mvDepth),
-      mDescriptors(F.mDescriptors.clone()), mBowVec(F.mBowVec),
-      mFeatVec(F.mFeatVec), mnScaleLevels(F.mnScaleLevels),
-      mfScaleFactor(F.mfScaleFactor), mfLogScaleFactor(F.mfLogScaleFactor),
-      mvScaleFactors(F.mvScaleFactors), mvLevelSigma2(F.mvLevelSigma2),
-      mvInvLevelSigma2(F.mvInvLevelSigma2), mnMinX(F.mnMinX), mnMinY(F.mnMinY),
-      mnMaxX(F.mnMaxX), mnMaxY(F.mnMaxY), mK(F.mK),
-      mvpMapPoints(F.mvpMapPoints), mpKeyFrameDB(pKFDB),
-      mpORBvocabulary(F.mpORBvocabulary), mbFirstConnection(true),
-      mpParent(NULL), mbNotErase(false), mbToBeErased(false), mbBad(false),
-      mHalfBaseline(F.mb / 2), mpMap(pMap) {
+      mnTrackReferenceForFrame(0),
+      mnFuseTargetForKF(0),
+      mnBALocalForKF(0),
+      mnBAFixedForKF(0),
+      mnLoopQuery(0),
+      mnLoopWords(0),
+      mnRelocQuery(0),
+      mnRelocWords(0),
+      mnBAGlobalForKF(0),
+      fx(F.fx),
+      fy(F.fy),
+      cx(F.cx),
+      cy(F.cy),
+      invfx(F.invfx),
+      invfy(F.invfy),
+      mbf(F.mbf),
+      mb(F.mb),
+      mThDepth(F.mThDepth),
+      N(F.N),
+      mvKeys(F.mvKeys),
+      mvKeysUn(F.mvKeysUn),
+      mvuRight(F.mvuRight),
+      mvDepth(F.mvDepth),
+      mDescriptors(F.mDescriptors.clone()),
+      mBowVec(F.mBowVec),
+      mFeatVec(F.mFeatVec),
+      mnScaleLevels(F.mnScaleLevels),
+      mfScaleFactor(F.mfScaleFactor),
+      mfLogScaleFactor(F.mfLogScaleFactor),
+      mvScaleFactors(F.mvScaleFactors),
+      mvLevelSigma2(F.mvLevelSigma2),
+      mvInvLevelSigma2(F.mvInvLevelSigma2),
+      mnMinX(F.mnMinX),
+      mnMinY(F.mnMinY),
+      mnMaxX(F.mnMaxX),
+      mnMaxY(F.mnMaxY),
+      mK(F.mK),
+      mvpMapPoints(F.mvpMapPoints),
+      mpKeyFrameDB(pKFDB),
+      mpORBvocabulary(F.mpORBvocabulary),
+      mbFirstConnection(true),
+      mpParent(NULL),
+      mbNotErase(false),
+      mbToBeErased(false),
+      mbBad(false),
+      mHalfBaseline(F.mb / 2),
+      mpMap(pMap) {
   mnId = nNextId++;
 
   mGrid.resize(mnGridCols);
   for (int i = 0; i < mnGridCols; i++) {
     mGrid[i].resize(mnGridRows);
-    for (int j = 0; j < mnGridRows; j++)
-      mGrid[i][j] = F.mGrid[i][j];
+    for (int j = 0; j < mnGridRows; j++) mGrid[i][j] = F.mGrid[i][j];
   }
 
   SetPose(F.mTcw);
@@ -64,12 +96,39 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB)
 
 void KeyFrame::ComputeBoW() {
   if (mBowVec.empty() || mFeatVec.empty()) {
+    std::cout << "ComputeBoW: Starting BoW computation..." << "\n";
+
+    // Check if descriptors are SuperPoint (256-dim float) or ORB (32-dim
+    // binary)
+    if (!mDescriptors.empty()) {
+      std::cout << "ComputeBoW: Descriptor type=" << mDescriptors.type()
+                << ", size=" << mDescriptors.rows << "x" << mDescriptors.cols
+                << "\n";
+
+      // SuperPoint descriptors are CV_32F with 256 columns
+      if (mDescriptors.type() == CV_32F && mDescriptors.cols == 256) {
+        std::cout << "ComputeBoW: Detected SuperPoint descriptors, skipping "
+                     "BoW computation"
+                  << "\n";
+        // For now, create empty BoW vectors to avoid crashes
+        // TODO: Implement proper SuperPoint vocabulary
+        mBowVec.clear();
+        mFeatVec.clear();
+        return;
+      }
+    }
+
     std::vector<cv::Mat> vCurrentDesc =
         Converter::toDescriptorVector(mDescriptors);
+    std::cout << "ComputeBoW: Converting to descriptor vector, count="
+              << vCurrentDesc.size() << "\n";
+
     // Feature vector associate features with nodes in the 4th level (from
     // leaves up) We assume the vocabulary tree has 6 levels, change the 4
     // otherwise
+    std::cout << "ComputeBoW: Calling vocabulary transform..." << "\n";
     mpORBvocabulary->transform(vCurrentDesc, mBowVec, mFeatVec, 4);
+    std::cout << "ComputeBoW: BoW computation complete" << "\n";
   }
 }
 
@@ -182,8 +241,7 @@ std::vector<KeyFrame *> KeyFrame::GetBestCovisibilityKeyFrames(const int &N) {
 std::vector<KeyFrame *> KeyFrame::GetCovisiblesByWeight(const int &w) {
   std::unique_lock<std::mutex> lock(mMutexConnections);
 
-  if (mvpOrderedConnectedKeyFrames.empty())
-    return std::vector<KeyFrame *>();
+  if (mvpOrderedConnectedKeyFrames.empty()) return std::vector<KeyFrame *>();
 
   std::vector<int>::iterator it =
       upper_bound(mvOrderedWeights.begin(), mvOrderedWeights.end(), w,
@@ -217,8 +275,7 @@ void KeyFrame::EraseMapPointMatch(const size_t &idx) {
 
 void KeyFrame::EraseMapPointMatch(MapPoint *pMP) {
   int idx = pMP->GetIndexInKeyFrame(this);
-  if (idx >= 0)
-    mvpMapPoints[idx] = static_cast<MapPoint *>(NULL);
+  if (idx >= 0) mvpMapPoints[idx] = static_cast<MapPoint *>(NULL);
 }
 
 void KeyFrame::ReplaceMapPointMatch(const size_t &idx, MapPoint *pMP) {
@@ -229,11 +286,9 @@ std::set<MapPoint *> KeyFrame::GetMapPoints() {
   std::unique_lock<std::mutex> lock(mMutexFeatures);
   std::set<MapPoint *> s;
   for (size_t i = 0, iend = mvpMapPoints.size(); i < iend; i++) {
-    if (!mvpMapPoints[i])
-      continue;
+    if (!mvpMapPoints[i]) continue;
     MapPoint *pMP = mvpMapPoints[i];
-    if (!pMP->isBad())
-      s.insert(pMP);
+    if (!pMP->isBad()) s.insert(pMP);
   }
   return s;
 }
@@ -248,8 +303,7 @@ int KeyFrame::TrackedMapPoints(const int &minObs) {
     if (pMP) {
       if (!pMP->isBad()) {
         if (bCheckObs) {
-          if (mvpMapPoints[i]->Observations() >= minObs)
-            nPoints++;
+          if (mvpMapPoints[i]->Observations() >= minObs) nPoints++;
         } else
           nPoints++;
       }
@@ -285,26 +339,22 @@ void KeyFrame::UpdateConnections() {
        vit != vend; vit++) {
     MapPoint *pMP = *vit;
 
-    if (!pMP)
-      continue;
+    if (!pMP) continue;
 
-    if (pMP->isBad())
-      continue;
+    if (pMP->isBad()) continue;
 
     std::map<KeyFrame *, size_t> observations = pMP->GetObservations();
 
     for (std::map<KeyFrame *, size_t>::iterator mit = observations.begin(),
                                                 mend = observations.end();
          mit != mend; mit++) {
-      if (mit->first->mnId == mnId)
-        continue;
+      if (mit->first->mnId == mnId) continue;
       KFcounter[mit->first]++;
     }
   }
 
   // This should not happen
-  if (KFcounter.empty())
-    return;
+  if (KFcounter.empty()) return;
 
   // If the counter is greater than threshold add connection
   // In case no keyframe counter is over threshold add the one with maximum
@@ -436,8 +486,7 @@ void KeyFrame::SetBadFlag() {
     mit->first->EraseConnection(this);
 
   for (size_t i = 0; i < mvpMapPoints.size(); i++)
-    if (mvpMapPoints[i])
-      mvpMapPoints[i]->EraseObservation(this);
+    if (mvpMapPoints[i]) mvpMapPoints[i]->EraseObservation(this);
   {
     std::unique_lock<std::mutex> lock(mMutexConnections);
     std::unique_lock<std::mutex> lock1(mMutexFeatures);
@@ -463,8 +512,7 @@ void KeyFrame::SetBadFlag() {
                                           send = mspChildrens.end();
            sit != send; sit++) {
         KeyFrame *pKF = *sit;
-        if (pKF->isBad())
-          continue;
+        if (pKF->isBad()) continue;
 
         // Check if a parent candidate is connected to the keyframe
         std::vector<KeyFrame *> vpConnected =
@@ -526,8 +574,7 @@ void KeyFrame::EraseConnection(KeyFrame *pKF) {
     }
   }
 
-  if (bUpdate)
-    UpdateBestCovisibles();
+  if (bUpdate) UpdateBestCovisibles();
 }
 
 std::vector<size_t> KeyFrame::GetFeaturesInArea(const float &x, const float &y,
@@ -537,25 +584,21 @@ std::vector<size_t> KeyFrame::GetFeaturesInArea(const float &x, const float &y,
 
   const int nMinCellX =
       std::max(0, (int)floor((x - mnMinX - r) * mfGridElementWidthInv));
-  if (nMinCellX >= mnGridCols)
-    return vIndices;
+  if (nMinCellX >= mnGridCols) return vIndices;
 
   const int nMaxCellX =
       std::min((int)mnGridCols - 1,
                (int)std::ceil((x - mnMinX + r) * mfGridElementWidthInv));
-  if (nMaxCellX < 0)
-    return vIndices;
+  if (nMaxCellX < 0) return vIndices;
 
   const int nMinCellY =
       std::max(0, (int)floor((y - mnMinY - r) * mfGridElementHeightInv));
-  if (nMinCellY >= mnGridRows)
-    return vIndices;
+  if (nMinCellY >= mnGridRows) return vIndices;
 
   const int nMaxCellY =
       std::min((int)mnGridRows - 1,
                (int)std::ceil((y - mnMinY + r) * mfGridElementHeightInv));
-  if (nMaxCellY < 0)
-    return vIndices;
+  if (nMaxCellY < 0) return vIndices;
 
   for (int ix = nMinCellX; ix <= nMaxCellX; ix++) {
     for (int iy = nMinCellY; iy <= nMaxCellY; iy++) {
@@ -565,8 +608,7 @@ std::vector<size_t> KeyFrame::GetFeaturesInArea(const float &x, const float &y,
         const float distx = kpUn.pt.x - x;
         const float disty = kpUn.pt.y - y;
 
-        if (fabs(distx) < r && fabs(disty) < r)
-          vIndices.push_back(vCell[j]);
+        if (fabs(distx) < r && fabs(disty) < r) vIndices.push_back(vCell[j]);
       }
     }
   }
@@ -622,4 +664,4 @@ float KeyFrame::ComputeSceneMedianDepth(const int q) {
   return vDepths[(vDepths.size() - 1) / q];
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

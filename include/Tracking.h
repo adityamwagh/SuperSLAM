@@ -26,22 +26,20 @@
 #include <mutex>
 
 #include "Frame.h"
-#include "FrameDrawer.h"
 #include "Initializer.h"
 #include "KeyFrameDatabase.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #include "Map.h"
-#include "MapDrawer.h"
 #include "SPExtractor.h"
 #include "SPVocabulary.h"
 #include "System.h"
-#include "Viewer.h"
+#include "RerunViewer.h"
+#include "ReadConfig.h"
 
 namespace SuperSLAM {
 
-class Viewer;
-class FrameDrawer;
+class RerunViewer;
 class Map;
 class LocalMapping;
 class LoopClosing;
@@ -52,8 +50,6 @@ class Tracking {
   Tracking(
       System* pSys,
       ORBVocabulary* pVoc,
-      FrameDrawer* pFrameDrawer,
-      MapDrawer* pMapDrawer,
       Map* pMap,
       KeyFrameDatabase* pKFDB,
       const std::string& strSettingPath,
@@ -73,7 +69,7 @@ class Tracking {
 
   void SetLocalMapper(LocalMapping* pLocalMapper);
   void SetLoopClosing(LoopClosing* pLoopClosing);
-  void SetViewer(Viewer* pViewer);
+  void SetViewer(RerunViewer* pViewer);
 
   // Load new settings
   // The focal lenght should be similar or scale prediction will fail when
@@ -169,6 +165,9 @@ class Tracking {
   ORBextractor *mpORBextractorLeft, *mpORBextractorRight;
   ORBextractor* mpIniORBextractor;
 
+  // SuperPoint/SuperGlue configurations
+  std::shared_ptr<Configs> mpConfigs;
+
   // BoW
   ORBVocabulary* mpORBVocabulary;
   KeyFrameDatabase* mpKeyFrameDB;
@@ -184,10 +183,8 @@ class Tracking {
   // System
   System* mpSystem;
 
-  // Drawers
-  Viewer* mpViewer;
-  FrameDrawer* mpFrameDrawer;
-  MapDrawer* mpMapDrawer;
+  // Viewer
+  RerunViewer* mpViewer;
 
   // Map
   Map* mpMap;

@@ -61,17 +61,14 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2,
       MapPoint *pMP1 = vpKeyFrameMP1[i1];
       MapPoint *pMP2 = vpMatched12[i1];
 
-      if (!pMP1)
-        continue;
+      if (!pMP1) continue;
 
-      if (pMP1->isBad() || pMP2->isBad())
-        continue;
+      if (pMP1->isBad() || pMP2->isBad()) continue;
 
       int indexKF1 = pMP1->GetIndexInKeyFrame(pKF1);
       int indexKF2 = pMP2->GetIndexInKeyFrame(pKF2);
 
-      if (indexKF1 < 0 || indexKF2 < 0)
-        continue;
+      if (indexKF1 < 0 || indexKF2 < 0) continue;
 
       const cv::KeyPoint &kp1 = pKF1->mvKeysUn[indexKF1];
       const cv::KeyPoint &kp2 = pKF2->mvKeysUn[indexKF2];
@@ -112,7 +109,7 @@ void Sim3Solver::SetRansacParameters(double probability, int minInliers,
   mRansacMinInliers = minInliers;
   mRansacMaxIts = maxIterations;
 
-  N = mvpMapPoints1.size(); // number of correspondences
+  N = mvpMapPoints1.size();  // number of correspondences
 
   mvbInliersi.resize(N);
 
@@ -184,15 +181,13 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore,
       if (mnInliersi > mRansacMinInliers) {
         nInliers = mnInliersi;
         for (int i = 0; i < N; i++)
-          if (mvbInliersi[i])
-            vbInliers[mvnIndices1[i]] = true;
+          if (mvbInliersi[i]) vbInliers[mvnIndices1[i]] = true;
         return mBestT12;
       }
     }
   }
 
-  if (mnIterations >= mRansacMaxIts)
-    bNoMore = true;
+  if (mnIterations >= mRansacMaxIts) bNoMore = true;
 
   return cv::Mat();
 }
@@ -219,11 +214,11 @@ void Sim3Solver::ComputeSim3(cv::Mat &P1, cv::Mat &P2) {
   // Step 1: Centroid and relative coordinates
 
   cv::Mat Pr1(P1.size(),
-              P1.type()); // Relative coordinates to centroid (set 1)
+              P1.type());  // Relative coordinates to centroid (set 1)
   cv::Mat Pr2(P2.size(),
-              P2.type());       // Relative coordinates to centroid (set 2)
-  cv::Mat O1(3, 1, Pr1.type()); // Centroid of P1
-  cv::Mat O2(3, 1, Pr2.type()); // Centroid of P2
+              P2.type());        // Relative coordinates to centroid (set 2)
+  cv::Mat O1(3, 1, Pr1.type());  // Centroid of P1
+  cv::Mat O2(3, 1, Pr2.type());  // Centroid of P2
 
   ComputeCentroid(P1, Pr1, O1);
   ComputeCentroid(P2, Pr2, O2);
@@ -257,21 +252,21 @@ void Sim3Solver::ComputeSim3(cv::Mat &P1, cv::Mat &P2) {
   cv::Mat eval, evec;
 
   cv::eigen(N, eval,
-            evec); // evec[0] is the quaternion of the desired rotation
+            evec);  // evec[0] is the quaternion of the desired rotation
 
   cv::Mat vec(1, 3, evec.type());
   (evec.row(0).colRange(1, 4))
-      .copyTo(vec); // extract imaginary part of the quaternion (sin*axis)
+      .copyTo(vec);  // extract imaginary part of the quaternion (sin*axis)
 
   // Rotation angle. sin is the norm of the imaginary part, cos is the real part
   double ang = atan2(norm(vec), evec.at<float>(0, 0));
 
   vec = 2 * ang * vec /
-        norm(vec); // Angle-axis representation. quaternion angle is the half
+        norm(vec);  // Angle-axis representation. quaternion angle is the half
 
   mR12i.create(3, 3, P1.type());
 
-  cv::Rodrigues(vec, mR12i); // computes the rotation matrix from angle-axis
+  cv::Rodrigues(vec, mR12i);  // computes the rotation matrix from angle-axis
 
   // Step 5: Rotate set 2
 
@@ -393,4 +388,4 @@ void Sim3Solver::FromCameraToImage(const std::vector<cv::Mat> &vP3Dc,
   }
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

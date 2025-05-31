@@ -64,9 +64,16 @@ namespace SuperSLAM {
 
 PnPsolver::PnPsolver(const Frame &F,
                      const std::vector<MapPoint *> &vpMapPointMatches)
-    : pws(0), us(0), alphas(0), pcs(0), maximum_number_of_correspondences(0),
-      number_of_correspondences(0), mnInliersi(0), mnIterations(0),
-      mnBestInliers(0), N(0) {
+    : pws(0),
+      us(0),
+      alphas(0),
+      pcs(0),
+      maximum_number_of_correspondences(0),
+      number_of_correspondences(0),
+      mnInliersi(0),
+      mnIterations(0),
+      mnBestInliers(0),
+      N(0) {
   mvpMapPointMatches = vpMapPointMatches;
   mvP2D.reserve(F.mvpMapPoints.size());
   mvSigma2.reserve(F.mvpMapPoints.size());
@@ -122,16 +129,14 @@ void PnPsolver::SetRansacParameters(double probability, int minInliers,
   mRansacEpsilon = epsilon;
   mRansacMinSet = minSet;
 
-  N = mvP2D.size(); // number of correspondences
+  N = mvP2D.size();  // number of correspondences
 
   mvbInliersi.resize(N);
 
   // Adjust Parameters according to number of correspondences
   int nMinInliers = N * mRansacEpsilon;
-  if (nMinInliers < mRansacMinInliers)
-    nMinInliers = mRansacMinInliers;
-  if (nMinInliers < minSet)
-    nMinInliers = minSet;
+  if (nMinInliers < mRansacMinInliers) nMinInliers = mRansacMinInliers;
+  if (nMinInliers < minSet) nMinInliers = minSet;
   mRansacMinInliers = nMinInliers;
 
   if (mRansacEpsilon < (float)mRansacMinInliers / N)
@@ -219,8 +224,7 @@ cv::Mat PnPsolver::iterate(int nIterations, bool &bNoMore,
         nInliers = mnRefinedInliers;
         vbInliers = std::vector<bool>(mvpMapPointMatches.size(), false);
         for (int i = 0; i < N; i++) {
-          if (mvbRefinedInliers[i])
-            vbInliers[mvKeyPointIndices[i]] = true;
+          if (mvbRefinedInliers[i]) vbInliers[mvKeyPointIndices[i]] = true;
         }
         return mRefinedTcw.clone();
       }
@@ -233,8 +237,7 @@ cv::Mat PnPsolver::iterate(int nIterations, bool &bNoMore,
       nInliers = mnBestInliers;
       vbInliers = std::vector<bool>(mvpMapPointMatches.size(), false);
       for (int i = 0; i < N; i++) {
-        if (mvbBestInliers[i])
-          vbInliers[mvKeyPointIndices[i]] = true;
+        if (mvbBestInliers[i]) vbInliers[mvKeyPointIndices[i]] = true;
       }
       return mBestTcw.clone();
     }
@@ -319,14 +322,10 @@ void PnPsolver::CheckInliers() {
 
 void PnPsolver::set_maximum_number_of_correspondences(int n) {
   if (maximum_number_of_correspondences < n) {
-    if (pws != 0)
-      delete[] pws;
-    if (us != 0)
-      delete[] us;
-    if (alphas != 0)
-      delete[] alphas;
-    if (pcs != 0)
-      delete[] pcs;
+    if (pws != 0) delete[] pws;
+    if (us != 0) delete[] us;
+    if (alphas != 0) delete[] alphas;
+    if (pcs != 0) delete[] pcs;
 
     maximum_number_of_correspondences = n;
     pws = new double[3 * maximum_number_of_correspondences];
@@ -354,11 +353,9 @@ void PnPsolver::choose_control_points(void) {
   // Take C0 as the reference points centroid:
   cws[0][0] = cws[0][1] = cws[0][2] = 0;
   for (int i = 0; i < number_of_correspondences; i++)
-    for (int j = 0; j < 3; j++)
-      cws[0][j] += pws[3 * i + j];
+    for (int j = 0; j < 3; j++) cws[0][j] += pws[3 * i + j];
 
-  for (int j = 0; j < 3; j++)
-    cws[0][j] /= number_of_correspondences;
+  for (int j = 0; j < 3; j++) cws[0][j] /= number_of_correspondences;
 
   // Take C1, C2, and C3 from PCA on the reference points:
   CvMat *PW0 = cvCreateMat(number_of_correspondences, 3, CV_64F);
@@ -390,8 +387,7 @@ void PnPsolver::compute_barycentric_coordinates(void) {
   CvMat CC_inv = cvMat(3, 3, CV_64F, cc_inv);
 
   for (int i = 0; i < 3; i++)
-    for (int j = 1; j < 4; j++)
-      cc[3 * i + j - 1] = cws[j][i] - cws[0][i];
+    for (int j = 1; j < 4; j++) cc[3 * i + j - 1] = cws[j][i] - cws[0][i];
 
   cvInvert(&CC, &CC_inv, CV_SVD);
   double *ci = cc_inv;
@@ -424,14 +420,12 @@ void PnPsolver::fill_M(CvMat *M, const int row, const double *as,
 }
 
 void PnPsolver::compute_ccs(const double *betas, const double *ut) {
-  for (int i = 0; i < 4; i++)
-    ccs[i][0] = ccs[i][1] = ccs[i][2] = 0.0f;
+  for (int i = 0; i < 4; i++) ccs[i][0] = ccs[i][1] = ccs[i][2] = 0.0f;
 
   for (int i = 0; i < 4; i++) {
     const double *v = ut + 12 * (11 - i);
     for (int j = 0; j < 4; j++)
-      for (int k = 0; k < 3; k++)
-        ccs[j][k] += betas[i] * v[3 * j + k];
+      for (int k = 0; k < 3; k++) ccs[j][k] += betas[i] * v[3 * j + k];
   }
 }
 
@@ -487,10 +481,8 @@ double PnPsolver::compute_pose(double R[3][3], double t[3]) {
   rep_errors[3] = compute_R_and_t(ut, Betas[3], Rs[3], ts[3]);
 
   int N = 1;
-  if (rep_errors[2] < rep_errors[1])
-    N = 2;
-  if (rep_errors[3] < rep_errors[N])
-    N = 3;
+  if (rep_errors[2] < rep_errors[1]) N = 2;
+  if (rep_errors[3] < rep_errors[N]) N = 3;
 
   copy_R_and_t(Rs[N], ts[N], R, t);
 
@@ -500,8 +492,7 @@ double PnPsolver::compute_pose(double R[3][3], double t[3]) {
 void PnPsolver::copy_R_and_t(const double R_src[3][3], const double t_src[3],
                              double R_dst[3][3], double t_dst[3]) {
   for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++)
-      R_dst[i][j] = R_src[i][j];
+    for (int j = 0; j < 3; j++) R_dst[i][j] = R_src[i][j];
     t_dst[i] = t_src[i];
   }
 }
@@ -574,8 +565,7 @@ void PnPsolver::estimate_R_and_t(double R[3][3], double t[3]) {
   cvSVD(&ABt, &ABt_D, &ABt_U, &ABt_V, CV_SVD_MODIFY_A);
 
   for (int i = 0; i < 3; i++)
-    for (int j = 0; j < 3; j++)
-      R[i][j] = dot(abt_u + 3 * i, abt_v + 3 * j);
+    for (int j = 0; j < 3; j++) R[i][j] = dot(abt_u + 3 * i, abt_v + 3 * j);
 
   const double det = R[0][0] * R[1][1] * R[2][2] + R[0][1] * R[1][2] * R[2][0] +
                      R[0][2] * R[1][0] * R[2][1] - R[0][2] * R[1][1] * R[2][0] -
@@ -604,8 +594,7 @@ void PnPsolver::print_pose(const double R[3][3], const double t[3]) {
 void PnPsolver::solve_for_sign(void) {
   if (pcs[2] < 0.0) {
     for (int i = 0; i < 4; i++)
-      for (int j = 0; j < 3; j++)
-        ccs[i][j] = -ccs[i][j];
+      for (int j = 0; j < 3; j++) ccs[i][j] = -ccs[i][j];
 
     for (int i = 0; i < number_of_correspondences; i++) {
       pcs[3 * i] = -pcs[3 * i];
@@ -683,8 +672,7 @@ void PnPsolver::find_betas_approx_2(const CvMat *L_6x10, const CvMat *Rho,
     betas[1] = (b3[2] > 0) ? sqrt(b3[2]) : 0.0;
   }
 
-  if (b3[1] < 0)
-    betas[0] = -betas[0];
+  if (b3[1] < 0) betas[0] = -betas[0];
 
   betas[2] = 0.0;
   betas[3] = 0.0;
@@ -716,8 +704,7 @@ void PnPsolver::find_betas_approx_3(const CvMat *L_6x10, const CvMat *Rho,
     betas[0] = sqrt(b5[0]);
     betas[1] = (b5[2] > 0) ? sqrt(b5[2]) : 0.0;
   }
-  if (b5[1] < 0)
-    betas[0] = -betas[0];
+  if (b5[1] < 0) betas[0] = -betas[0];
   betas[2] = b5[3] / betas[0];
   betas[3] = 0.0;
 }
@@ -811,8 +798,7 @@ void PnPsolver::gauss_newton(const CvMat *L_6x10, const CvMat *Rho,
     compute_A_and_b_gauss_newton(L_6x10->data.db, Rho->data.db, betas, &A, &B);
     qr_solve(&A, &B, &X);
 
-    for (int i = 0; i < 4; i++)
-      betas[i] += x[i];
+    for (int i = 0; i < 4; i++) betas[i] += x[i];
   }
 }
 
@@ -838,8 +824,7 @@ void PnPsolver::qr_solve(CvMat *A, CvMat *b, CvMat *X) {
     double *ppAik = ppAkk, eta = fabs(*ppAik);
     for (int i = k + 1; i < nr; i++) {
       double elt = fabs(*ppAik);
-      if (eta < elt)
-        eta = elt;
+      if (eta < elt) eta = elt;
       ppAik += nc;
     }
 
@@ -856,8 +841,7 @@ void PnPsolver::qr_solve(CvMat *A, CvMat *b, CvMat *X) {
         ppAik += nc;
       }
       double sigma = sqrt(sum);
-      if (*ppAkk < 0)
-        sigma = -sigma;
+      if (*ppAkk < 0) sigma = -sigma;
       *ppAkk += sigma;
       A1[k] = sigma * *ppAkk;
       A2[k] = -eta * sigma;
@@ -977,4 +961,4 @@ void PnPsolver::mat_to_quat(const double R[3][3], double q[4]) {
   q[3] *= scale;
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

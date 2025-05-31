@@ -28,20 +28,17 @@
 #include <string>
 #include <thread>
 
-#include "FrameDrawer.h"
 #include "KeyFrameDatabase.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #include "Map.h"
-#include "MapDrawer.h"
+#include "RerunViewer.h"
 #include "SPVocabulary.h"
 #include "Tracking.h"
-#include "Viewer.h"
 
 namespace SuperSLAM {
 
-class Viewer;
-class FrameDrawer;
+class RerunViewer;
 class Map;
 class Tracking;
 class LocalMapping;
@@ -158,11 +155,8 @@ class System {
   // thread) afterwards.
   LoopClosing* mpLoopCloser;
 
-  // The viewer draws the map and the current camera pose. It uses Pangolin.
-  Viewer* mpViewer;
-
-  FrameDrawer* mpFrameDrawer;
-  MapDrawer* mpMapDrawer;
+  // The viewer draws the map and the current camera pose. It uses Rerun.io.
+  RerunViewer* mpViewer;
 
   // System threads: Local Mapping, Loop Closing, Viewer.
   // The Tracking thread "lives" in the main execution thread that creates the

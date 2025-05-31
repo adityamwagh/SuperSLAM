@@ -1,613 +1,526 @@
-
-#include <cfloat>
-#include <fstream>
-#include <opencv4/opencv2/opencv.hpp>
-
 #include "SuperGlueTRT.h"
 
-using namespace tensorrt_common;
-using namespace tensorrt_log;
-using namespace tensorrt_buffer;
+// Simple logger for TensorRT 10.11.0
+class SimpleLogger : public nvinfer1::ILogger {
+ public:
+  void log(Severity severity, const char* msg) noexcept override {
+    if (severity <= Severity::kWARNING) {
+      std::cout << "[TensorRT] " << msg << "\n";
+    }
+  }
+};
 
-SuperGlue::SuperGlue(const SuperGlueConfig &superglue_config)
-    : superglue_config_(superglue_config), engine_(nullptr) {
-  setReportableSeverity(Logger::Severity::kINTERNAL_ERROR);
+static SimpleLogger gLogger;
+
+SuperGlueTRT::SuperGlueTRT(const SuperGlueConfig& config) : config_(config) {
+  cudaStreamCreate(&stream_);
 }
 
-bool SuperGlue::build() {
-  if (deserialize_engine()) {
-    return true;
-  }
+SuperGlueTRT::~SuperGlueTRT() {
+  freeBuffers();
+  if (context_) delete context_;
+  if (engine_) delete engine_;
+  if (runtime_) delete runtime_;
+  cudaStreamDestroy(stream_);
+}
 
-  auto builder = TensorRTUniquePtr<nvinfer1::IBuilder>(
-      nvinfer1::createInferBuilder(gLogger.getTRTLogger()));
-  if (!builder) {
+bool SuperGlueTRT::initialize() {
+  std::cout << "SuperGlueTRT: Initializing..." << "\n";
+
+  if (!loadEngine()) {
+    std::cerr << "SuperGlueTRT: Failed to load engine" << "\n";
     return false;
   }
 
-  const auto explicit_batch =
-      1U << static_cast<uint32_t>(
-          NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
-  auto network = TensorRTUniquePtr<nvinfer1::INetworkDefinition>(
-      builder->createNetworkV2(explicit_batch));
-  if (!network) {
+  if (!allocateBuffers()) {
+    std::cerr << "SuperGlueTRT: Failed to allocate buffers" << "\n";
     return false;
   }
 
-  auto config = TensorRTUniquePtr<nvinfer1::IBuilderConfig>(
-      builder->createBuilderConfig());
-  if (!config) {
+  std::cout << "SuperGlueTRT: Initialization successful" << "\n";
+  return true;
+}
+
+bool SuperGlueTRT::loadEngine() {
+  std::cout << "SuperGlueTRT: Loading engine from " << config_.engine_file
+            << "\n";
+
+  std::ifstream file(config_.engine_file, std::ios::binary);
+  if (!file.good()) {
+    std::cerr << "SuperGlueTRT: Cannot read engine file " << config_.engine_file
+              << "\n";
     return false;
   }
 
-  auto parser = TensorRTUniquePtr<nvonnxparser::IParser>(
-      nvonnxparser::createParser(*network, gLogger.getTRTLogger()));
-  if (!parser) {
+  file.seekg(0, std::ifstream::end);
+  size_t size = file.tellg();
+  file.seekg(0, std::ifstream::beg);
+
+  std::vector<char> engineData(size);
+  file.read(engineData.data(), size);
+  file.close();
+
+  runtime_ = nvinfer1::createInferRuntime(gLogger);
+  if (!runtime_) {
+    std::cerr << "SuperGlueTRT: Failed to create runtime" << "\n";
     return false;
   }
 
-  auto profile = builder->createOptimizationProfile();
-  if (!profile) {
-    return false;
-  }
-  profile->setDimensions(superglue_config_.input_tensor_names[0].c_str(),
-                         OptProfileSelector::kMIN, Dims3(1, 1, 2));
-  profile->setDimensions(superglue_config_.input_tensor_names[0].c_str(),
-                         OptProfileSelector::kOPT, Dims3(1, 512, 2));
-  profile->setDimensions(superglue_config_.input_tensor_names[0].c_str(),
-                         OptProfileSelector::kMAX, Dims3(1, 1024, 2));
-  profile->setDimensions(superglue_config_.input_tensor_names[1].c_str(),
-                         OptProfileSelector::kMIN, Dims2(1, 1));
-  profile->setDimensions(superglue_config_.input_tensor_names[1].c_str(),
-                         OptProfileSelector::kOPT, Dims2(1, 512));
-  profile->setDimensions(superglue_config_.input_tensor_names[1].c_str(),
-                         OptProfileSelector::kMAX, Dims2(1, 1024));
-  profile->setDimensions(superglue_config_.input_tensor_names[2].c_str(),
-                         OptProfileSelector::kMIN, Dims3(1, 256, 1));
-  profile->setDimensions(superglue_config_.input_tensor_names[2].c_str(),
-                         OptProfileSelector::kOPT, Dims3(1, 256, 512));
-  profile->setDimensions(superglue_config_.input_tensor_names[2].c_str(),
-                         OptProfileSelector::kMAX, Dims3(1, 256, 1024));
-  profile->setDimensions(superglue_config_.input_tensor_names[3].c_str(),
-                         OptProfileSelector::kMIN, Dims3(1, 1, 2));
-  profile->setDimensions(superglue_config_.input_tensor_names[3].c_str(),
-                         OptProfileSelector::kOPT, Dims3(1, 512, 2));
-  profile->setDimensions(superglue_config_.input_tensor_names[3].c_str(),
-                         OptProfileSelector::kMAX, Dims3(1, 1024, 2));
-  profile->setDimensions(superglue_config_.input_tensor_names[4].c_str(),
-                         OptProfileSelector::kMIN, Dims2(1, 1));
-  profile->setDimensions(superglue_config_.input_tensor_names[4].c_str(),
-                         OptProfileSelector::kOPT, Dims2(1, 512));
-  profile->setDimensions(superglue_config_.input_tensor_names[4].c_str(),
-                         OptProfileSelector::kMAX, Dims2(1, 1024));
-  profile->setDimensions(superglue_config_.input_tensor_names[5].c_str(),
-                         OptProfileSelector::kMIN, Dims3(1, 256, 1));
-  profile->setDimensions(superglue_config_.input_tensor_names[5].c_str(),
-                         OptProfileSelector::kOPT, Dims3(1, 256, 512));
-  profile->setDimensions(superglue_config_.input_tensor_names[5].c_str(),
-                         OptProfileSelector::kMAX, Dims3(1, 256, 1024));
-  config->addOptimizationProfile(profile);
-
-  auto constructed = construct_network(builder, network, config, parser);
-  if (!constructed) {
-    return false;
-  }
-
-  auto profile_stream = makeCudaStream();
-  if (!profile_stream) {
-    return false;
-  }
-  config->setProfileStream(*profile_stream);
-
-  TensorRTUniquePtr<IHostMemory> plan{
-      builder->buildSerializedNetwork(*network, *config)};
-  if (!plan) {
-    return false;
-  }
-
-  TensorRTUniquePtr<IRuntime> runtime{
-      createInferRuntime(gLogger.getTRTLogger())};
-  if (!runtime) {
-    return false;
-  }
-
-  engine_ = std::shared_ptr<nvinfer1::ICudaEngine>(
-      runtime->deserializeCudaEngine(plan->data(), plan->size()));
+  engine_ = runtime_->deserializeCudaEngine(engineData.data(), size);
   if (!engine_) {
+    std::cerr << "SuperGlueTRT: Failed to deserialize engine" << "\n";
     return false;
   }
 
-  save_engine();
-
-  ASSERT(network->getNbInputs() == 6);
-  keypoints_0_dims_ = network->getInput(0)->getDimensions();
-  scores_0_dims_ = network->getInput(1)->getDimensions();
-  descriptors_0_dims_ = network->getInput(2)->getDimensions();
-  keypoints_1_dims_ = network->getInput(3)->getDimensions();
-  scores_1_dims_ = network->getInput(4)->getDimensions();
-  descriptors_1_dims_ = network->getInput(5)->getDimensions();
-  assert(keypoints_0_dims_.d[1] == -1);
-  assert(scores_0_dims_.d[1] == -1);
-  assert(descriptors_0_dims_.d[2] == -1);
-  assert(keypoints_1_dims_.d[1] == -1);
-  assert(scores_1_dims_.d[1] == -1);
-  assert(descriptors_1_dims_.d[2] == -1);
-  return true;
-}
-
-bool SuperGlue::construct_network(
-    TensorRTUniquePtr<nvinfer1::IBuilder> &builder,
-    TensorRTUniquePtr<nvinfer1::INetworkDefinition> &network,
-    TensorRTUniquePtr<nvinfer1::IBuilderConfig> &config,
-    TensorRTUniquePtr<nvonnxparser::IParser> &parser) const {
-  auto parsed =
-      parser->parseFromFile(superglue_config_.onnx_file.c_str(),
-                            static_cast<int>(gLogger.getReportableSeverity()));
-  if (!parsed) {
-    return false;
-  }
-  config->setMaxWorkspaceSize(512_MiB);
-  config->setFlag(BuilderFlag::kFP16);
-  enableDLA(builder.get(), config.get(), superglue_config_.dla_core);
-  return true;
-}
-
-bool SuperGlue::infer(
-    const Eigen::Matrix<double, 259, Eigen::Dynamic> &features0,
-    const Eigen::Matrix<double, 259, Eigen::Dynamic> &features1,
-    Eigen::VectorXi &indices0, Eigen::VectorXi &indices1,
-    Eigen::VectorXd &mscores0, Eigen::VectorXd &mscores1) {
+  context_ = engine_->createExecutionContext();
   if (!context_) {
-    context_ = TensorRTUniquePtr<nvinfer1::IExecutionContext>(
-        engine_->createExecutionContext());
-    if (!context_) {
+    std::cerr << "SuperGlueTRT: Failed to create execution context"
+              << "\n";
+    return false;
+  }
+
+  std::cout << "SuperGlueTRT: Engine loaded successfully" << "\n";
+  return true;
+}
+
+bool SuperGlueTRT::allocateBuffers() {
+  std::cout << "SuperGlueTRT: Allocating buffers..." << "\n";
+
+  int numIOTensors = engine_->getNbIOTensors();
+
+  for (int i = 0; i < numIOTensors; ++i) {
+    TensorInfo tensor;
+    tensor.name = engine_->getIOTensorName(i);
+    tensor.dims = engine_->getTensorShape(tensor.name.c_str());
+    tensor.dtype = engine_->getTensorDataType(tensor.name.c_str());
+    tensor.size = getTensorSize(tensor.dims, tensor.dtype);
+
+    printTensorInfo(tensor.name, tensor.dims, tensor.dtype);
+
+    if (tensor.size == 0) {
+      // Dynamic tensor - defer allocation until actual shape is known
+      std::cout << "SuperGlueTRT: Deferring allocation for dynamic tensor "
+                << tensor.name << "\n";
+      tensor.devicePtr = nullptr;
+      tensor.hostPtr = nullptr;
+    } else {
+      // Allocate device memory
+      if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
+        std::cerr << "SuperGlueTRT: Failed to allocate device memory for "
+                  << tensor.name << "\n";
+        return false;
+      }
+
+      // Allocate host memory
+      if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
+        std::cerr << "SuperGlueTRT: Failed to allocate host memory for "
+                  << tensor.name << "\n";
+        return false;
+      }
+    }
+
+    if (engine_->getTensorIOMode(tensor.name.c_str()) ==
+        nvinfer1::TensorIOMode::kINPUT) {
+      input_tensors_.push_back(tensor);
+    } else {
+      output_tensors_.push_back(tensor);
+    }
+  }
+
+  std::cout << "SuperGlueTRT: Buffers allocated successfully" << "\n";
+  return true;
+}
+
+void SuperGlueTRT::freeBuffers() {
+  for (auto& tensor : input_tensors_) {
+    if (tensor.devicePtr) cudaFree(tensor.devicePtr);
+    if (tensor.hostPtr) cudaFreeHost(tensor.hostPtr);
+  }
+  for (auto& tensor : output_tensors_) {
+    if (tensor.devicePtr) cudaFree(tensor.devicePtr);
+    if (tensor.hostPtr) cudaFreeHost(tensor.hostPtr);
+  }
+  input_tensors_.clear();
+  output_tensors_.clear();
+}
+
+bool SuperGlueTRT::allocateDynamicTensors(
+    const std::vector<cv::KeyPoint>& keypoints0,
+    const std::vector<cv::KeyPoint>& keypoints1) {
+  // Define actual shapes for dynamic tensors
+  int n0 = static_cast<int>(keypoints0.size());
+  int n1 = static_cast<int>(keypoints1.size());
+
+  for (auto& tensor : input_tensors_) {
+    if (tensor.size == 0) {  // This is a dynamic tensor
+      nvinfer1::Dims actualDims = tensor.dims;
+
+      if (tensor.name == "keypoints_0") {
+        actualDims.d[1] = n0;  // Set actual number of keypoints
+        actualDims.d[2] = 2;   // xy coordinates
+      } else if (tensor.name == "scores_0") {
+        actualDims.d[1] = n0;  // Set actual number of keypoints
+      } else if (tensor.name == "descriptors_0") {
+        actualDims.d[1] = 256;  // SuperPoint descriptor dimension
+        actualDims.d[2] = n0;   // Set actual number of keypoints
+      } else if (tensor.name == "keypoints_1") {
+        actualDims.d[1] = n1;  // Set actual number of keypoints
+        actualDims.d[2] = 2;   // xy coordinates
+      } else if (tensor.name == "scores_1") {
+        actualDims.d[1] = n1;  // Set actual number of keypoints
+      } else if (tensor.name == "descriptors_1") {
+        actualDims.d[1] = 256;  // SuperPoint descriptor dimension
+        actualDims.d[2] = n1;   // Set actual number of keypoints
+      }
+
+      // Set the input shape in the execution context
+      if (!context_->setInputShape(tensor.name.c_str(), actualDims)) {
+        std::cerr << "SuperGlueTRT: Failed to set input shape for "
+                  << tensor.name << "\n";
+        return false;
+      }
+
+      // Calculate size with actual dimensions
+      tensor.size = getTensorSize(actualDims, tensor.dtype);
+
+      // Allocate memory
+      if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
+        std::cerr << "SuperGlueTRT: Failed to allocate device memory for "
+                     "dynamic tensor "
+                  << tensor.name << "\n";
+        return false;
+      }
+
+      if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
+        std::cerr << "SuperGlueTRT: Failed to allocate host memory for dynamic "
+                     "tensor "
+                  << tensor.name << "\n";
+        return false;
+      }
+
+      std::cout << "SuperGlueTRT: Allocated dynamic tensor " << tensor.name
+                << " with size " << tensor.size << " bytes" << "\n";
+    }
+  }
+
+  // Handle output tensors - their shapes are determined after setting input
+  // shapes
+  for (auto& tensor : output_tensors_) {
+    if (tensor.size == 0) {  // This is a dynamic tensor
+      // Get the actual output shape from the context
+      nvinfer1::Dims outputDims = context_->getTensorShape(tensor.name.c_str());
+
+      // Calculate size with actual dimensions
+      tensor.size = getTensorSize(outputDims, tensor.dtype);
+
+      // Allocate memory
+      if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
+        std::cerr << "SuperGlueTRT: Failed to allocate device memory for "
+                     "dynamic output tensor "
+                  << tensor.name << "\n";
+        return false;
+      }
+
+      if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
+        std::cerr << "SuperGlueTRT: Failed to allocate host memory for dynamic "
+                     "output tensor "
+                  << tensor.name << "\n";
+        return false;
+      }
+
+      std::cout << "SuperGlueTRT: Allocated dynamic output tensor "
+                << tensor.name << " with size " << tensor.size << " bytes"
+                << "\n";
+    }
+  }
+
+  return true;
+}
+
+bool SuperGlueTRT::match(const std::vector<cv::KeyPoint>& keypoints0,
+                         const cv::Mat& descriptors0,
+                         const std::vector<cv::KeyPoint>& keypoints1,
+                         const cv::Mat& descriptors1, MatchResult& result) {
+  if (!context_) {
+    std::cerr << "SuperGlueTRT: Context not initialized" << "\n";
+    return false;
+  }
+
+  // Allocate dynamic tensors with actual shapes
+  if (!allocateDynamicTensors(keypoints0, keypoints1)) {
+    std::cerr << "SuperGlueTRT: Failed to allocate dynamic tensors"
+              << "\n";
+    return false;
+  }
+
+  // Prepare inputs
+  if (!prepareInputs(keypoints0, descriptors0, keypoints1, descriptors1)) {
+    std::cerr << "SuperGlueTRT: Failed to prepare inputs" << "\n";
+    return false;
+  }
+
+  // Set tensor addresses for inputs
+  for (auto& tensor : input_tensors_) {
+    if (!context_->setTensorAddress(tensor.name.c_str(), tensor.devicePtr)) {
+      std::cerr << "SuperGlueTRT: Failed to set input tensor address for "
+                << tensor.name << "\n";
+      return false;
+    }
+
+    // Copy input to device
+    if (cudaMemcpyAsync(tensor.devicePtr, tensor.hostPtr, tensor.size,
+                        cudaMemcpyHostToDevice, stream_) != cudaSuccess) {
+      std::cerr << "SuperGlueTRT: Failed to copy input to device" << "\n";
       return false;
     }
   }
 
-  assert(engine_->getNbBindings() == 7);
+  // Set tensor addresses for outputs
+  for (auto& tensor : output_tensors_) {
+    if (!context_->setTensorAddress(tensor.name.c_str(), tensor.devicePtr)) {
+      std::cerr << "SuperGlueTRT: Failed to set output tensor address for "
+                << tensor.name << "\n";
+      return false;
+    }
+  }
 
-  const int keypoints_0_index =
-      engine_->getBindingIndex(superglue_config_.input_tensor_names[0].c_str());
-  const int scores_0_index =
-      engine_->getBindingIndex(superglue_config_.input_tensor_names[1].c_str());
-  const int descriptors_0_index =
-      engine_->getBindingIndex(superglue_config_.input_tensor_names[2].c_str());
-  const int keypoints_1_index =
-      engine_->getBindingIndex(superglue_config_.input_tensor_names[3].c_str());
-  const int scores_1_index =
-      engine_->getBindingIndex(superglue_config_.input_tensor_names[4].c_str());
-  const int descriptors_1_index =
-      engine_->getBindingIndex(superglue_config_.input_tensor_names[5].c_str());
-  const int output_score_index = engine_->getBindingIndex(
-      superglue_config_.output_tensor_names[0].c_str());
-
-  context_->setBindingDimensions(keypoints_0_index,
-                                 Dims3(1, features0.cols(), 2));
-  context_->setBindingDimensions(scores_0_index, Dims2(1, features0.cols()));
-  context_->setBindingDimensions(descriptors_0_index,
-                                 Dims3(1, 256, features0.cols()));
-  context_->setBindingDimensions(keypoints_1_index,
-                                 Dims3(1, features1.cols(), 2));
-  context_->setBindingDimensions(scores_1_index, Dims2(1, features1.cols()));
-  context_->setBindingDimensions(descriptors_1_index,
-                                 Dims3(1, 256, features1.cols()));
-
-  keypoints_0_dims_ = context_->getBindingDimensions(keypoints_0_index);
-  scores_0_dims_ = context_->getBindingDimensions(scores_0_index);
-  descriptors_0_dims_ = context_->getBindingDimensions(descriptors_0_index);
-  keypoints_1_dims_ = context_->getBindingDimensions(keypoints_1_index);
-  scores_1_dims_ = context_->getBindingDimensions(scores_1_index);
-  descriptors_1_dims_ = context_->getBindingDimensions(descriptors_1_index);
-  output_scores_dims_ = context_->getBindingDimensions(output_score_index);
-
-  BufferManager buffers(engine_, 0, context_.get());
-
-  ASSERT(superglue_config_.input_tensor_names.size() == 6);
-  if (!process_input(buffers, features0, features1)) {
+  // Execute inference
+  if (!context_->enqueueV3(stream_)) {
+    std::cerr << "SuperGlueTRT: Failed to execute inference" << "\n";
     return false;
   }
 
-  buffers.copyInputToDevice();
+  // Copy outputs from device
+  for (auto& tensor : output_tensors_) {
+    if (cudaMemcpyAsync(tensor.hostPtr, tensor.devicePtr, tensor.size,
+                        cudaMemcpyDeviceToHost, stream_) != cudaSuccess) {
+      std::cerr << "SuperGlueTRT: Failed to copy output from device"
+                << "\n";
+      return false;
+    }
+  }
 
-  bool status = context_->executeV2(buffers.getDeviceBindings().data());
-  if (!status) {
+  // Synchronize stream
+  cudaStreamSynchronize(stream_);
+
+  // Postprocess outputs
+  return postprocessOutputs(keypoints0, keypoints1, result);
+}
+
+bool SuperGlueTRT::prepareInputs(const std::vector<cv::KeyPoint>& keypoints0,
+                                 const cv::Mat& descriptors0,
+                                 const std::vector<cv::KeyPoint>& keypoints1,
+                                 const cv::Mat& descriptors1) {
+  if (input_tensors_.size() < 6) {
+    std::cerr << "SuperGlueTRT: Expected 6 input tensors" << "\n";
     return false;
   }
-  buffers.copyOutputToHost();
 
-  if (!process_output(buffers, indices0, indices1, mscores0, mscores1)) {
-    return false;
+  // Expected input order: keypoints_0, scores_0, descriptors_0, keypoints_1,
+  // scores_1, descriptors_1
+
+  // Prepare keypoints_0
+  float* kp0_ptr = static_cast<float*>(input_tensors_[0].hostPtr);
+  normalizeKeypoints(keypoints0, config_.image_width, config_.image_height,
+                     kp0_ptr);
+
+  // Prepare scores_0
+  float* scores0_ptr = static_cast<float*>(input_tensors_[1].hostPtr);
+  for (size_t i = 0; i < keypoints0.size(); ++i) {
+    scores0_ptr[i] = keypoints0[i].response;
   }
+
+  // Prepare descriptors_0
+  float* desc0_ptr = static_cast<float*>(input_tensors_[2].hostPtr);
+  copyDescriptors(descriptors0, desc0_ptr);
+
+  // Prepare keypoints_1
+  float* kp1_ptr = static_cast<float*>(input_tensors_[3].hostPtr);
+  normalizeKeypoints(keypoints1, config_.image_width, config_.image_height,
+                     kp1_ptr);
+
+  // Prepare scores_1
+  float* scores1_ptr = static_cast<float*>(input_tensors_[4].hostPtr);
+  for (size_t i = 0; i < keypoints1.size(); ++i) {
+    scores1_ptr[i] = keypoints1[i].response;
+  }
+
+  // Prepare descriptors_1
+  float* desc1_ptr = static_cast<float*>(input_tensors_[5].hostPtr);
+  copyDescriptors(descriptors1, desc1_ptr);
 
   return true;
 }
 
-bool SuperGlue::process_input(
-    const BufferManager &buffers,
-    const Eigen::Matrix<double, 259, Eigen::Dynamic> &features0,
-    const Eigen::Matrix<double, 259, Eigen::Dynamic> &features1) {
-  auto *keypoints_0_buffer = static_cast<float *>(
-      buffers.getHostBuffer(superglue_config_.input_tensor_names[0]));
-  auto *scores_0_buffer = static_cast<float *>(
-      buffers.getHostBuffer(superglue_config_.input_tensor_names[1]));
-  auto *descriptors_0_buffer = static_cast<float *>(
-      buffers.getHostBuffer(superglue_config_.input_tensor_names[2]));
-  auto *keypoints_1_buffer = static_cast<float *>(
-      buffers.getHostBuffer(superglue_config_.input_tensor_names[3]));
-  auto *scores_1_buffer = static_cast<float *>(
-      buffers.getHostBuffer(superglue_config_.input_tensor_names[4]));
-  auto *descriptors_1_buffer = static_cast<float *>(
-      buffers.getHostBuffer(superglue_config_.input_tensor_names[5]));
-
-  for (int rows0 = 0; rows0 < 1; ++rows0) {
-    for (int cols0 = 0; cols0 < features0.cols(); ++cols0) {
-      scores_0_buffer[rows0 * features0.cols() + cols0] =
-          features0(rows0, cols0);
-    }
+bool SuperGlueTRT::postprocessOutputs(
+    const std::vector<cv::KeyPoint>& keypoints0,
+    const std::vector<cv::KeyPoint>& keypoints1, MatchResult& result) {
+  if (output_tensors_.empty()) {
+    std::cerr << "SuperGlueTRT: No output tensors" << "\n";
+    return false;
   }
 
-  for (int colk0 = 0; colk0 < features0.cols(); ++colk0) {
-    for (int rowk0 = 1; rowk0 < 3; ++rowk0) {
-      keypoints_0_buffer[colk0 * 2 + (rowk0 - 1)] = features0(rowk0, colk0);
-    }
+  result.matches.clear();
+
+  // Get matching scores output
+  float* scoresPtr = static_cast<float*>(output_tensors_[0].hostPtr);
+
+  // Get actual runtime dimensions from the execution context
+  nvinfer1::Dims actualDims =
+      context_->getTensorShape(output_tensors_[0].name.c_str());
+
+  // SuperGlue output is typically [N0+1, N1+1] where N0, N1 are number of
+  // keypoints
+  int rows = actualDims.d[actualDims.nbDims - 2];
+  int cols = actualDims.d[actualDims.nbDims - 1];
+
+  std::cout << "SuperGlueTRT: Matching scores shape: " << rows << "x" << cols
+            << "\n";
+
+  // Validate dimensions
+  if (rows <= 0 || cols <= 0) {
+    std::cerr << "SuperGlueTRT: Invalid output dimensions: " << rows << "x"
+              << cols << "\n";
+    return false;
   }
 
-  for (int rowd0 = 3; rowd0 < features0.rows(); ++rowd0) {
-    for (int cold0 = 0; cold0 < features0.cols(); ++cold0) {
-      descriptors_0_buffer[(rowd0 - 3) * features0.cols() + cold0] =
-          features0(rowd0, cold0);
-    }
-  }
+  // Create scores matrix for visualization
+  result.scores = cv::Mat(rows, cols, CV_32F, scoresPtr).clone();
 
-  for (int rows1 = 0; rows1 < 1; ++rows1) {
-    for (int cols1 = 0; cols1 < features1.cols(); ++cols1) {
-      scores_1_buffer[rows1 * features1.cols() + cols1] =
-          features1(rows1, cols1);
-    }
-  }
+  // Extract matches using Hungarian algorithm or simple max approach
+  std::vector<bool> matched0(keypoints0.size(), false);
+  std::vector<bool> matched1(keypoints1.size(), false);
 
-  for (int colk1 = 0; colk1 < features1.cols(); ++colk1) {
-    for (int rowk1 = 1; rowk1 < 3; ++rowk1) {
-      keypoints_1_buffer[colk1 * 2 + (rowk1 - 1)] = features1(rowk1, colk1);
-    }
-  }
+  // Simple greedy matching - find best match for each keypoint
+  for (int i = 0; i < static_cast<int>(keypoints0.size()) && i < rows - 1;
+       ++i) {
+    float maxScore = -1.0f;
+    int bestMatch = -1;
 
-  for (int rowd1 = 3; rowd1 < features1.rows(); ++rowd1) {
-    for (int cold1 = 0; cold1 < features1.cols(); ++cold1) {
-      descriptors_1_buffer[(rowd1 - 3) * features1.cols() + cold1] =
-          features1(rowd1, cold1);
-    }
-  }
-
-  return true;
-}
-
-void where_negative_one(const int *flag_data, const int *data, int size,
-                        std::vector<int> &indices) {
-  for (int i = 0; i < size; ++i) {
-    if (flag_data[i] == 1) {
-      indices.push_back(data[i]);
-    } else {
-      indices.push_back(-1);
-    }
-  }
-}
-
-void max_matrix(const float *data, int *indices, float *values, int h, int w,
-                int dim) {
-  if (dim == 2) {
-    for (int i = 0; i < h - 1; ++i) {
-      float max_value = -FLT_MAX;
-      int max_indices = 0;
-      for (int j = 0; j < w - 1; ++j) {
-        if (max_value < data[i * w + j]) {
-          max_value = data[i * w + j];
-          max_indices = j;
+    for (int j = 0; j < static_cast<int>(keypoints1.size()) && j < cols - 1;
+         ++j) {
+      if (!matched1[j]) {
+        float score = scoresPtr[i * cols + j];
+        if (score > maxScore && score > 0.2f) {  // Threshold for good matches
+          maxScore = score;
+          bestMatch = j;
         }
       }
-      values[i] = max_value;
-      indices[i] = max_indices;
     }
-  } else if (dim == 1) {
-    for (int i = 0; i < w - 1; ++i) {
-      float max_value = -FLT_MAX;
-      int max_indices = 0;
-      for (int j = 0; j < h - 1; ++j) {
-        if (max_value < data[j * w + i]) {
-          max_value = data[j * w + i];
-          max_indices = j;
+
+    if (bestMatch >= 0) {
+      // Verify mutual best match
+      float bestReverseScore = -1.0f;
+      int bestReverseMatch = -1;
+
+      for (int k = 0; k < static_cast<int>(keypoints0.size()) && k < rows - 1;
+           ++k) {
+        if (!matched0[k]) {
+          float score = scoresPtr[k * cols + bestMatch];
+          if (score > bestReverseScore) {
+            bestReverseScore = score;
+            bestReverseMatch = k;
+          }
         }
       }
-      values[i] = max_value;
-      indices[i] = max_indices;
-    }
-  }
-}
 
-void equal_gather(const int *indices0, const int *indices1, int *mutual,
-                  int size) {
-  for (int i = 0; i < size; ++i) {
-    if (indices0[indices1[i]] == i) {
-      mutual[i] = 1;
-    } else {
-      mutual[i] = 0;
-    }
-  }
-}
+      if (bestReverseMatch == i) {  // Mutual best match
+        cv::DMatch match;
+        match.queryIdx = i;
+        match.trainIdx = bestMatch;
+        match.distance = 1.0f - maxScore;  // Convert score to distance
+        result.matches.push_back(match);
 
-void where_exp(const int *flag_data, float *data, std::vector<double> &mscores0,
-               int size) {
-  for (int i = 0; i < size; ++i) {
-    if (flag_data[i] == 1) {
-      mscores0.push_back(std::exp(data[i]));
-    } else {
-      mscores0.push_back(0);
-    }
-  }
-}
-
-void where_gather(const int *flag_data, int *indices,
-                  std::vector<double> &mscores0, std::vector<double> &mscores1,
-                  int size) {
-  for (int i = 0; i < size; ++i) {
-    if (flag_data[i] == 1) {
-      mscores1.push_back(mscores0[indices[i]]);
-    } else {
-      mscores1.push_back(0);
-    }
-  }
-}
-
-void and_threshold(const int *mutual0, int *valid0,
-                   const std::vector<double> &mscores0, double threhold) {
-  for (int i = 0; i < mscores0.size(); ++i) {
-    if (mutual0[i] == 1 && mscores0[i] > threhold) {
-      valid0[i] = 1;
-    } else {
-      valid0[i] = 0;
-    }
-  }
-}
-
-void and_gather(const int *mutual1, const int *valid0, const int *indices1,
-                int *valid1, int size) {
-  for (int i = 0; i < size; ++i) {
-    if (mutual1[i] == 1 && valid0[indices1[i]] == 1) {
-      valid1[i] = 1;
-    } else {
-      valid1[i] = 0;
-    }
-  }
-}
-
-void decode(float *scores, int h, int w, std::vector<int> &indices0,
-            std::vector<int> &indices1, std::vector<double> &mscores0,
-            std::vector<double> &mscores1) {
-  auto *max_indices0 = new int[h - 1];
-  auto *max_indices1 = new int[w - 1];
-  auto *max_values0 = new float[h - 1];
-  auto *max_values1 = new float[w - 1];
-  max_matrix(scores, max_indices0, max_values0, h, w, 2);
-  max_matrix(scores, max_indices1, max_values1, h, w, 1);
-  auto *mutual0 = new int[h - 1];
-  auto *mutual1 = new int[w - 1];
-  equal_gather(max_indices1, max_indices0, mutual0, h - 1);
-  equal_gather(max_indices0, max_indices1, mutual1, w - 1);
-  where_exp(mutual0, max_values0, mscores0, h - 1);
-  where_gather(mutual1, max_indices1, mscores0, mscores1, w - 1);
-  auto *valid0 = new int[h - 1];
-  auto *valid1 = new int[w - 1];
-  and_threshold(mutual0, valid0, mscores0, 0.2);
-  and_gather(mutual1, valid0, max_indices1, valid1, w - 1);
-  where_negative_one(valid0, max_indices0, h - 1, indices0);
-  where_negative_one(valid1, max_indices1, w - 1, indices1);
-  delete[] max_indices0;
-  delete[] max_indices1;
-  delete[] max_values0;
-  delete[] max_values1;
-  delete[] mutual0;
-  delete[] mutual1;
-  delete[] valid0;
-  delete[] valid1;
-}
-
-void log_sinkhorn_iterations(float *couplings, float *Z, int m, int n,
-                             float *log_mu, float *log_nu, int iters) {
-  auto *u = new float[m]();
-  auto *v = new float[n]();
-  for (int k = 0; k < iters; ++k) {
-    for (int ki = 0; ki < m; ++ki) {
-      float nu_expsum = 0.0;
-      for (int kn = 0; kn < n; ++kn) {
-        nu_expsum += std::exp(couplings[ki * n + kn] + v[kn]);
-      }
-      u[ki] = log_mu[ki] - std::log(nu_expsum);
-    }
-    for (int kj = 0; kj < n; ++kj) {
-      float nu_expsum = 0.0;
-      for (int km = 0; km < m; ++km) {
-        nu_expsum += std::exp(couplings[km * n + kj] + u[km]);
-      }
-      v[kj] = log_nu[kj] - std::log(nu_expsum);
-    }
-  }
-
-  for (int i = 0; i < m; ++i) {
-    for (int j = 0; j < n; ++j) {
-      Z[i * n + j] = couplings[i * n + j] + u[i] + v[j];
-    }
-  }
-  delete[] u;
-  delete[] v;
-}
-
-void log_optimal_transport(float *scores, float *Z, int m, int n,
-                           float alpha = 2.3457, int iters = 100) {
-  auto *couplings = new float[(m + 1) * (n + 1)];
-  for (int i = 0; i < m + 1; ++i) {
-    for (int j = 0; j < n + 1; ++j) {
-      if (i == m || j == n) {
-        couplings[i * (n + 1) + j] = alpha;
-      } else {
-        couplings[i * (n + 1) + j] = scores[i * n + j];
+        matched0[i] = true;
+        matched1[bestMatch] = true;
       }
     }
   }
 
-  float norm = -std::log(m + n);
-
-  auto *log_mu = new float[m + 1];
-  auto *log_nu = new float[n + 1];
-  for (int ii = 0; ii < m; ++ii) {
-    log_mu[ii] = norm;
-  }
-  log_mu[m] = std::log(n) + norm;
-
-  for (int jj = 0; jj < n; ++jj) {
-    log_nu[jj] = norm;
-  }
-  log_nu[n] = std::log(m) + norm;
-
-  log_sinkhorn_iterations(couplings, Z, m + 1, n + 1, log_mu, log_nu, iters);
-  for (int ii = 0; ii < m + 1; ++ii) {
-    for (int jj = 0; jj < n + 1; ++jj) {
-      Z[ii * (n + 1) + jj] = Z[ii * (n + 1) + jj] - norm;
-    }
-  }
-  delete[] couplings;
-  delete[] log_mu;
-  delete[] log_nu;
-}
-
-bool SuperGlue::process_output(const BufferManager &buffers,
-                               Eigen::VectorXi &indices0,
-                               Eigen::VectorXi &indices1,
-                               Eigen::VectorXd &mscores0,
-                               Eigen::VectorXd &mscores1) {
-  indices0_.clear();
-  indices1_.clear();
-  mscores0_.clear();
-  mscores1_.clear();
-  auto *output_score = static_cast<float *>(
-      buffers.getHostBuffer(superglue_config_.output_tensor_names[0]));
-  int scores_map_h = output_scores_dims_.d[1];
-  int scores_map_w = output_scores_dims_.d[2];
-  auto *scores = new float[(scores_map_h + 1) * (scores_map_w + 1)];
-  // log_optimal_transport(output_score, scores, scores_map_h, scores_map_w);
-  // scores_map_h = scores_map_h + 1;
-  // scores_map_w = scores_map_w + 1;
-  decode(output_score, scores_map_h, scores_map_w, indices0_, indices1_,
-         mscores0_, mscores1_);
-  indices0.resize(indices0_.size());
-  indices1.resize(indices1_.size());
-  mscores0.resize(mscores0_.size());
-  mscores1.resize(mscores1_.size());
-  for (int i0 = 0; i0 < indices0_.size(); ++i0) {
-    indices0(i0) = indices0_[i0];
-  }
-  for (int i1 = 0; i1 < indices1_.size(); ++i1) {
-    indices1(i1) = indices1_[i1];
-  }
-  for (int j0 = 0; j0 < mscores0_.size(); ++j0) {
-    mscores0(j0) = mscores0_[j0];
-  }
-  for (int j1 = 0; j1 < mscores1_.size(); ++j1) {
-    mscores1(j1) = mscores1_[j1];
-  }
+  std::cout << "SuperGlueTRT: Found " << result.matches.size() << " matches"
+            << "\n";
   return true;
 }
 
-void SuperGlue::save_engine() {
-  if (superglue_config_.engine_file.empty())
-    return;
-  if (engine_ != nullptr) {
-    nvinfer1::IHostMemory *data = engine_->serialize();
-    std::ofstream file(superglue_config_.engine_file, std::ios::binary);
-    ;
-    if (!file)
-      return;
-    file.write(reinterpret_cast<const char *>(data->data()), data->size());
+void SuperGlueTRT::normalizeKeypoints(
+    const std::vector<cv::KeyPoint>& keypoints, int imageWidth, int imageHeight,
+    float* output) {
+  for (size_t i = 0; i < keypoints.size(); ++i) {
+    // Normalize to [-1, 1]
+    output[i * 2] = (2.0f * keypoints[i].pt.x / imageWidth) - 1.0f;
+    output[i * 2 + 1] = (2.0f * keypoints[i].pt.y / imageHeight) - 1.0f;
   }
 }
 
-bool SuperGlue::deserialize_engine() {
-  std::ifstream file(superglue_config_.engine_file, std::ios::binary);
-  if (file.is_open()) {
-    file.seekg(0, std::ifstream::end);
-    size_t size = file.tellg();
-    file.seekg(0, std::ifstream::beg);
-    char *model_stream = new char[size];
-    file.read(model_stream, size);
-    file.close();
-    IRuntime *runtime = createInferRuntime(gLogger);
-    if (runtime == nullptr)
-      return false;
-    engine_ = std::shared_ptr<nvinfer1::ICudaEngine>(
-        runtime->deserializeCudaEngine(model_stream, size));
-    if (engine_ == nullptr)
-      return false;
-    return true;
+void SuperGlueTRT::copyDescriptors(const cv::Mat& descriptors, float* output) {
+  if (descriptors.type() == CV_32F) {
+    std::memcpy(output, descriptors.data, descriptors.total() * sizeof(float));
+  } else {
+    // Convert to float if needed
+    cv::Mat floatDesc;
+    descriptors.convertTo(floatDesc, CV_32F);
+    std::memcpy(output, floatDesc.data, floatDesc.total() * sizeof(float));
   }
-  return false;
 }
 
-int SuperGlue::matching_points(
-    Eigen::Matrix<double, 259, Eigen::Dynamic> &features0,
-    Eigen::Matrix<double, 259, Eigen::Dynamic> &features1,
-    std::vector<cv::DMatch> &matches, bool outlier_rejection) {
-  matches.clear();
-  Eigen::Matrix<double, 259, Eigen::Dynamic> norm_features0 =
-      normalize_keypoints(features0, superglue_config_.image_width,
-                          superglue_config_.image_height);
-  Eigen::Matrix<double, 259, Eigen::Dynamic> norm_features1 =
-      normalize_keypoints(features1, superglue_config_.image_width,
-                          superglue_config_.image_height);
-  Eigen::VectorXi indices0, indices1;
-  Eigen::VectorXd mscores0, mscores1;
-  infer(norm_features0, norm_features1, indices0, indices1, mscores0, mscores1);
+size_t SuperGlueTRT::getElementSize(nvinfer1::DataType dtype) {
+  switch (dtype) {
+    case nvinfer1::DataType::kFLOAT:
+      return 4;
+    case nvinfer1::DataType::kHALF:
+      return 2;
+    case nvinfer1::DataType::kINT8:
+      return 1;
+    case nvinfer1::DataType::kINT32:
+      return 4;
+    case nvinfer1::DataType::kBOOL:
+      return 1;
+    default:
+      return 4;
+  }
+}
 
-  int num_match = 0;
-  std::vector<cv::Point2f> points0, points1;
-  std::vector<int> point_indexes;
-  for (size_t i = 0; i < indices0.size(); i++) {
-    if (indices0(i) < indices1.size() && indices0(i) >= 0 &&
-        indices1(indices0(i)) == i) {
-      double d = 1.0 - (mscores0[i] + mscores1[indices0[i]]) / 2.0;
-      matches.emplace_back(i, indices0[i], d);
-      points0.emplace_back(features0(1, i), features0(2, i));
-      points1.emplace_back(features1(1, indices0(i)),
-                           features1(2, indices0(i)));
-      num_match++;
+size_t SuperGlueTRT::getTensorSize(const nvinfer1::Dims& dims,
+                                   nvinfer1::DataType dtype) {
+  size_t size = getElementSize(dtype);
+  for (int i = 0; i < dims.nbDims; ++i) {
+    if (dims.d[i] == -1) {
+      // Dynamic dimension detected - cannot determine size yet
+      return 0;
     }
+    size *= dims.d[i];
   }
-
-  if (outlier_rejection) {
-    std::vector<uchar> inliers;
-    cv::findFundamentalMat(points0, points1, cv::FM_RANSAC, 3, 0.99, inliers);
-    int j = 0;
-    for (int i = 0; i < matches.size(); i++) {
-      if (inliers[i]) {
-        matches[j++] = matches[i];
-      }
-    }
-    matches.resize(j);
-  }
-
-  return matches.size();
+  return size;
 }
 
-Eigen::Matrix<double, 259, Eigen::Dynamic> SuperGlue::normalize_keypoints(
-    const Eigen::Matrix<double, 259, Eigen::Dynamic> &features, int width,
-    int height) {
-  Eigen::Matrix<double, 259, Eigen::Dynamic> norm_features;
-  norm_features.resize(259, features.cols());
-  norm_features = features;
-  for (int col = 0; col < features.cols(); ++col) {
-    norm_features(1, col) =
-        (features(1, col) - width / 2) / (std::max(width, height) * 0.7);
-    norm_features(2, col) =
-        (features(2, col) - height / 2) / (std::max(width, height) * 0.7);
+void SuperGlueTRT::printTensorInfo(const std::string& name,
+                                   const nvinfer1::Dims& dims,
+                                   nvinfer1::DataType dtype) {
+  std::cout << "SuperGlueTRT: Tensor " << name << " - Shape: ";
+  for (int i = 0; i < dims.nbDims; ++i) {
+    std::cout << dims.d[i];
+    if (i < dims.nbDims - 1) std::cout << "x";
   }
-  return norm_features;
+  std::cout << ", Type: ";
+  switch (dtype) {
+    case nvinfer1::DataType::kFLOAT:
+      std::cout << "FLOAT";
+      break;
+    case nvinfer1::DataType::kHALF:
+      std::cout << "HALF";
+      break;
+    case nvinfer1::DataType::kINT8:
+      std::cout << "INT8";
+      break;
+    case nvinfer1::DataType::kINT32:
+      std::cout << "INT32";
+      break;
+    case nvinfer1::DataType::kBOOL:
+      std::cout << "BOOL";
+      break;
+    default:
+      std::cout << "UNKNOWN";
+      break;
+  }
+  std::cout << "\n";
 }

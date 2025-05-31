@@ -29,8 +29,7 @@ Map::Map() : mnMaxKFid(0), mnBigChangeIdx(0) {}
 void Map::AddKeyFrame(KeyFrame *pKF) {
   std::unique_lock<std::mutex> lock(mMutexMap);
   mspKeyFrames.insert(pKF);
-  if (pKF->mnId > mnMaxKFid)
-    mnMaxKFid = pKF->mnId;
+  if (pKF->mnId > mnMaxKFid) mnMaxKFid = pKF->mnId;
 }
 
 void Map::AddMapPoint(MapPoint *pMP) {
@@ -117,4 +116,4 @@ void Map::clear() {
   mvpKeyFrameOrigins.clear();
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

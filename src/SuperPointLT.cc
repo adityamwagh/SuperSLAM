@@ -65,23 +65,23 @@ std::vector<torch::Tensor> SuperPoint::forward(torch::Tensor x) {
   x = torch::relu(conv4b->forward(x));
 
   auto cPa = torch::relu(convPa->forward(x));
-  auto semi = convPb->forward(cPa); // [B, 65, H/8, W/8]
+  auto semi = convPb->forward(cPa);  // [B, 65, H/8, W/8]
 
   auto cDa = torch::relu(convDa->forward(x));
-  auto desc = convDb->forward(cDa); // [B, d1, H/8, W/8]
+  auto desc = convDb->forward(cDa);  // [B, d1, H/8, W/8]
 
   auto dn = torch::norm(desc, 2, 1);
   desc = desc.div(torch::unsqueeze(dn, 1));
 
   semi = torch::softmax(semi, 1);
   semi = semi.slice(1, 0, 64);
-  semi = semi.permute({0, 2, 3, 1}); // [B, H/8, W/8, 64]
+  semi = semi.permute({0, 2, 3, 1});  // [B, H/8, W/8, 64]
 
   int Hc = semi.size(1);
   int Wc = semi.size(2);
   semi = semi.contiguous().view({-1, Hc, Wc, 8, 8});
   semi = semi.permute({0, 1, 3, 2, 4});
-  semi = semi.contiguous().view({-1, Hc * 8, Wc * 8}); // [B, H, W]
+  semi = semi.contiguous().view({-1, Hc * 8, Wc * 8});  // [B, H, W]
 
   std::vector<torch::Tensor> ret;
   ret.push_back(semi);
@@ -119,16 +119,16 @@ void SPDetector::detect(cv::Mat &img) {
   x = x.set_requires_grad(false);
   auto out = model->forward(x.to(m_device));
 
-  mProb = out[0].squeeze(0); // [H, W]
-  mDesc = out[1];            // [1, 256, H/8, W/8]
+  mProb = out[0].squeeze(0);  // [H, W]
+  mDesc = out[1];             // [1, 256, H/8, W/8]
 }
 
 void SPDetector::getKeyPoints(float threshold, int iniX, int maxX, int iniY,
                               int maxY, std::vector<cv::KeyPoint> &keypoints,
                               bool nms) {
-  auto prob = mProb.slice(0, iniY, maxY).slice(1, iniX, maxX); // [h, w]
+  auto prob = mProb.slice(0, iniY, maxY).slice(1, iniX, maxX);  // [h, w]
   auto kpts = (prob > threshold);
-  kpts = torch::nonzero(kpts); // [n_keypoints, 2]  (y, x)
+  kpts = torch::nonzero(kpts);  // [n_keypoints, 2]  (y, x)
 
   std::vector<cv::KeyPoint> keypoints_no_nms;
   for (int i = 0; i < kpts.size(0); i++) {
@@ -160,7 +160,7 @@ void SPDetector::getKeyPoints(float threshold, int iniX, int maxX, int iniY,
 
 void SPDetector::computeDescriptors(const std::vector<cv::KeyPoint> &keypoints,
                                     cv::Mat &descriptors) {
-  cv::Mat kpt_mat(keypoints.size(), 2, CV_32F); // [n_keypoints, 2]  (y, x)
+  cv::Mat kpt_mat(keypoints.size(), 2, CV_32F);  // [n_keypoints, 2]  (y, x)
 
   for (size_t i = 0; i < keypoints.size(); i++) {
     kpt_mat.at<float>(i, 0) = (float)keypoints[i].pt.y;
@@ -171,21 +171,21 @@ void SPDetector::computeDescriptors(const std::vector<cv::KeyPoint> &keypoints,
       kpt_mat.data, {static_cast<int64_t>(keypoints.size()), 2}, torch::kFloat);
 
   auto grid = torch::zeros({1, 1, fkpts.size(0), 2})
-                  .to(m_device); // [1, 1, n_keypoints, 2]
+                  .to(m_device);  // [1, 1, n_keypoints, 2]
   grid[0][0].slice(1, 0, 1) =
-      2.0 * fkpts.slice(1, 1, 2) / mProb.size(1) - 1; // x
+      2.0 * fkpts.slice(1, 1, 2) / mProb.size(1) - 1;  // x
   grid[0][0].slice(1, 1, 2) =
-      2.0 * fkpts.slice(1, 0, 1) / mProb.size(0) - 1; // y
+      2.0 * fkpts.slice(1, 0, 1) / mProb.size(0) - 1;  // y
 
   auto desc =
-      torch::grid_sampler(mDesc, grid, 0, 0, true); // [1, 256, 1, n_keypoints]
-  desc = desc.squeeze(0).squeeze(1);                // [256, n_keypoints]
+      torch::grid_sampler(mDesc, grid, 0, 0, true);  // [1, 256, 1, n_keypoints]
+  desc = desc.squeeze(0).squeeze(1);                 // [256, n_keypoints]
 
   // normalize to 1
   auto dn = torch::norm(desc, 2, 1);
   desc = desc.div(torch::unsqueeze(dn, 1));
 
-  desc = desc.transpose(0, 1).contiguous(); // [n_keypoints, 256]
+  desc = desc.transpose(0, 1).contiguous();  // [n_keypoints, 256]
   desc = desc.to(torch::kCPU);
 
   cv::Mat desc_mat(cv::Size(desc.size(1), desc.size(0)), CV_32FC1,
@@ -232,13 +232,11 @@ void NMS2(std::vector<cv::KeyPoint> det, cv::Mat conf,
     int uu = (int)pts_raw[i].x + dist_thresh;
     int vv = (int)pts_raw[i].y + dist_thresh;
 
-    if (grid.at<char>(vv, uu) != 1)
-      continue;
+    if (grid.at<char>(vv, uu) != 1) continue;
 
     for (int k = -dist_thresh; k < (dist_thresh + 1); k++)
       for (int j = -dist_thresh; j < (dist_thresh + 1); j++) {
-        if (j == 0 && k == 0)
-          continue;
+        if (j == 0 && k == 0) continue;
 
         if (confidence.at<float>(vv + k, uu + j) < confidence.at<float>(vv, uu))
           grid.at<char>(vv + k, uu + j) = 0;
@@ -318,13 +316,11 @@ void NMS(cv::Mat det, cv::Mat conf, cv::Mat desc,
     int uu = (int)pts_raw[i].x + dist_thresh;
     int vv = (int)pts_raw[i].y + dist_thresh;
 
-    if (grid.at<char>(vv, uu) != 1)
-      continue;
+    if (grid.at<char>(vv, uu) != 1) continue;
 
     for (int k = -dist_thresh; k < (dist_thresh + 1); k++)
       for (int j = -dist_thresh; j < (dist_thresh + 1); j++) {
-        if (j == 0 && k == 0)
-          continue;
+        if (j == 0 && k == 0) continue;
 
         if (conf.at<float>(vv + k, uu + j) < conf.at<float>(vv, uu))
           grid.at<char>(vv + k, uu + j) = 0;
@@ -361,4 +357,4 @@ void NMS(cv::Mat det, cv::Mat conf, cv::Mat desc,
   }
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

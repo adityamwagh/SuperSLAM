@@ -21,13 +21,12 @@
 #ifndef SPEXTRACTOR_H
 #define SPEXTRACTOR_H
 
-#include <torch/torch.h>
-
 #include <opencv4/opencv2/opencv.hpp>
 #include <list>
 #include <vector>
 
-#include "SuperPointLT.h"
+#include "SuperPointTRT.h"
+#include "ReadConfig.h"
 
 #ifdef EIGEN_MPL2_ONLY
 #undef EIGEN_MPL2_ONLY
@@ -60,7 +59,8 @@ class SPextractor {
       float scaleFactor,
       int nlevels,
       float iniThFAST,
-      float minThFAST);
+      float minThFAST,
+      const SuperPointConfig& config);
 
   ~SPextractor() {}
 
@@ -131,7 +131,7 @@ class SPextractor {
   std::vector<float> mvLevelSigma2;
   std::vector<float> mvInvLevelSigma2;
 
-  std::shared_ptr<SuperPoint> model;
+  std::shared_ptr<SuperPointTRT> model;
 };
 
 typedef SPextractor ORBextractor;

@@ -58,8 +58,7 @@ cv::Mat Converter::toCvMat(const g2o::Sim3 &Sim3) {
 cv::Mat Converter::toCvMat(const Eigen::Matrix<double, 4, 4> &m) {
   cv::Mat cvMat(4, 4, CV_32F);
   for (int i = 0; i < 4; i++)
-    for (int j = 0; j < 4; j++)
-      cvMat.at<float>(i, j) = m(i, j);
+    for (int j = 0; j < 4; j++) cvMat.at<float>(i, j) = m(i, j);
 
   return cvMat.clone();
 }
@@ -67,16 +66,14 @@ cv::Mat Converter::toCvMat(const Eigen::Matrix<double, 4, 4> &m) {
 cv::Mat Converter::toCvMat(const Eigen::Matrix3d &m) {
   cv::Mat cvMat(3, 3, CV_32F);
   for (int i = 0; i < 3; i++)
-    for (int j = 0; j < 3; j++)
-      cvMat.at<float>(i, j) = m(i, j);
+    for (int j = 0; j < 3; j++) cvMat.at<float>(i, j) = m(i, j);
 
   return cvMat.clone();
 }
 
 cv::Mat Converter::toCvMat(const Eigen::Matrix<double, 3, 1> &m) {
   cv::Mat cvMat(3, 1, CV_32F);
-  for (int i = 0; i < 3; i++)
-    cvMat.at<float>(i) = m(i);
+  for (int i = 0; i < 3; i++) cvMat.at<float>(i) = m(i);
 
   return cvMat.clone();
 }
@@ -133,4 +130,4 @@ std::vector<float> Converter::toQuaternion(const cv::Mat &M) {
   return v;
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

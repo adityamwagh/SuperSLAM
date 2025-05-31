@@ -67,23 +67,20 @@ void Optimizer::BundleAdjustment(const std::vector<KeyFrame *> &vpKFs,
       new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
   optimizer.setAlgorithm(solver);
 
-  if (pbStopFlag)
-    optimizer.setForceStopFlag(pbStopFlag);
+  if (pbStopFlag) optimizer.setForceStopFlag(pbStopFlag);
 
   long unsigned int maxKFid = 0;
 
   // Set KeyFrame vertices
   for (size_t i = 0; i < vpKFs.size(); i++) {
     KeyFrame *pKF = vpKFs[i];
-    if (pKF->isBad())
-      continue;
+    if (pKF->isBad()) continue;
     g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
     vSE3->setEstimate(Converter::toSE3Quat(pKF->GetPose()));
     vSE3->setId(pKF->mnId);
     vSE3->setFixed(pKF->mnId == 0);
     optimizer.addVertex(vSE3);
-    if (pKF->mnId > maxKFid)
-      maxKFid = pKF->mnId;
+    if (pKF->mnId > maxKFid) maxKFid = pKF->mnId;
   }
 
   const float thHuber2D = sqrt(5.99);
@@ -92,8 +89,7 @@ void Optimizer::BundleAdjustment(const std::vector<KeyFrame *> &vpKFs,
   // Set MapPoint vertices
   for (size_t i = 0; i < vpMP.size(); i++) {
     MapPoint *pMP = vpMP[i];
-    if (pMP->isBad())
-      continue;
+    if (pMP->isBad()) continue;
     g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
     vPoint->setEstimate(Converter::toVector3d(pMP->GetWorldPos()));
     const int id = pMP->mnId + maxKFid + 1;
@@ -109,8 +105,7 @@ void Optimizer::BundleAdjustment(const std::vector<KeyFrame *> &vpKFs,
              observations.begin();
          mit != observations.end(); mit++) {
       KeyFrame *pKF = mit->first;
-      if (pKF->isBad() || pKF->mnId > maxKFid)
-        continue;
+      if (pKF->isBad() || pKF->mnId > maxKFid) continue;
 
       nEdges++;
 
@@ -191,8 +186,7 @@ void Optimizer::BundleAdjustment(const std::vector<KeyFrame *> &vpKFs,
   // Keyframes
   for (size_t i = 0; i < vpKFs.size(); i++) {
     KeyFrame *pKF = vpKFs[i];
-    if (pKF->isBad())
-      continue;
+    if (pKF->isBad()) continue;
     g2o::VertexSE3Expmap *vSE3 =
         static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(pKF->mnId));
     g2o::SE3Quat SE3quat = vSE3->estimate();
@@ -207,13 +201,11 @@ void Optimizer::BundleAdjustment(const std::vector<KeyFrame *> &vpKFs,
 
   // Points
   for (size_t i = 0; i < vpMP.size(); i++) {
-    if (vbNotIncludedMP[i])
-      continue;
+    if (vbNotIncludedMP[i]) continue;
 
     MapPoint *pMP = vpMP[i];
 
-    if (pMP->isBad())
-      continue;
+    if (pMP->isBad()) continue;
     g2o::VertexSBAPointXYZ *vPoint = static_cast<g2o::VertexSBAPointXYZ *>(
         optimizer.vertex(pMP->mnId + maxKFid + 1));
 
@@ -307,7 +299,7 @@ int Optimizer::PoseOptimization(Frame *pFrame) {
 
           vpEdgesMono.push_back(e);
           vnIndexEdgeMono.push_back(i);
-        } else // Stereo observation
+        } else  // Stereo observation
         {
           nInitialCorrespondences++;
           pFrame->mvbOutlier[i] = false;
@@ -351,8 +343,7 @@ int Optimizer::PoseOptimization(Frame *pFrame) {
     }
   }
 
-  if (nInitialCorrespondences < 3)
-    return 0;
+  if (nInitialCorrespondences < 3) return 0;
 
   // We perform 4 optimizations, after each optimization we classify observation
   // as inlier/outlier At the next optimization, outliers are not included, but
@@ -388,8 +379,7 @@ int Optimizer::PoseOptimization(Frame *pFrame) {
         e->setLevel(0);
       }
 
-      if (it == 2)
-        e->setRobustKernel(0);
+      if (it == 2) e->setRobustKernel(0);
     }
 
     for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++) {
@@ -412,12 +402,10 @@ int Optimizer::PoseOptimization(Frame *pFrame) {
         pFrame->mvbOutlier[idx] = false;
       }
 
-      if (it == 2)
-        e->setRobustKernel(0);
+      if (it == 2) e->setRobustKernel(0);
     }
 
-    if (optimizer.edges().size() < 10)
-      break;
+    if (optimizer.edges().size() < 10) break;
   }
 
   // Recover optimized pose and return number of inliers
@@ -442,8 +430,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
   for (int i = 0, iend = vNeighKFs.size(); i < iend; i++) {
     KeyFrame *pKFi = vNeighKFs[i];
     pKFi->mnBALocalForKF = pKF->mnId;
-    if (!pKFi->isBad())
-      lLocalKeyFrames.push_back(pKFi);
+    if (!pKFi->isBad()) lLocalKeyFrames.push_back(pKFi);
   }
 
   // Local MapPoints seen in Local KeyFrames
@@ -480,8 +467,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
       if (pKFi->mnBALocalForKF != pKF->mnId &&
           pKFi->mnBAFixedForKF != pKF->mnId) {
         pKFi->mnBAFixedForKF = pKF->mnId;
-        if (!pKFi->isBad())
-          lFixedCameras.push_back(pKFi);
+        if (!pKFi->isBad()) lFixedCameras.push_back(pKFi);
       }
     }
   }
@@ -499,8 +485,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
       new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
   optimizer.setAlgorithm(solver);
 
-  if (pbStopFlag)
-    optimizer.setForceStopFlag(pbStopFlag);
+  if (pbStopFlag) optimizer.setForceStopFlag(pbStopFlag);
 
   unsigned long maxKFid = 0;
 
@@ -514,8 +499,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
     vSE3->setId(pKFi->mnId);
     vSE3->setFixed(pKFi->mnId == 0);
     optimizer.addVertex(vSE3);
-    if (pKFi->mnId > maxKFid)
-      maxKFid = pKFi->mnId;
+    if (pKFi->mnId > maxKFid) maxKFid = pKFi->mnId;
   }
 
   // Set Fixed KeyFrame vertices
@@ -528,8 +512,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
     vSE3->setId(pKFi->mnId);
     vSE3->setFixed(true);
     optimizer.addVertex(vSE3);
-    if (pKFi->mnId > maxKFid)
-      maxKFid = pKFi->mnId;
+    if (pKFi->mnId > maxKFid) maxKFid = pKFi->mnId;
   }
 
   // Set MapPoint vertices
@@ -608,7 +591,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
           vpEdgesMono.push_back(e);
           vpEdgeKFMono.push_back(pKFi);
           vpMapPointEdgeMono.push_back(pMP);
-        } else // Stereo observation
+        } else  // Stereo observation
         {
           Eigen::Matrix<double, 3, 1> obs;
           const float kp_ur = pKFi->mvuRight[mit->second];
@@ -645,8 +628,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
   }
 
   if (pbStopFlag)
-    if (*pbStopFlag)
-      return;
+    if (*pbStopFlag) return;
 
   optimizer.initializeOptimization();
   optimizer.optimize(5);
@@ -654,8 +636,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
   bool bDoMore = true;
 
   if (pbStopFlag)
-    if (*pbStopFlag)
-      bDoMore = false;
+    if (*pbStopFlag) bDoMore = false;
 
   if (bDoMore) {
     // Check inlier observations
@@ -663,8 +644,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
       g2o::EdgeSE3ProjectXYZ *e = vpEdgesMono[i];
       MapPoint *pMP = vpMapPointEdgeMono[i];
 
-      if (pMP->isBad())
-        continue;
+      if (pMP->isBad()) continue;
 
       if (e->chi2() > 5.991 || !e->isDepthPositive()) {
         e->setLevel(1);
@@ -677,8 +657,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
       g2o::EdgeStereoSE3ProjectXYZ *e = vpEdgesStereo[i];
       MapPoint *pMP = vpMapPointEdgeStereo[i];
 
-      if (pMP->isBad())
-        continue;
+      if (pMP->isBad()) continue;
 
       if (e->chi2() > 7.815 || !e->isDepthPositive()) {
         e->setLevel(1);
@@ -701,8 +680,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
     g2o::EdgeSE3ProjectXYZ *e = vpEdgesMono[i];
     MapPoint *pMP = vpMapPointEdgeMono[i];
 
-    if (pMP->isBad())
-      continue;
+    if (pMP->isBad()) continue;
 
     if (e->chi2() > 5.991 || !e->isDepthPositive()) {
       KeyFrame *pKFi = vpEdgeKFMono[i];
@@ -714,8 +692,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag,
     g2o::EdgeStereoSE3ProjectXYZ *e = vpEdgesStereo[i];
     MapPoint *pMP = vpMapPointEdgeStereo[i];
 
-    if (pMP->isBad())
-      continue;
+    if (pMP->isBad()) continue;
 
     if (e->chi2() > 7.815 || !e->isDepthPositive()) {
       KeyFrame *pKFi = vpEdgeKFStereo[i];
@@ -794,8 +771,7 @@ void Optimizer::OptimizeEssentialGraph(
   // Set KeyFrame vertices
   for (size_t i = 0, iend = vpKFs.size(); i < iend; i++) {
     KeyFrame *pKF = vpKFs[i];
-    if (pKF->isBad())
-      continue;
+    if (pKF->isBad()) continue;
     g2o::VertexSim3Expmap *VSim3 = new g2o::VertexSim3Expmap();
 
     const int nIDi = pKF->mnId;
@@ -815,8 +791,7 @@ void Optimizer::OptimizeEssentialGraph(
       VSim3->setEstimate(Siw);
     }
 
-    if (pKF == pLoopKF)
-      VSim3->setFixed(true);
+    if (pKF == pLoopKF) VSim3->setFixed(true);
 
     VSim3->setId(nIDi);
     VSim3->setMarginalized(false);
@@ -1003,7 +978,7 @@ void Optimizer::OptimizeEssentialGraph(
     Eigen::Vector3d eigt = CorrectedSiw.translation();
     double s = CorrectedSiw.scale();
 
-    eigt *= (1. / s); //[R t/s;0 1]
+    eigt *= (1. / s);  //[R t/s;0 1]
 
     cv::Mat Tiw = Converter::toCvSE3(eigR, eigt);
 
@@ -1015,8 +990,7 @@ void Optimizer::OptimizeEssentialGraph(
   for (size_t i = 0, iend = vpMPs.size(); i < iend; i++) {
     MapPoint *pMP = vpMPs[i];
 
-    if (pMP->isBad())
-      continue;
+    if (pMP->isBad()) continue;
 
     int nIDr;
     if (pMP->mnCorrectedByKF == pCurKF->mnId) {
@@ -1099,8 +1073,7 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2,
   int nCorrespondences = 0;
 
   for (int i = 0; i < N; i++) {
-    if (!vpMatches1[i])
-      continue;
+    if (!vpMatches1[i]) continue;
 
     MapPoint *pMP1 = vpMapPoints1[i];
     MapPoint *pMP2 = vpMatches1[i];
@@ -1187,8 +1160,7 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2,
   for (size_t i = 0; i < vpEdges12.size(); i++) {
     g2o::EdgeSim3ProjectXYZ *e12 = vpEdges12[i];
     g2o::EdgeInverseSim3ProjectXYZ *e21 = vpEdges21[i];
-    if (!e12 || !e21)
-      continue;
+    if (!e12 || !e21) continue;
 
     if (e12->chi2() > th2 || e21->chi2() > th2) {
       size_t idx = vnIndexEdge[i];
@@ -1207,8 +1179,7 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2,
   else
     nMoreIterations = 5;
 
-  if (nCorrespondences - nBad < 10)
-    return 0;
+  if (nCorrespondences - nBad < 10) return 0;
 
   // Optimize again only with inliers
 
@@ -1219,8 +1190,7 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2,
   for (size_t i = 0; i < vpEdges12.size(); i++) {
     g2o::EdgeSim3ProjectXYZ *e12 = vpEdges12[i];
     g2o::EdgeInverseSim3ProjectXYZ *e21 = vpEdges21[i];
-    if (!e12 || !e21)
-      continue;
+    if (!e12 || !e21) continue;
 
     if (e12->chi2() > th2 || e21->chi2() > th2) {
       size_t idx = vnIndexEdge[i];
@@ -1237,4 +1207,4 @@ int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2,
   return nIn;
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

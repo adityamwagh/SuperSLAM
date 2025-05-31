@@ -68,8 +68,9 @@ DUtils::Random::UnrepeatedRandomizer::UnrepeatedRandomizer(
 // ---------------------------------------------------------------------------
 
 int DUtils::Random::UnrepeatedRandomizer::get() {
-  if (empty())
+  if (empty()) {
     createValues();
+  }
 
   DUtils::Random::SeedRandOnce();
 
@@ -87,15 +88,17 @@ void DUtils::Random::UnrepeatedRandomizer::createValues() {
   int n = m_max - m_min + 1;
 
   m_values.resize(n);
-  for (int i = 0; i < n; ++i)
+  for (int i = 0; i < n; ++i) {
     m_values[i] = m_min + i;
+  }
 }
 
 // ---------------------------------------------------------------------------
 
 void DUtils::Random::UnrepeatedRandomizer::reset() {
-  if ((int)m_values.size() != m_max - m_min + 1)
+  if ((int)m_values.size() != m_max - m_min + 1) {
     createValues();
+  }
 }
 
 // ---------------------------------------------------------------------------
