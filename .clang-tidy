@@ -1,0 +1,59 @@
+Checks: "-*,cppcoreguidelines-*,-cppcoreguidelines-non-private-member-variables-in-classes,modernize-*,-modernize-use-trailing-return-type,-modernize-use-auto,-modernize-use-nullptr,-modernize-deprecated-headers,-modernize-use-default-member-init,performance-*,-performance-for-range-copy"
+CheckOptions:
+  # Core guidelines checks
+  - key: "cppcoreguidelines-pro-type-cstyle-cast"
+    value: "true" # Discourages the use of C-style casts.
+  - key: "cppcoreguidelines-pro-type-member-init"
+    value: "true" # Encourages using member initializer lists in constructors.
+  - key: "cppcoreguidelines-avoid-c-arrays"
+    value: "true" # Discourages the use of C-style arrays in favor of std::array or std::vector.
+  - key: "cppcoreguidelines-avoid-magic-numbers"
+    value: "true" # Avoids magic numbers by suggesting named constants instead.
+  - key: "cppcoreguidelines-avoid-const-params"
+    value: "true" # Discourages const on function parameters unless the parameter is a reference or pointer.
+  - key: "cppcoreguidelines-avoid-non-const-global-variables"
+    value: "true" # Discourages non-const global variables.
+  - key: "cppcoreguidelines-avoid-non-const-volatile-global-variables"
+    value: "true" # Discourages non-const volatile global variables.
+  - key: "cppcoreguidelines-avoid-static-variables"
+    value: "true" # Discourages static variables because they make code harder to maintain and test.
+  - key: "cppcoreguidelines-avoid-using-namespace"
+    value: "true" # Discourages the use of `using namespace` in global or header scopes.
+  - key: "cppcoreguidelines-avoid-unnecessary-virtual"
+    value: "true" # Discourages unnecessary use of virtual functions.
+  - key: "cppcoreguidelines-avoid-using-raw-pointers"
+    value: "true" # Discourages raw pointers in favor of smart pointers or references.
+  - key: "cppcoreguidelines-pro-bounds-array-to-pointer-decay"
+    value: "true" # Ensures arrays aren't treated as pointers when passed to functions.
+  - key: "cppcoreguidelines-init-variables"
+    value: "true" # Encourages initializing variables where they're declared.
+  - key: "cppcoreguidelines-virtual-class-destructor"
+    value: "true" # Ensures virtual destructors are used in classes that have virtual methods.
+  - key: "cppcoreguidelines-special-member-functions"
+    value: "true" # Ensures proper implementation of special member functions (e.g., copy constructor, assignment operator).
+  - key: "cppcoreguidelines-avoid-multiple-variables-per-declaration"
+    value: "true" # Discourages declaring multiple variables in the same statement.
+  - key: "cppcoreguidelines-avoid-duplicate-include"
+    value: "true" # Ensures headers are included only once in a translation unit.
+
+  # Naming convention checks
+  - key: "cppcoreguidelines-naming-headers.FileSuffix"
+    value: ".h" # Ensures header file suffix is .h (if needed)
+  - key: "cppcoreguidelines-naming-headers.IgnorePattern"
+    value: "^.*$" # Apply naming rules to all header files
+  - key: "cppcoreguidelines-naming-function"
+    value: "snake_case" # Enforces snake_case for function names
+  - key: "cppcoreguidelines-naming-variable"
+    value: "snake_case" # Enforces snake_case for variable names
+  - key: "cppcoreguidelines-naming-class"
+    value: "PascalCase" # Enforces PascalCase for class names
+  - key: "cppcoreguidelines-naming-namespace"
+    value: "snake_case" # Enforces snake_case for namespace names
+  - key: "cppcoreguidelines-naming-type-alias"
+    value: "snake_case" # Enforces snake_case for type alias names
+  - key: "cppcoreguidelines-naming-enum"
+    value: "snake_case" # Enforces snake_case for enum names
+  - key: "cppcoreguidelines-naming-enum-value"
+    value: "UPPER_SNAKE_CASE" # Enforces UPPER_SNAKE_CASE for enum values
+  - key: "cppcoreguidelines-naming-constant"
+    value: "UPPER_SNAKE_CASE" # Enforces UPPER_SNAKE_CASE for constant names
