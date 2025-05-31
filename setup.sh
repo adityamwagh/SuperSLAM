@@ -186,37 +186,6 @@ fi
 SUPER_SLAM_DIR=$(pwd)
 echo "-- Running setup in repository directory: $SUPER_SLAM_DIR"
 
-# Check if libtorch is already downloaded and extracted
-if [ ! -d "thirdparty/libtorch" ]; then
-    echo "-- Downloading libtorch..."
-    mkdir -p thirdparty
-    wget -q https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu118.zip
-    unzip libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip -d thirdparty
-    rm libtorch-cxx11-abi-shared-with-deps-2.1.0+cu118.zip
-else
-    echo "-- libtorch already exists in thirdparty/libtorch"
-fi
-
-# Check if Pangolin is already downloaded and extracted
-if [ ! -d "thirdparty/Pangolin" ]; then
-    echo "-- Setting up Pangolin..."
-    wget https://github.com/stevenlovegrove/Pangolin/archive/refs/tags/v0.9.2.zip
-    unzip v0.9.2.zip -d thirdparty
-    mv thirdparty/Pangolin-0.9.2 thirdparty/Pangolin
-    rm v0.9.2.zip
-else
-    echo "-- Pangolin already exists in thirdparty/Pangolin"
-fi
-
-# Build third-party dependencies in parallel
-echo "-- Building third-party dependencies..."
-(
-    cd thirdparty/Pangolin
-    mkdir -p build && cd build
-    cmake .. -GNinja -DCMAKE_BUILD_TYPE=Release
-    sudo ninja install
-) &
-
 (
     cd thirdparty/g2o
     mkdir -p build && cd build
