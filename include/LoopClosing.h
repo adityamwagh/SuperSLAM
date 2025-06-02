@@ -21,6 +21,9 @@
 #ifndef LOOPCLOSING_H
 #define LOOPCLOSING_H
 
+#include <gtsam/geometry/Similarity3.h>
+
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <utility>
@@ -29,10 +32,8 @@
 #include "KeyFrameDatabase.h"
 #include "LocalMapping.h"
 #include "Map.h"
-#include "ReadConfig.h"
 #include "SPVocabulary.h"
 #include "Tracking.h"
-#include "thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
 
 namespace SuperSLAM {
 
@@ -44,13 +45,13 @@ class LoopClosing {
  public:
   typedef std::pair<std::set<KeyFrame*>, int> ConsistentGroup;
   typedef std::map<
-      KeyFrame*, g2o::Sim3, std::less<KeyFrame*>,
-      Eigen::aligned_allocator<std::pair<KeyFrame* const, g2o::Sim3>>>
+      KeyFrame*, gtsam::Similarity3, std::less<KeyFrame*>,
+      Eigen::aligned_allocator<std::pair<KeyFrame* const, gtsam::Similarity3>>>
       KeyFrameAndPose;
 
  public:
   LoopClosing(Map* pMap, KeyFrameDatabase* pDB, ORBVocabulary* pVoc,
-              const SuperGlueConfig& superglue_config, const bool bFixScale);
+              const bool bFixScale);
 
   void SetTracker(Tracking* pTracker);
 
@@ -126,7 +127,7 @@ class LoopClosing {
   std::vector<MapPoint*> mvpCurrentMatchedPoints;
   std::vector<MapPoint*> mvpLoopMapPoints;
   cv::Mat mScw;
-  g2o::Sim3 mg2oScw;
+  gtsam::Similarity3 mg2oScw;
 
   long unsigned int mLastLoopKFid;
 
@@ -135,7 +136,7 @@ class LoopClosing {
   bool mbFinishedGBA;
   bool mbStopGBA;
   std::mutex mMutexGBA;
-  std::thread* mpThreadGBA;
+  std::unique_ptr<std::thread> mpThreadGBA;
 
   // Fix scale in the stereo/RGB-D case
   bool mbFixScale;
@@ -143,7 +144,6 @@ class LoopClosing {
   bool mnFullBAIdx;
 
  private:
-  SuperGlueConfig mSuperGlueConfig;
 };
 
 }  // namespace SuperSLAM

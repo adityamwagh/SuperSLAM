@@ -3,20 +3,18 @@
 
 #include <memory>  // For std::shared_ptr
 #include <mutex>   // For std::mutex
+#include <opencv2/opencv.hpp>
 #include <rerun.hpp>
 #include <thread>         // for std::thread
 #include <unordered_map>  // For std::unordered_map
-#include <opencv2/opencv.hpp>
 
 #include "Frame.h"
 #include "KeyFrame.h"  // Added for KeyFrame type
 #include "Map.h"
 #include "MapPoint.h"  // Added for MapPoint type
 
-namespace SuperSLAM
-{
-class RerunViewer
-{
+namespace SuperSLAM {
+class RerunViewer {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
   typedef std::shared_ptr<RerunViewer> Ptr;
@@ -26,14 +24,15 @@ class RerunViewer
   void SetMap(Map* map);
 
   void SetCameras(float fx_left, float fy_left, float cx_left, float cy_left,
-                  float fx_right, float fy_right, float cx_right, float cy_right,
-                  float baseline);
+                  float fx_right, float fy_right, float cx_right,
+                  float cy_right, float baseline);
 
   void Close();
 
   void AddCurrentFrame(Frame* current_frame);
 
-  void AddStereoFrames(Frame* current_frame, const cv::Mat& left_image, const cv::Mat& right_image);
+  void AddStereoFrames(Frame* current_frame, const cv::Mat& left_image,
+                       const cv::Mat& right_image);
 
   void UpdateMap();
 
@@ -68,12 +67,12 @@ class RerunViewer
 
   Frame* current_frame_{nullptr};
   Map* map_{nullptr};
-  
+
   // Stereo images for display
   cv::Mat current_left_image_;
   cv::Mat current_right_image_;
   bool has_stereo_images_{false};
-  
+
   // Camera parameters
   float fx_left_, fy_left_, cx_left_, cy_left_;
   float fx_right_, fy_right_, cx_right_, cy_right_;

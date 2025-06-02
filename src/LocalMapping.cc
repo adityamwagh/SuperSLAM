@@ -19,7 +19,6 @@
  */
 
 #include "LocalMapping.h"
-#include "Logging.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,21 +26,19 @@
 
 #include <mutex>
 
+#include "Logging.h"
 #include "LoopClosing.h"
 #include "Optimizer.h"
 #include "SPMatcher.h"
-#include "Logging.h"
 
 namespace SuperSLAM {
 
-LocalMapping::LocalMapping(Map *pMap, const SuperGlueConfig &superglue_config,
-                           const float bMonocular)
+LocalMapping::LocalMapping(Map *pMap, const float bMonocular)
     : mbMonocular(bMonocular),
       mbResetRequested(false),
       mbFinishRequested(false),
       mbFinished(true),
       mpMap(pMap),
-      mSuperGlueConfig(superglue_config),
       mbAbortBA(false),
       mbStopped(false),
       mbStopRequested(false),
@@ -197,7 +194,7 @@ void LocalMapping::CreateNewMapPoints() {
   const std::vector<KeyFrame *> vpNeighKFs =
       mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
 
-  SPmatcher matcher(0.6, false, mSuperGlueConfig);
+  SPmatcher matcher(0.6, false);
 
   cv::Mat Rcw1 = mpCurrentKeyFrame->GetRotation();
   cv::Mat Rwc1 = Rcw1.t();
@@ -445,7 +442,7 @@ void LocalMapping::SearchInNeighbors() {
   }
 
   // Search matches by projection from current KF in target KFs
-  SPmatcher matcher(0.8f, true, mSuperGlueConfig);
+  SPmatcher matcher(0.8f, true);
   std::vector<MapPoint *> vpMapPointMatches =
       mpCurrentKeyFrame->GetMapPointMatches();
   for (std::vector<KeyFrame *>::iterator vit = vpTargetKFs.begin(),

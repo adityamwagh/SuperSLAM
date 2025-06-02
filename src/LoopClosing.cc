@@ -19,7 +19,6 @@
  */
 
 #include "LoopClosing.h"
-#include "Logging.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,15 +28,14 @@
 #include <thread>
 
 #include "Converter.h"
+#include "Logging.h"
 #include "Optimizer.h"
 #include "SPMatcher.h"
 #include "Sim3Solver.h"
-#include "Logging.h"
 
 namespace SuperSLAM {
 
 LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc,
-                         const SuperGlueConfig &superglue_config,
                          const bool bFixScale)
     : mbResetRequested(false),
       mbFinishRequested(false),
@@ -45,13 +43,12 @@ LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc,
       mpMap(pMap),
       mpKeyFrameDB(pDB),
       mpORBVocabulary(pVoc),
-      mSuperGlueConfig(superglue_config),
       mpMatchedKF(NULL),
       mLastLoopKFid(0),
       mbRunningGBA(false),
       mbFinishedGBA(true),
       mbStopGBA(false),
-      mpThreadGBA(NULL),
+      mpThreadGBA(nullptr),
       mbFixScale(bFixScale),
       mnFullBAIdx(0) {
   mnCovisibilityConsistencyTh = 3;
@@ -227,7 +224,7 @@ bool LoopClosing::ComputeSim3() {
 
   // We compute first ORB matches for each candidate
   // If enough matches are found, we setup a Sim3Solver
-  SPmatcher matcher(0.75, true, mSuperGlueConfig);
+  SPmatcher matcher(0.75, true);
 
   std::vector<std::unique_ptr<Sim3Solver>> vpSim3Solvers;
   vpSim3Solvers.resize(nInitialCandidates);
@@ -305,7 +302,8 @@ bool LoopClosing::ComputeSim3() {
         const float s = pSolver->GetEstimatedScale();
         matcher.SearchBySim3(mpCurrentKF, pKF, vpMapPointMatches, s, R, t, 7.5);
 
-        g2o::Sim3 gScm(Converter::toMatrix3d(R), Converter::toVector3d(t), s);
+        gtsam::Similarity3 gScm = Converter::g2oSim3ToGTSAM(
+            Converter::toMatrix3d(R), Converter::toVector3d(t), s);
         const int nInliers = Optimizer::OptimizeSim3(
             mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
 
@@ -313,9 +311,10 @@ bool LoopClosing::ComputeSim3() {
         if (nInliers >= 20) {
           bMatch = true;
           mpMatchedKF = pKF;
-          g2o::Sim3 gSmw(Converter::toMatrix3d(pKF->GetRotation()),
-                         Converter::toVector3d(pKF->GetTranslation()), 1.0);
-          mg2oScw = gScm * gSmw;
+          gtsam::Similarity3 gSmw = Converter::g2oSim3ToGTSAM(
+              Converter::toMatrix3d(pKF->GetRotation()),
+              Converter::toVector3d(pKF->GetTranslation()), 1.0);
+          mg2oScw = gScm.compose(gSmw);
           mScw = Converter::toCvMat(mg2oScw);
 
           mvpCurrentMatchedPoints = vpMapPointMatches;
@@ -391,7 +390,7 @@ void LoopClosing::CorrectLoop() {
 
     if (mpThreadGBA) {
       mpThreadGBA->detach();
-      delete mpThreadGBA;
+      mpThreadGBA.reset();
     }
   }
 
@@ -427,17 +426,17 @@ void LoopClosing::CorrectLoop() {
         cv::Mat Tic = Tiw * Twc;
         cv::Mat Ric = Tic.rowRange(0, 3).colRange(0, 3);
         cv::Mat tic = Tic.rowRange(0, 3).col(3);
-        g2o::Sim3 g2oSic(Converter::toMatrix3d(Ric), Converter::toVector3d(tic),
-                         1.0);
-        g2o::Sim3 g2oCorrectedSiw = g2oSic * mg2oScw;
+        gtsam::Similarity3 g2oSic = Converter::g2oSim3ToGTSAM(
+            Converter::toMatrix3d(Ric), Converter::toVector3d(tic), 1.0);
+        gtsam::Similarity3 g2oCorrectedSiw = g2oSic.compose(mg2oScw);
         // Pose corrected with the Sim3 of the loop closure
         CorrectedSim3[pKFi] = g2oCorrectedSiw;
       }
 
       cv::Mat Riw = Tiw.rowRange(0, 3).colRange(0, 3);
       cv::Mat tiw = Tiw.rowRange(0, 3).col(3);
-      g2o::Sim3 g2oSiw(Converter::toMatrix3d(Riw), Converter::toVector3d(tiw),
-                       1.0);
+      gtsam::Similarity3 g2oSiw = Converter::g2oSim3ToGTSAM(
+          Converter::toMatrix3d(Riw), Converter::toVector3d(tiw), 1.0);
       // Pose without correction
       NonCorrectedSim3[pKFi] = g2oSiw;
     }
@@ -448,10 +447,10 @@ void LoopClosing::CorrectLoop() {
                                    mend = CorrectedSim3.end();
          mit != mend; mit++) {
       KeyFrame *pKFi = mit->first;
-      g2o::Sim3 g2oCorrectedSiw = mit->second;
-      g2o::Sim3 g2oCorrectedSwi = g2oCorrectedSiw.inverse();
+      gtsam::Similarity3 g2oCorrectedSiw = mit->second;
+      gtsam::Similarity3 g2oCorrectedSwi = g2oCorrectedSiw.inverse();
 
-      g2o::Sim3 g2oSiw = NonCorrectedSim3[pKFi];
+      gtsam::Similarity3 g2oSiw = NonCorrectedSim3[pKFi];
 
       std::vector<MapPoint *> vpMPsi = pKFi->GetMapPointMatches();
       for (size_t iMP = 0, endMPi = vpMPsi.size(); iMP < endMPi; iMP++) {
@@ -463,8 +462,11 @@ void LoopClosing::CorrectLoop() {
         // Project with non-corrected pose and project back with corrected pose
         cv::Mat P3Dw = pMPi->GetWorldPos();
         Eigen::Matrix<double, 3, 1> eigP3Dw = Converter::toVector3d(P3Dw);
-        Eigen::Matrix<double, 3, 1> eigCorrectedP3Dw =
-            g2oCorrectedSwi.map(g2oSiw.map(eigP3Dw));
+        gtsam::Point3 gtsamP3Dw(eigP3Dw);
+        gtsam::Point3 transformedP3Dw = g2oSiw.transformFrom(gtsamP3Dw);
+        gtsam::Point3 correctedP3Dw =
+            g2oCorrectedSwi.transformFrom(transformedP3Dw);
+        Eigen::Matrix<double, 3, 1> eigCorrectedP3Dw = correctedP3Dw;
 
         cv::Mat cvCorrectedP3Dw = Converter::toCvMat(eigCorrectedP3Dw);
         pMPi->SetWorldPos(cvCorrectedP3Dw);
@@ -475,7 +477,7 @@ void LoopClosing::CorrectLoop() {
 
       // Update keyframe pose with corrected Sim3. First transform Sim3 to SE3
       // (scale translation)
-      Eigen::Matrix3d eigR = g2oCorrectedSiw.rotation().toRotationMatrix();
+      Eigen::Matrix3d eigR = g2oCorrectedSiw.rotation().matrix();
       Eigen::Vector3d eigt = g2oCorrectedSiw.translation();
       double s = g2oCorrectedSiw.scale();
 
@@ -554,8 +556,8 @@ void LoopClosing::CorrectLoop() {
   mbRunningGBA = true;
   mbFinishedGBA = false;
   mbStopGBA = false;
-  mpThreadGBA = new std::thread(&LoopClosing::RunGlobalBundleAdjustment, this,
-                                mpCurrentKF->mnId);
+  mpThreadGBA = std::make_unique<std::thread>(
+      &LoopClosing::RunGlobalBundleAdjustment, this, mpCurrentKF->mnId);
 
   // Loop closed. Release Local Mapping.
   mpLocalMapper->Release();
@@ -564,14 +566,14 @@ void LoopClosing::CorrectLoop() {
 }
 
 void LoopClosing::SearchAndFuse(const KeyFrameAndPose &CorrectedPosesMap) {
-  SPmatcher matcher(0.8, true, mSuperGlueConfig);
+  SPmatcher matcher(0.8, true);
 
   for (KeyFrameAndPose::const_iterator mit = CorrectedPosesMap.begin(),
                                        mend = CorrectedPosesMap.end();
        mit != mend; mit++) {
     KeyFrame *pKF = mit->first;
 
-    g2o::Sim3 g2oScw = mit->second;
+    gtsam::Similarity3 g2oScw = mit->second;
     cv::Mat cvScw = Converter::toCvMat(g2oScw);
 
     std::vector<MapPoint *> vpReplacePoints(mvpLoopMapPoints.size(),

@@ -37,14 +37,17 @@ namespace SuperSLAM {
 const int EDGE_THRESHOLD = 19;  // For border handling
 
 // Constructor for SPextractor
-SPextractor::SPextractor(int _nfeatures, const SuperPointConfig &config)
+SPextractor::SPextractor(int _nfeatures, const std::string &engine_file,
+                         int max_keypoints, double keypoint_threshold,
+                         int remove_borders)
     : nfeatures(_nfeatures) {
   // Initialize SuperPointTRT model
-  model = std::make_shared<SuperPointTRT>(config);
+  model = std::make_shared<SuperPointTRT>(engine_file, max_keypoints,
+                                          keypoint_threshold, remove_borders);
   if (!model->initialize()) {
     SLOG_ERROR(
-        "Error in SuperPoint building engine. Please check your onnx model "
-        "path and TensorRT installation.");
+        "Error in SuperPoint building engine. Please check your engine file "
+        "and TensorRT installation.");
     throw std::runtime_error("Failed to build SuperPoint TensorRT engine");
   }
   SLOG_INFO("SPExtractor initialized with SuperPoint - target features: {}",

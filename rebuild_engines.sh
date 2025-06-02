@@ -20,7 +20,7 @@ print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Ensure TensorRT libraries are in library path
-export LD_LIBRARY_PATH=/usr/lib64:/usr/local/cuda-11.6/lib64:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/usr/lib64:/usr/local/cuda-11.8/lib64:$LD_LIBRARY_PATH
 
 print_info "Rebuilding TensorRT engines for SuperSLAM with optimal configurations..."
 

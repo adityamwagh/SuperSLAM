@@ -20,7 +20,6 @@ University) For more information see
  */
 
 #include "SPMatcher.h"
-#include "Logging.h"
 
 #include <limits.h>
 #include <stdint.h>
@@ -37,24 +36,9 @@ const float SPmatcher::TH_HIGH = 0.9;
 const float SPmatcher::TH_LOW = 0.7;
 const int SPmatcher::HISTO_LENGTH = 30;
 
-SPmatcher::SPmatcher(float nnratio, bool checkOri,
-                     const SuperGlueConfig &config)
+SPmatcher::SPmatcher(float nnratio, bool checkOri)
     : mfNNratio(nnratio), mbCheckOrientation(checkOri) {
-  if (!config.onnx_file.empty() && !config.engine_file.empty()) {
-    superglue_matcher = std::make_shared<SuperGlueTRT>(config);
-    if (!superglue_matcher->initialize()) {
-      SLOG_ERROR(
-          "Failed to initialize SuperGlue matcher. Falling back to traditional "
-          "matching.");
-      superglue_matcher.reset();
-    } else {
-      SLOG_INFO("SuperGlue matcher initialized successfully.");
-    }
-  } else {
-    SLOG_WARN(
-        "SuperGlue config not provided or incomplete. Using traditional "
-        "matching.");
-  }
+  SLOG_INFO("SPmatcher: Using cosine similarity matching");
 }
 
 int SPmatcher::SearchByProjection(Frame &F,
@@ -62,7 +46,12 @@ int SPmatcher::SearchByProjection(Frame &F,
                                   const float th) {
   int nmatches = 0;
 
-  if (superglue_matcher) {
+  // TEMPORARY: Always use cosine similarity matching
+  // Original SuperGlue path commented out
+  const bool use_cosine_matching = true;  // Force cosine similarity matching
+
+  if (use_cosine_matching) {
+    // Use cosine similarity matching for SuperPoint descriptors
     std::vector<cv::KeyPoint> frameKeypoints = F.mvKeysUn;
     cv::Mat frameDescriptors = F.mDescriptors;
 
@@ -84,8 +73,7 @@ int SPmatcher::SearchByProjection(Frame &F,
     }
 
     std::vector<cv::DMatch> matches;
-    SearchBySuperGlue(mapPointKeypoints, mapPointDescriptors, frameKeypoints,
-                      frameDescriptors, matches);
+    CosineSimilarityMatching(mapPointDescriptors, frameDescriptors, matches);
 
     for (const auto &match : matches) {
       if (match.queryIdx < projectableMapPoints.size() &&
@@ -298,10 +286,11 @@ bool SPmatcher::CheckDistEpipolarLine(const cv::KeyPoint &kp1,
 
 int SPmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2,
                            std::vector<MapPoint *> &vpMatches12) {
-  if (superglue_matcher) {
+  // TEMPORARY: Always use cosine similarity matching
+  const bool use_cosine_matching = true;
+  if (use_cosine_matching) {
     std::vector<cv::DMatch> matches;
-    SearchBySuperGlue(pKF1->mvKeysUn, pKF1->mDescriptors, pKF2->mvKeysUn,
-                      pKF2->mDescriptors, matches);
+    CosineSimilarityMatching(pKF1->mDescriptors, pKF2->mDescriptors, matches);
 
     vpMatches12 = std::vector<MapPoint *>(pKF1->GetMapPointMatches().size(),
                                           static_cast<MapPoint *>(NULL));
@@ -376,79 +365,77 @@ int SPmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2,
   }
 }
 
-int SPmatcher::SearchByBoW(KeyFrame* pKF, Frame& F, std::vector<MapPoint*>& vpMapPointMatches) {
-  const std::vector<MapPoint*> vpMapPointsKF = pKF->GetMapPointMatches();
-  
-  vpMapPointMatches = std::vector<MapPoint*>(F.N, static_cast<MapPoint*>(NULL));
-  
-  const DBoW3::FeatureVector& vFeatVecKF = pKF->mFeatVec;
-  const DBoW3::FeatureVector& vFeatVecF = F.mFeatVec;
-  
+int SPmatcher::SearchByBoW(KeyFrame *pKF, Frame &F,
+                           std::vector<MapPoint *> &vpMapPointMatches) {
+  const std::vector<MapPoint *> vpMapPointsKF = pKF->GetMapPointMatches();
+
+  vpMapPointMatches =
+      std::vector<MapPoint *>(F.N, static_cast<MapPoint *>(NULL));
+
+  const DBoW3::FeatureVector &vFeatVecKF = pKF->mFeatVec;
+  const DBoW3::FeatureVector &vFeatVecF = F.mFeatVec;
+
   int nmatches = 0;
-  
+
   DBoW3::FeatureVector::const_iterator KFit = vFeatVecKF.begin();
   DBoW3::FeatureVector::const_iterator Fit = vFeatVecF.begin();
   DBoW3::FeatureVector::const_iterator KFend = vFeatVecKF.end();
   DBoW3::FeatureVector::const_iterator Fend = vFeatVecF.end();
-  
-  while(KFit != KFend && Fit != Fend) {
-    if(KFit->first == Fit->first) {
+
+  while (KFit != KFend && Fit != Fend) {
+    if (KFit->first == Fit->first) {
       const std::vector<unsigned int> vIndicesKF = KFit->second;
       const std::vector<unsigned int> vIndicesF = Fit->second;
-      
-      for(size_t iKF=0; iKF<vIndicesKF.size(); iKF++) {
+
+      for (size_t iKF = 0; iKF < vIndicesKF.size(); iKF++) {
         const unsigned int realIdxKF = vIndicesKF[iKF];
-        
-        MapPoint* pMP = vpMapPointsKF[realIdxKF];
-        
-        if(!pMP || pMP->isBad())
-          continue;
-        
-        const cv::Mat& dKF = pKF->mDescriptors.row(realIdxKF);
-        
+
+        MapPoint *pMP = vpMapPointsKF[realIdxKF];
+
+        if (!pMP || pMP->isBad()) continue;
+
+        const cv::Mat &dKF = pKF->mDescriptors.row(realIdxKF);
+
         int bestDist1 = 256;
         int bestIdxF = -1;
         int bestDist2 = 256;
-        
-        for(size_t iF=0; iF<vIndicesF.size(); iF++) {
+
+        for (size_t iF = 0; iF < vIndicesF.size(); iF++) {
           const unsigned int realIdxF = vIndicesF[iF];
-          
-          if(vpMapPointMatches[realIdxF])
-            continue;
-          
-          const cv::Mat& dF = F.mDescriptors.row(realIdxF);
-          
+
+          if (vpMapPointMatches[realIdxF]) continue;
+
+          const cv::Mat &dF = F.mDescriptors.row(realIdxF);
+
           const float dist = DescriptorDistance(dKF, dF);
-          
-          if(dist < bestDist1) {
+
+          if (dist < bestDist1) {
             bestDist2 = bestDist1;
             bestDist1 = dist;
             bestIdxF = realIdxF;
-          }
-          else if(dist < bestDist2) {
+          } else if (dist < bestDist2) {
             bestDist2 = dist;
           }
         }
-        
-        if(bestDist1 <= TH_LOW) {
-          if(static_cast<float>(bestDist1) < mfNNratio * static_cast<float>(bestDist2)) {
+
+        if (bestDist1 <= TH_LOW) {
+          if (static_cast<float>(bestDist1) <
+              mfNNratio * static_cast<float>(bestDist2)) {
             vpMapPointMatches[bestIdxF] = pMP;
             nmatches++;
           }
         }
       }
-      
+
       KFit++;
       Fit++;
-    }
-    else if(KFit->first < Fit->first) {
+    } else if (KFit->first < Fit->first) {
       KFit = vFeatVecKF.lower_bound(Fit->first);
-    }
-    else {
+    } else {
       Fit = vFeatVecF.lower_bound(KFit->first);
     }
   }
-  
+
   return nmatches;
 }
 
@@ -561,10 +548,11 @@ int SPmatcher::SearchForInitialization(Frame &F1, Frame &F2,
                                        std::vector<cv::Point2f> &vbPrevMatched,
                                        std::vector<int> &vnMatches12,
                                        int windowSize) {
-  if (superglue_matcher) {
+  // TEMPORARY: Always use cosine similarity matching
+  const bool use_cosine_matching = true;
+  if (use_cosine_matching) {
     std::vector<cv::DMatch> matches;
-    SearchBySuperGlue(F1.mvKeysUn, F1.mDescriptors, F2.mvKeysUn,
-                      F2.mDescriptors, matches);
+    CosineSimilarityMatching(F1.mDescriptors, F2.mDescriptors, matches);
 
     vnMatches12 = std::vector<int>(F1.N, -1);
     vbPrevMatched.clear();
@@ -632,10 +620,11 @@ int SPmatcher::SearchForTriangulation(
     KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F12,
     std::vector<std::pair<size_t, size_t>> &vMatchedPairs,
     const bool bOnlyStereo) {
-  if (superglue_matcher) {
+  // TEMPORARY: Always use cosine similarity matching
+  const bool use_cosine_matching = true;
+  if (use_cosine_matching) {
     std::vector<cv::DMatch> matches;
-    SearchBySuperGlue(pKF1->mvKeysUn, pKF1->mDescriptors, pKF2->mvKeysUn,
-                      pKF2->mDescriptors, matches);
+    CosineSimilarityMatching(pKF1->mDescriptors, pKF2->mDescriptors, matches);
     vMatchedPairs.clear();
     for (const auto &match : matches) {
       if (CheckDistEpipolarLine(pKF1->mvKeysUn[match.queryIdx],
@@ -1443,35 +1432,64 @@ float SPmatcher::DescriptorDistance(const cv::Mat &a, const cv::Mat &b) {
   return dist;
 }
 
-int SPmatcher::SearchBySuperGlue(const std::vector<cv::KeyPoint> &keypoints0,
-                                 const cv::Mat &descriptors0,
-                                 const std::vector<cv::KeyPoint> &keypoints1,
-                                 const cv::Mat &descriptors1,
-                                 std::vector<cv::DMatch> &matches) {
+int SPmatcher::CosineSimilarityMatching(const cv::Mat &descriptors0,
+                                        const cv::Mat &descriptors1,
+                                        std::vector<cv::DMatch> &matches) {
   matches.clear();
 
-  if (!superglue_matcher) {
-    SLOG_ERROR(
-        "SuperGlue matcher not initialized or not available for "
-        "SearchBySuperGlue call!");
+  if (descriptors0.empty() || descriptors1.empty()) {
+    SLOG_WARN("Empty descriptors provided for cosine similarity matching.");
     return 0;
   }
 
-  if (keypoints0.empty() || keypoints1.empty() || descriptors0.empty() ||
-      descriptors1.empty()) {
-    SLOG_WARN("Empty keypoints or descriptors provided to SuperGlue.");
-    return 0;
+  // Normalize descriptors for cosine similarity
+  cv::Mat desc0_norm = descriptors0.clone();
+  cv::Mat desc1_norm = descriptors1.clone();
+
+  for (int i = 0; i < desc0_norm.rows; i++) {
+    cv::normalize(desc0_norm.row(i), desc0_norm.row(i));
+  }
+  for (int i = 0; i < desc1_norm.rows; i++) {
+    cv::normalize(desc1_norm.row(i), desc1_norm.row(i));
   }
 
-  MatchResult result;
-  if (!superglue_matcher->match(keypoints0, descriptors0, keypoints1,
-                                descriptors1, result)) {
-    SLOG_ERROR("SuperGlue matching failed!");
-    return 0;
+  const float cosine_threshold = 0.8f;  // Threshold for cosine similarity
+  const float ratio_threshold = 1.2f;   // Lowe's ratio test threshold
+
+  // For each descriptor in set 0, find best match in set 1
+  for (int i = 0; i < desc0_norm.rows; i++) {
+    float bestSim = -1.0f;
+    float secondBestSim = -1.0f;
+    int bestIdx = -1;
+
+    // Find best and second best matches
+    for (int j = 0; j < desc1_norm.rows; j++) {
+      // Compute cosine similarity (dot product of normalized vectors)
+      float sim = desc0_norm.row(i).dot(desc1_norm.row(j));
+
+      if (sim > bestSim) {
+        secondBestSim = bestSim;
+        bestSim = sim;
+        bestIdx = j;
+      } else if (sim > secondBestSim) {
+        secondBestSim = sim;
+      }
+    }
+
+    // Apply threshold and ratio test
+    if (bestIdx >= 0 && bestSim > cosine_threshold) {
+      // Lowe's ratio test
+      float ratio = (secondBestSim > 0) ? bestSim / secondBestSim : 2.0f;
+      if (ratio > ratio_threshold) {
+        cv::DMatch match;
+        match.queryIdx = i;
+        match.trainIdx = bestIdx;
+        match.distance = 1.0f - bestSim;  // Convert similarity to distance
+        matches.push_back(match);
+      }
+    }
   }
 
-  matches = result.matches;
-  // SLOG_INFO("SuperGlue found {} matches", matches.size());
   return matches.size();
 }
 

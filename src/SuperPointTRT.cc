@@ -17,14 +17,17 @@ class SimpleLogger : public nvinfer1::ILogger {
 
 static SimpleLogger gLogger;
 
-SuperPointTRT::SuperPointTRT(const SuperPointConfig& config)
-    : config_(config), engine_(nullptr), context_(nullptr), stream_(nullptr) {}
+SuperPointTRT::SuperPointTRT(const std::string& engine_file, int max_keypoints,
+                             double keypoint_threshold, int remove_borders)
+    : engine_file_(engine_file),
+      max_keypoints_(max_keypoints),
+      keypoint_threshold_(keypoint_threshold),
+      remove_borders_(remove_borders),
+      stream_(nullptr) {}
 
 SuperPointTRT::~SuperPointTRT() {
   freeBuffers();
-  if (context_) delete context_;
-  if (engine_) delete engine_;
-  if (runtime_) delete runtime_;
+  // Smart pointers automatically clean up TensorRT objects
   if (stream_) cudaStreamDestroy(stream_);
 }
 
@@ -52,16 +55,13 @@ bool SuperPointTRT::initialize() {
 }
 
 bool SuperPointTRT::loadEngine() {
-  SLOG_INFO("SuperPointTRT: Loading engine from {}", config_.engine_file);
+  SLOG_INFO("SuperPointTRT: Loading engine from {}", engine_file_);
 
-  std::ifstream file(config_.engine_file, std::ios::binary);
+  std::ifstream file(engine_file_, std::ios::binary);
   if (!file.good()) {
-    SLOG_ERROR("SuperPointTRT: Cannot read engine file {}",
-               config_.engine_file);
+    SLOG_ERROR("SuperPointTRT: Cannot read engine file {}", engine_file_);
     SLOG_ERROR(
-        "SuperPointTRT: Please rebuild the engine for TensorRT 10.11.0 using:");
-    SLOG_ERROR("trtexec --onnx={} --saveEngine={} --fp16", config_.onnx_file,
-               config_.engine_file);
+        "SuperPointTRT: Please rebuild the engine using rebuild_engines.sh");
     return false;
   }
 
@@ -73,13 +73,13 @@ bool SuperPointTRT::loadEngine() {
   file.read(engineData.data(), size);
   file.close();
 
-  runtime_ = nvinfer1::createInferRuntime(gLogger);
+  runtime_.reset(nvinfer1::createInferRuntime(gLogger));
   if (!runtime_) {
     SLOG_ERROR("SuperPointTRT: Failed to create runtime");
     return false;
   }
 
-  engine_ = runtime_->deserializeCudaEngine(engineData.data(), size);
+  engine_.reset(runtime_->deserializeCudaEngine(engineData.data(), size));
   if (!engine_) {
     SLOG_ERROR("SuperPointTRT: Failed to deserialize engine");
     SLOG_ERROR(
@@ -88,13 +88,11 @@ bool SuperPointTRT::loadEngine() {
         "SuperPointTRT: The engine was built with a different TensorRT "
         "version.");
     SLOG_ERROR(
-        "SuperPointTRT: Please rebuild the engine for TensorRT 10.11.0 using:");
-    SLOG_ERROR("trtexec --onnx={} --saveEngine={} --fp16", config_.onnx_file,
-               config_.engine_file);
+        "SuperPointTRT: Please rebuild the engine using rebuild_engines.sh");
     return false;
   }
 
-  context_ = engine_->createExecutionContext();
+  context_.reset(engine_->createExecutionContext());
   if (!context_) {
     SLOG_ERROR("SuperPointTRT: Failed to create execution context");
     return false;
@@ -450,12 +448,10 @@ bool SuperPointTRT::postprocessOutputs(std::vector<cv::KeyPoint>& keypoints,
   // Extract keypoints above threshold
   std::vector<std::pair<float, std::pair<int, int>>> candidates;
 
-  for (int h = config_.remove_borders; h < scoreHeight - config_.remove_borders;
-       ++h) {
-    for (int w = config_.remove_borders;
-         w < scoreWidth - config_.remove_borders; ++w) {
+  for (int h = remove_borders_; h < scoreHeight - remove_borders_; ++h) {
+    for (int w = remove_borders_; w < scoreWidth - remove_borders_; ++w) {
       float score = scoresPtr[h * scoreWidth + w];
-      if (score > config_.keypoint_threshold) {
+      if (score > keypoint_threshold_) {
         candidates.emplace_back(score, std::make_pair(h, w));
       }
     }
@@ -465,7 +461,7 @@ bool SuperPointTRT::postprocessOutputs(std::vector<cv::KeyPoint>& keypoints,
   std::sort(candidates.begin(), candidates.end(), std::greater<>());
 
   int numKeypoints =
-      std::min(static_cast<int>(candidates.size()), config_.max_keypoints);
+      std::min(static_cast<int>(candidates.size()), max_keypoints_);
   keypoints.reserve(numKeypoints);
 
   // Scale factor from score map to original image

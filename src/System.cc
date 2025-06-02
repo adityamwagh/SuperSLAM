@@ -35,7 +35,6 @@ System::System(const std::string& strVocFile,
                const std::string& strSettingsFile, const eSensor sensor,
                const bool bUseViewer)
     : mSensor(sensor),
-      mpViewer(static_cast<RerunViewer*>(NULL)),
       mbReset(false),
       mbActivateLocalizationMode(false),
       mbDeactivateLocalizationMode(false) {
@@ -64,7 +63,7 @@ System::System(const std::string& strVocFile,
   }
 
   // Load SuperPoint Vocabulary (optional for ORB-free operation)
-  mpVocabulary = new ORBVocabulary();
+  mpVocabulary = std::make_unique<ORBVocabulary>();
   bool use_vocabulary = !strVocFile.empty();
 
   if (use_vocabulary) {
@@ -84,79 +83,99 @@ System::System(const std::string& strVocFile,
   }
 
   // Create KeyFrame Database
-  mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);
+  mpKeyFrameDatabase = std::make_unique<KeyFrameDatabase>(*mpVocabulary);
 
   // Create the Map
-  mpMap = new Map();
+  mpMap = std::make_unique<Map>();
 
   // Initialize the Tracking thread
   //(it will live in the main thread of execution, the one that called this
   // constructor)
-  mpTracker = new Tracking(this, mpVocabulary, mpMap, mpKeyFrameDatabase,
-                           strSettingsFile, mSensor);
+  mpTracker = std::make_unique<Tracking>(this, mpVocabulary.get(), mpMap.get(),
+                                         mpKeyFrameDatabase.get(),
+                                         strSettingsFile, mSensor);
 
   // Initialize the Local Mapping thread and launch
-  mpLocalMapper = new LocalMapping(mpMap, mpTracker->GetSuperGlueConfig(),
-                                   mSensor == MONOCULAR);
-  mptLocalMapping =
-      new std::thread(&SuperSLAM::LocalMapping::Run, mpLocalMapper);
+  mpLocalMapper =
+      std::make_unique<LocalMapping>(mpMap.get(), mSensor == MONOCULAR);
+  mptLocalMapping = std::make_unique<std::thread>(&SuperSLAM::LocalMapping::Run,
+                                                  mpLocalMapper.get());
 
   // Initialize the Loop Closing thread and launch (only if vocabulary is
   // available)
   if (use_vocabulary) {
     mpLoopCloser =
-        new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary,
-                        mpTracker->GetSuperGlueConfig(), mSensor != MONOCULAR);
-    mptLoopClosing =
-        new std::thread(&SuperSLAM::LoopClosing::Run, mpLoopCloser);
+        std::make_unique<LoopClosing>(mpMap.get(), mpKeyFrameDatabase.get(),
+                                      mpVocabulary.get(), mSensor != MONOCULAR);
+    mptLoopClosing = std::make_unique<std::thread>(&SuperSLAM::LoopClosing::Run,
+                                                   mpLoopCloser.get());
   } else {
-    mpLoopCloser = nullptr;
-    mptLoopClosing = nullptr;
+    // mpLoopCloser and mptLoopClosing remain nullptr (unique_ptr default)
     SLOG_INFO("Loop closing thread disabled (no vocabulary)");
   }
 
   // Initialize the Viewer thread and launch
   if (bUseViewer) {
-    mpViewer = new RerunViewer();
+    mpViewer = std::make_unique<RerunViewer>();
     if (mpMap && mpViewer) {
-      mpViewer->SetMap(mpMap);
+      mpViewer->SetMap(mpMap.get());
     }
-    
+
     // Set camera parameters for the viewer
     if (mpViewer) {
       float fx = fsSettings["Camera.fx"];
       float fy = fsSettings["Camera.fy"];
       float cx = fsSettings["Camera.cx"];
       float cy = fsSettings["Camera.cy"];
-      
+
       if (mSensor == STEREO) {
         // For stereo, calculate baseline from Camera.bf
         float bf = fsSettings["Camera.bf"];
-        float baseline = bf / fx; // baseline = bf / fx
-        
+        float baseline = bf / fx;  // baseline = bf / fx
+
         // Right camera has same intrinsics but shifted cx
         float cx_right = cx - baseline * fx;
         mpViewer->SetCameras(fx, fy, cx, cy, fx, fy, cx_right, cy, baseline);
       } else {
-        // For monocular, use same parameters for both cameras (second camera won't be used)
+        // For monocular, use same parameters for both cameras (second camera
+        // won't be used)
         mpViewer->SetCameras(fx, fy, cx, cy, fx, fy, cx, cy, 0.0f);
       }
     }
-    
-    mptViewer = new std::thread(&RerunViewer::Run, mpViewer);
+
+    mptViewer =
+        std::make_unique<std::thread>(&RerunViewer::Run, mpViewer.get());
     if (mpTracker && mpViewer) {
-      mpTracker->SetViewer(mpViewer);
+      mpTracker->SetViewer(mpViewer.get());
     }
   }
 
   // Set pointers between threads
-  mpTracker->SetLocalMapper(mpLocalMapper);
+  mpTracker->SetLocalMapper(mpLocalMapper.get());
   if (mpLoopCloser) {
-    mpTracker->SetLoopClosing(mpLoopCloser);
-    mpLocalMapper->SetLoopCloser(mpLoopCloser);
+    mpTracker->SetLoopClosing(mpLoopCloser.get());
+    mpLocalMapper->SetLoopCloser(mpLoopCloser.get());
   }
 
-  mpLocalMapper->SetTracker(mpTracker);
+  mpLocalMapper->SetTracker(mpTracker.get());
+}
+
+System::~System() {
+  // Shutdown the system first
+  Shutdown();
+
+  // Wait for threads to finish
+  if (mptLocalMapping && mptLocalMapping->joinable()) {
+    mptLocalMapping->join();
+  }
+  if (mptLoopClosing && mptLoopClosing->joinable()) {
+    mptLoopClosing->join();
+  }
+  if (mptViewer && mptViewer->joinable()) {
+    mptViewer->join();
+  }
+
+  // Smart pointers will automatically clean up the objects
 }
 
 cv::Mat System::TrackStereo(const cv::Mat& imLeft, const cv::Mat& imRight,
@@ -298,6 +317,11 @@ cv::Mat System::TrackMonocular(const cv::Mat& im, const double& timestamp) {
   }
 
   cv::Mat Tcw = mpTracker->GrabImageMonocular(im, timestamp);
+
+  // Update viewer with monocular image if available
+  if (mpViewer) {
+    mpViewer->AddCurrentFrame(&mpTracker->mCurrentFrame);
+  }
 
   std::unique_lock<std::mutex> lock2(mMutexState);
   mTrackingState = mpTracker->mState;

@@ -107,8 +107,7 @@ Frame::Frame(const cv::Mat& imLeft, const cv::Mat& imRight,
   mfLogScaleFactor = std::log(mfScaleFactor);  // log(1.0) = 0.0
   mvScaleFactors = {1.0f};
   mvInvScaleFactors = {1.0f};
-  mvLevelSigma2 = {
-      1.0f};  // Base sigma square, SuperPoint uses 1.0*1.0
+  mvLevelSigma2 = {1.0f};  // Base sigma square, SuperPoint uses 1.0*1.0
   mvInvLevelSigma2 = {1.0f};
 
   // SuperPoint feature extraction
@@ -542,29 +541,32 @@ void Frame::ComputeStereoMatches() {
   // If SuperGlue is available, use it for stereo matching
   if (mpSuperGlue && !mvKeys.empty() && !mvKeysRight.empty()) {
     SLOG_INFO("Using SuperGlue for stereo matching");
-    
+
     // Use SuperGlue to match features between left and right images
     MatchResult result;
-    if (mpSuperGlue->match(mvKeys, mDescriptors, mvKeysRight, mDescriptorsRight, result)) {
-      SLOG_INFO("SuperGlue found {} matches between left and right images", result.matches.size());
-      
+    if (mpSuperGlue->match(mvKeys, mDescriptors, mvKeysRight, mDescriptorsRight,
+                           result)) {
+      SLOG_INFO("SuperGlue found {} matches between left and right images",
+                result.matches.size());
+
       // Process SuperGlue matches
       int nEpipolarValid = 0;
       int nDisparityValid = 0;
       for (const auto& match : result.matches) {
         int iL = match.queryIdx;  // Left image keypoint index
         int iR = match.trainIdx;  // Right image keypoint index
-        
+
         if (iL >= 0 && iL < N && iR >= 0 && iR < mvKeysRight.size()) {
           const cv::KeyPoint& kpL = mvKeys[iL];
           const cv::KeyPoint& kpR = mvKeysRight[iR];
-          
-          // Check epipolar constraint (keypoints should be on same row within tolerance)
+
+          // Check epipolar constraint (keypoints should be on same row within
+          // tolerance)
           const float deltaV = std::abs(kpL.pt.y - kpR.pt.y);
           if (deltaV < 3.0f) {  // 3 pixel tolerance
             nEpipolarValid++;
             float disparity = kpL.pt.x - kpR.pt.x;
-            
+
             // Check disparity is positive and within reasonable range
             // For KITTI stereo, typical disparities range from 1 to ~100 pixels
             if (disparity > 0.1 && disparity < 200.0) {
@@ -575,10 +577,12 @@ void Frame::ComputeStereoMatches() {
           }
         }
       }
-      
-      SLOG_INFO("SuperGlue matching stats: {} epipolar valid, {} disparity valid out of {} matches", 
-                nEpipolarValid, nDisparityValid, result.matches.size());
-      
+
+      SLOG_INFO(
+          "SuperGlue matching stats: {} epipolar valid, {} disparity valid out "
+          "of {} matches",
+          nEpipolarValid, nDisparityValid, result.matches.size());
+
       // Count valid depth values
       int nValidDepth = 0;
       for (int i = 0; i < N; i++) {
@@ -586,10 +590,15 @@ void Frame::ComputeStereoMatches() {
           nValidDepth++;
         }
       }
-      SLOG_INFO("SuperGlue stereo matching: {} keypoints, {} with valid depth (need >500 for init)", N, nValidDepth);
+      SLOG_INFO(
+          "SuperGlue stereo matching: {} keypoints, {} with valid depth (need "
+          ">500 for init)",
+          N, nValidDepth);
       return;
     } else {
-      SLOG_WARN("SuperGlue matching failed, falling back to descriptor-based matching");
+      SLOG_WARN(
+          "SuperGlue matching failed, falling back to descriptor-based "
+          "matching");
     }
   }
 
@@ -766,7 +775,7 @@ void Frame::ComputeStereoMatches() {
       mvDepth[vDistIdx[i].second] = -1;
     }
   }
-  
+
   // Debug: Count valid depth values for stereo initialization
   int nValidDepth = 0;
   for (int i = 0; i < N; i++) {
@@ -774,7 +783,9 @@ void Frame::ComputeStereoMatches() {
       nValidDepth++;
     }
   }
-  SLOG_INFO("Stereo matching: {} keypoints, {} with valid depth (need >500 for init)", N, nValidDepth);
+  SLOG_INFO(
+      "Stereo matching: {} keypoints, {} with valid depth (need >500 for init)",
+      N, nValidDepth);
 }
 
 void Frame::ComputeStereoFromRGBD(const cv::Mat& imDepth) {

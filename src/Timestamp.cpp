@@ -32,8 +32,8 @@
 #include <sys/time.h>
 #endif
 
-#include "Timestamp.h"
 #include "Logging.h"
+#include "Timestamp.h"
 
 using namespace DUtils;
 

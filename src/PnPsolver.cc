@@ -51,7 +51,6 @@
  */
 
 #include "PnPsolver.h"
-#include "Logging.h"
 
 #include <algorithm>
 #include <cmath>
@@ -59,18 +58,14 @@
 #include <opencv4/opencv2/core/core.hpp>
 #include <vector>
 
-#include "Random.h"
 #include "Logging.h"
+#include "Random.h"
 
 namespace SuperSLAM {
 
 PnPsolver::PnPsolver(const Frame &F,
                      const std::vector<MapPoint *> &vpMapPointMatches)
-    : pws(0),
-      us(0),
-      alphas(0),
-      pcs(0),
-      maximum_number_of_correspondences(0),
+    : maximum_number_of_correspondences(0),
       number_of_correspondences(0),
       mnInliersi(0),
       mnIterations(0),
@@ -116,10 +111,7 @@ PnPsolver::PnPsolver(const Frame &F,
 }
 
 PnPsolver::~PnPsolver() {
-  delete[] pws;
-  delete[] us;
-  delete[] alphas;
-  delete[] pcs;
+  // Vectors automatically clean up their memory
 }
 
 void PnPsolver::SetRansacParameters(double probability, int minInliers,
@@ -324,16 +316,11 @@ void PnPsolver::CheckInliers() {
 
 void PnPsolver::set_maximum_number_of_correspondences(int n) {
   if (maximum_number_of_correspondences < n) {
-    if (pws != 0) delete[] pws;
-    if (us != 0) delete[] us;
-    if (alphas != 0) delete[] alphas;
-    if (pcs != 0) delete[] pcs;
-
     maximum_number_of_correspondences = n;
-    pws = new double[3 * maximum_number_of_correspondences];
-    us = new double[2 * maximum_number_of_correspondences];
-    alphas = new double[4 * maximum_number_of_correspondences];
-    pcs = new double[3 * maximum_number_of_correspondences];
+    pws.resize(3 * maximum_number_of_correspondences);
+    us.resize(2 * maximum_number_of_correspondences);
+    alphas.resize(4 * maximum_number_of_correspondences);
+    pcs.resize(3 * maximum_number_of_correspondences);
   }
 }
 
@@ -394,8 +381,8 @@ void PnPsolver::compute_barycentric_coordinates(void) {
   cvInvert(&CC, &CC_inv, CV_SVD);
   double *ci = cc_inv;
   for (int i = 0; i < number_of_correspondences; i++) {
-    double *pi = pws + 3 * i;
-    double *a = alphas + 4 * i;
+    double *pi = &pws[3 * i];
+    double *a = &alphas[4 * i];
 
     for (int j = 0; j < 3; j++)
       a[1 + j] = ci[3 * j] * (pi[0] - cws[0][0]) +
@@ -433,8 +420,8 @@ void PnPsolver::compute_ccs(const double *betas, const double *ut) {
 
 void PnPsolver::compute_pcs(void) {
   for (int i = 0; i < number_of_correspondences; i++) {
-    double *a = alphas + 4 * i;
-    double *pc = pcs + 3 * i;
+    double *a = &alphas[4 * i];
+    double *pc = &pcs[3 * i];
 
     for (int j = 0; j < 3; j++)
       pc[j] = a[0] * ccs[0][j] + a[1] * ccs[1][j] + a[2] * ccs[2][j] +
@@ -449,7 +436,7 @@ double PnPsolver::compute_pose(double R[3][3], double t[3]) {
   CvMat *M = cvCreateMat(2 * number_of_correspondences, 12, CV_64F);
 
   for (int i = 0; i < number_of_correspondences; i++)
-    fill_M(M, 2 * i, alphas + 4 * i, us[2 * i], us[2 * i + 1]);
+    fill_M(M, 2 * i, &alphas[4 * i], us[2 * i], us[2 * i + 1]);
 
   double mtm[12 * 12], d[12], ut[12 * 12];
   CvMat MtM = cvMat(12, 12, CV_64F, mtm);
@@ -512,7 +499,7 @@ double PnPsolver::reprojection_error(const double R[3][3], const double t[3]) {
   double sum2 = 0.0;
 
   for (int i = 0; i < number_of_correspondences; i++) {
-    double *pw = pws + 3 * i;
+    double *pw = &pws[3 * i];
     double Xc = dot(R[0], pw) + t[0];
     double Yc = dot(R[1], pw) + t[1];
     double inv_Zc = 1.0 / (dot(R[2], pw) + t[2]);
@@ -533,8 +520,8 @@ void PnPsolver::estimate_R_and_t(double R[3][3], double t[3]) {
   pw0[0] = pw0[1] = pw0[2] = 0.0;
 
   for (int i = 0; i < number_of_correspondences; i++) {
-    const double *pc = pcs + 3 * i;
-    const double *pw = pws + 3 * i;
+    const double *pc = &pcs[3 * i];
+    const double *pw = &pws[3 * i];
 
     for (int j = 0; j < 3; j++) {
       pc0[j] += pc[j];
@@ -554,8 +541,8 @@ void PnPsolver::estimate_R_and_t(double R[3][3], double t[3]) {
 
   cvSetZero(&ABt);
   for (int i = 0; i < number_of_correspondences; i++) {
-    double *pc = pcs + 3 * i;
-    double *pw = pws + 3 * i;
+    double *pc = &pcs[3 * i];
+    double *pw = &pws[3 * i];
 
     for (int j = 0; j < 3; j++) {
       abt[3 * j] += (pc[j] - pc0[j]) * (pw[0] - pw0[0]);
@@ -803,20 +790,19 @@ void PnPsolver::gauss_newton(const CvMat *L_6x10, const CvMat *Rho,
 
 void PnPsolver::qr_solve(CvMat *A, CvMat *b, CvMat *X) {
   static int max_nr = 0;
-  static double *A1, *A2;
+  static std::vector<double> A1_vec, A2_vec;
 
   const int nr = A->rows;
   const int nc = A->cols;
 
-  if (max_nr != 0 && max_nr < nr) {
-    delete[] A1;
-    delete[] A2;
-  }
   if (max_nr < nr) {
     max_nr = nr;
-    A1 = new double[nr];
-    A2 = new double[nr];
+    A1_vec.resize(nr);
+    A2_vec.resize(nr);
   }
+
+  double *A1 = A1_vec.data();
+  double *A2 = A2_vec.data();
 
   double *pA = A->data.db, *ppAkk = pA;
   for (int k = 0; k < nc; k++) {

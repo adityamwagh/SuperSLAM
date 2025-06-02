@@ -59,6 +59,19 @@ FetchContent_MakeAvailable(spdlog)
 # Set PIC flag for spdlog when building as static library
 set_target_properties(spdlog PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Configure GTSAM
+FetchContent_Declare(
+  GTSAM
+  GIT_REPOSITORY https://github.com/borglab/gtsam.git
+  GIT_TAG 4.2.0
+)
+set(GTSAM_BUILD_EXAMPLES_ALWAYS OFF CACHE BOOL "")
+set(GTSAM_BUILD_TESTS OFF CACHE BOOL "")
+set(GTSAM_BUILD_DOCS OFF CACHE BOOL "")
+set(GTSAM_BUILD_UNSTABLE OFF CACHE BOOL "")
+set(GTSAM_USE_SYSTEM_EIGEN ON CACHE BOOL "")
+FetchContent_MakeAvailable(GTSAM)
+
 # Configure Rerun
 FetchContent_Declare(
   rerun_sdk
@@ -84,7 +97,6 @@ set_target_properties(rerun_sdk PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Add subdirectories for third-party libraries
 add_subdirectory(${PROJECT_SOURCE_DIR}/thirdparty/DBoW3)
-add_subdirectory(${PROJECT_SOURCE_DIR}/thirdparty/g2o)
 add_subdirectory(${PROJECT_SOURCE_DIR}/thirdparty/tensorrtbuffer)
 
 # Define library output directory
@@ -123,11 +135,11 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
   spdlog::spdlog
   tensorrtbuffer
   rerun_sdk
+  gtsam
   ${OpenCV_LIBRARIES}
   ${CUDA_LIBRARIES}
   ${EIGEN3_LIBS}
   ${PROJECT_SOURCE_DIR}/thirdparty/DBoW3/lib/libDBoW3.so
-  ${PROJECT_SOURCE_DIR}/thirdparty/g2o/lib/libg2o.so
 )
 
 # Build examples
@@ -142,3 +154,33 @@ target_link_libraries(mono_kitti_rerun ${PROJECT_NAME})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${EXAMPLES_OUTPUT_DIR}/stereo)
 add_executable(stereo_kitti_rerun examples/stereo/stereo_kitti_rerun.cc)
 target_link_libraries(stereo_kitti_rerun ${PROJECT_NAME})
+
+# Stereo example without viewer (for debugging)
+add_executable(stereo_kitti_no_viewer examples/stereo/stereo_kitti_no_viewer.cc)
+target_link_libraries(stereo_kitti_no_viewer ${PROJECT_NAME})
+
+# Test executable for SuperPoint/SuperGlue
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
+# Commented out test executables that need to be updated
+# add_executable(test_superpoint_superglue test_superpoint_superglue.cc)
+# target_link_libraries(test_superpoint_superglue ${PROJECT_NAME})
+
+# add_executable(test_superpoint_only test_superpoint_only.cc)
+# target_link_libraries(test_superpoint_only ${PROJECT_NAME})
+
+# add_executable(test_debug_matching test_debug_matching.cc)
+# target_link_libraries(test_debug_matching ${PROJECT_NAME})
+
+# add_executable(test_superpoint_cosine_matching test_superpoint_cosine_matching.cc)
+# target_link_libraries(test_superpoint_cosine_matching ${PROJECT_NAME})
+
+add_executable(test_simple_visualization test_simple_visualization.cc)
+target_link_libraries(test_simple_visualization ${PROJECT_NAME})
+
+# Simple test for debugging examples
+add_executable(test_example_simple test_example_simple.cc)
+target_link_libraries(test_example_simple spdlog::spdlog)
+
+# Vocabulary generation tool (needs updating)
+# add_executable(generate_sp_vocabulary tools/generate_sp_vocabulary.cc)
+# target_link_libraries(generate_sp_vocabulary ${PROJECT_NAME})

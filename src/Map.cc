@@ -42,17 +42,13 @@ void Map::AddMapPoint(MapPoint *pMP) {
 void Map::EraseMapPoint(MapPoint *pMP) {
   std::unique_lock<std::mutex> lock(mMutexMap);
   mspMapPoints.erase(pMP);
-
-  // TODO: This only erase the pointer.
-  // Delete the MapPoint
+  delete pMP;
 }
 
 void Map::EraseKeyFrame(KeyFrame *pKF) {
   std::unique_lock<std::mutex> lock(mMutexMap);
   mspKeyFrames.erase(pKF);
-
-  // TODO: This only erase the pointer.
-  // Delete the MapPoint
+  delete pKF;
 }
 
 void Map::SetReferenceMapPoints(const std::vector<MapPoint *> &vpMPs) {

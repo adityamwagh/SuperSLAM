@@ -21,8 +21,8 @@
 #ifndef MAPPOINT_H
 #define MAPPOINT_H
 
-#include <opencv4/opencv2/core/core.hpp>
 #include <mutex>
+#include <opencv4/opencv2/core/core.hpp>
 
 #include "Frame.h"
 #include "KeyFrame.h"
@@ -63,9 +63,7 @@ class MapPoint {
   void IncreaseVisible(int n = 1);
   void IncreaseFound(int n = 1);
   float GetFoundRatio();
-  inline int GetFound() {
-    return mnFound;
-  }
+  inline int GetFound() { return mnFound; }
 
   void ComputeDistinctiveDescriptors();
 
@@ -142,6 +140,6 @@ class MapPoint {
   std::mutex mMutexFeatures;
 };
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM
 
-#endif // MAPPOINT_H
+#endif  // MAPPOINT_H

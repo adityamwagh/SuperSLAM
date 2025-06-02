@@ -1,5 +1,13 @@
 #include "SuperGlueTRT.h"
+
+#include <cfloat>
+
 #include "Logging.h"
+
+// Forward declarations for SuperGLUE decode functions
+void decode(float* scores, int h, int w, std::vector<int>& indices0,
+            std::vector<int>& indices1, std::vector<double>& mscores0,
+            std::vector<double>& mscores1);
 
 // Simple logger for TensorRT 10.11.0
 class SimpleLogger : public nvinfer1::ILogger {
@@ -13,15 +21,17 @@ class SimpleLogger : public nvinfer1::ILogger {
 
 static SimpleLogger gLogger;
 
-SuperGlueTRT::SuperGlueTRT(const SuperGlueConfig& config) : config_(config) {
+SuperGlueTRT::SuperGlueTRT(const std::string& engine_file, int image_width,
+                           int image_height)
+    : engine_file_(engine_file),
+      image_width_(image_width),
+      image_height_(image_height) {
   cudaStreamCreate(&stream_);
 }
 
 SuperGlueTRT::~SuperGlueTRT() {
   freeBuffers();
-  if (context_) delete context_;
-  if (engine_) delete engine_;
-  if (runtime_) delete runtime_;
+  // Smart pointers automatically clean up TensorRT objects
   cudaStreamDestroy(stream_);
 }
 
@@ -43,11 +53,11 @@ bool SuperGlueTRT::initialize() {
 }
 
 bool SuperGlueTRT::loadEngine() {
-  SLOG_INFO("SuperGlueTRT: Loading engine from {}", config_.engine_file);
+  SLOG_INFO("SuperGlueTRT: Loading engine from {}", engine_file_);
 
-  std::ifstream file(config_.engine_file, std::ios::binary);
+  std::ifstream file(engine_file_, std::ios::binary);
   if (!file.good()) {
-    SLOG_ERROR("SuperGlueTRT: Cannot read engine file {}", config_.engine_file);
+    SLOG_ERROR("SuperGlueTRT: Cannot read engine file {}", engine_file_);
     return false;
   }
 
@@ -59,19 +69,19 @@ bool SuperGlueTRT::loadEngine() {
   file.read(engineData.data(), size);
   file.close();
 
-  runtime_ = nvinfer1::createInferRuntime(gLogger);
+  runtime_.reset(nvinfer1::createInferRuntime(gLogger));
   if (!runtime_) {
     SLOG_ERROR("SuperGlueTRT: Failed to create runtime");
     return false;
   }
 
-  engine_ = runtime_->deserializeCudaEngine(engineData.data(), size);
+  engine_.reset(runtime_->deserializeCudaEngine(engineData.data(), size));
   if (!engine_) {
     SLOG_ERROR("SuperGlueTRT: Failed to deserialize engine");
     return false;
   }
 
-  context_ = engine_->createExecutionContext();
+  context_.reset(engine_->createExecutionContext());
   if (!context_) {
     SLOG_ERROR("SuperGlueTRT: Failed to create execution context");
     return false;
@@ -97,19 +107,22 @@ bool SuperGlueTRT::allocateBuffers() {
 
     if (tensor.size == 0) {
       // Dynamic tensor - defer allocation until actual shape is known
-      SLOG_DEBUG("SuperGlueTRT: Deferring allocation for dynamic tensor {}", tensor.name);
+      SLOG_DEBUG("SuperGlueTRT: Deferring allocation for dynamic tensor {}",
+                 tensor.name);
       tensor.devicePtr = nullptr;
       tensor.hostPtr = nullptr;
     } else {
       // Allocate device memory
       if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
-        SLOG_ERROR("SuperGlueTRT: Failed to allocate device memory for {}", tensor.name);
+        SLOG_ERROR("SuperGlueTRT: Failed to allocate device memory for {}",
+                   tensor.name);
         return false;
       }
 
       // Allocate host memory
       if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
-        SLOG_ERROR("SuperGlueTRT: Failed to allocate host memory for {}", tensor.name);
+        SLOG_ERROR("SuperGlueTRT: Failed to allocate host memory for {}",
+                   tensor.name);
         return false;
       }
     }
@@ -170,7 +183,8 @@ bool SuperGlueTRT::allocateDynamicTensors(
 
       // Set the input shape in the execution context
       if (!context_->setInputShape(tensor.name.c_str(), actualDims)) {
-        SLOG_ERROR("SuperGlueTRT: Failed to set input shape for {}", tensor.name);
+        SLOG_ERROR("SuperGlueTRT: Failed to set input shape for {}",
+                   tensor.name);
         return false;
       }
 
@@ -179,16 +193,23 @@ bool SuperGlueTRT::allocateDynamicTensors(
 
       // Allocate memory
       if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
-        SLOG_ERROR("SuperGlueTRT: Failed to allocate device memory for dynamic tensor {}", tensor.name);
+        SLOG_ERROR(
+            "SuperGlueTRT: Failed to allocate device memory for dynamic tensor "
+            "{}",
+            tensor.name);
         return false;
       }
 
       if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
-        SLOG_ERROR("SuperGlueTRT: Failed to allocate host memory for dynamic tensor {}", tensor.name);
+        SLOG_ERROR(
+            "SuperGlueTRT: Failed to allocate host memory for dynamic tensor "
+            "{}",
+            tensor.name);
         return false;
       }
 
-      SLOG_DEBUG("SuperGlueTRT: Allocated dynamic tensor {} with size {} bytes", tensor.name, tensor.size);
+      SLOG_DEBUG("SuperGlueTRT: Allocated dynamic tensor {} with size {} bytes",
+                 tensor.name, tensor.size);
     }
   }
 
@@ -204,16 +225,24 @@ bool SuperGlueTRT::allocateDynamicTensors(
 
       // Allocate memory
       if (cudaMalloc(&tensor.devicePtr, tensor.size) != cudaSuccess) {
-        SLOG_ERROR("SuperGlueTRT: Failed to allocate device memory for dynamic output tensor {}", tensor.name);
+        SLOG_ERROR(
+            "SuperGlueTRT: Failed to allocate device memory for dynamic output "
+            "tensor {}",
+            tensor.name);
         return false;
       }
 
       if (cudaMallocHost(&tensor.hostPtr, tensor.size) != cudaSuccess) {
-        SLOG_ERROR("SuperGlueTRT: Failed to allocate host memory for dynamic output tensor {}", tensor.name);
+        SLOG_ERROR(
+            "SuperGlueTRT: Failed to allocate host memory for dynamic output "
+            "tensor {}",
+            tensor.name);
         return false;
       }
 
-      SLOG_DEBUG("SuperGlueTRT: Allocated dynamic output tensor {} with size {} bytes", tensor.name, tensor.size);
+      SLOG_DEBUG(
+          "SuperGlueTRT: Allocated dynamic output tensor {} with size {} bytes",
+          tensor.name, tensor.size);
     }
   }
 
@@ -228,9 +257,11 @@ bool SuperGlueTRT::match(const std::vector<cv::KeyPoint>& keypoints0,
     SLOG_ERROR("SuperGlueTRT: Context not initialized");
     return false;
   }
-  
-  SLOG_DEBUG("SuperGlueTRT: Matching {} keypoints from image0 with {} keypoints from image1", 
-             keypoints0.size(), keypoints1.size());
+
+  SLOG_DEBUG(
+      "SuperGlueTRT: Matching {} keypoints from image0 with {} keypoints from "
+      "image1",
+      keypoints0.size(), keypoints1.size());
 
   // Allocate dynamic tensors with actual shapes
   if (!allocateDynamicTensors(keypoints0, keypoints1)) {
@@ -247,7 +278,8 @@ bool SuperGlueTRT::match(const std::vector<cv::KeyPoint>& keypoints0,
   // Set tensor addresses for inputs
   for (auto& tensor : input_tensors_) {
     if (!context_->setTensorAddress(tensor.name.c_str(), tensor.devicePtr)) {
-      SLOG_ERROR("SuperGlueTRT: Failed to set input tensor address for {}", tensor.name);
+      SLOG_ERROR("SuperGlueTRT: Failed to set input tensor address for {}",
+                 tensor.name);
       return false;
     }
 
@@ -262,7 +294,8 @@ bool SuperGlueTRT::match(const std::vector<cv::KeyPoint>& keypoints0,
   // Set tensor addresses for outputs
   for (auto& tensor : output_tensors_) {
     if (!context_->setTensorAddress(tensor.name.c_str(), tensor.devicePtr)) {
-      SLOG_ERROR("SuperGlueTRT: Failed to set output tensor address for {}", tensor.name);
+      SLOG_ERROR("SuperGlueTRT: Failed to set output tensor address for {}",
+                 tensor.name);
       return false;
     }
   }
@@ -303,8 +336,7 @@ bool SuperGlueTRT::prepareInputs(const std::vector<cv::KeyPoint>& keypoints0,
 
   // Prepare keypoints_0
   float* kp0_ptr = static_cast<float*>(input_tensors_[0].hostPtr);
-  normalizeKeypoints(keypoints0, config_.image_width, config_.image_height,
-                     kp0_ptr);
+  normalizeKeypoints(keypoints0, image_width_, image_height_, kp0_ptr);
 
   // Prepare scores_0
   float* scores0_ptr = static_cast<float*>(input_tensors_[1].hostPtr);
@@ -318,8 +350,7 @@ bool SuperGlueTRT::prepareInputs(const std::vector<cv::KeyPoint>& keypoints0,
 
   // Prepare keypoints_1
   float* kp1_ptr = static_cast<float*>(input_tensors_[3].hostPtr);
-  normalizeKeypoints(keypoints1, config_.image_width, config_.image_height,
-                     kp1_ptr);
+  normalizeKeypoints(keypoints1, image_width_, image_height_, kp1_ptr);
 
   // Prepare scores_1
   float* scores1_ptr = static_cast<float*>(input_tensors_[4].hostPtr);
@@ -364,58 +395,26 @@ bool SuperGlueTRT::postprocessOutputs(
     return false;
   }
 
-  // Create scores matrix for visualization
-  result.scores = cv::Mat(rows, cols, CV_32F, scoresPtr).clone();
+  // Use reference SuperGLUE decode logic instead of softmax
+  std::vector<int> indices0, indices1;
+  std::vector<double> mscores0, mscores1;
 
-  // Extract matches using Hungarian algorithm or simple max approach
-  std::vector<bool> matched0(keypoints0.size(), false);
-  std::vector<bool> matched1(keypoints1.size(), false);
+  decode(scoresPtr, rows, cols, indices0, indices1, mscores0, mscores1);
 
-  // Simple greedy matching - find best match for each keypoint
-  for (int i = 0; i < static_cast<int>(keypoints0.size()) && i < rows - 1;
-       ++i) {
-    float maxScore = -1.0f;
-    int bestMatch = -1;
-
-    for (int j = 0; j < static_cast<int>(keypoints1.size()) && j < cols - 1;
-         ++j) {
-      if (!matched1[j]) {
-        float score = scoresPtr[i * cols + j];
-        if (score > maxScore && score > 0.2f) {  // Threshold for good matches
-          maxScore = score;
-          bestMatch = j;
-        }
-      }
-    }
-
-    if (bestMatch >= 0) {
-      // Verify mutual best match
-      float bestReverseScore = -1.0f;
-      int bestReverseMatch = -1;
-
-      for (int k = 0; k < static_cast<int>(keypoints0.size()) && k < rows - 1;
-           ++k) {
-        if (!matched0[k]) {
-          float score = scoresPtr[k * cols + bestMatch];
-          if (score > bestReverseScore) {
-            bestReverseScore = score;
-            bestReverseMatch = k;
-          }
-        }
-      }
-
-      if (bestReverseMatch == i) {  // Mutual best match
-        cv::DMatch match;
-        match.queryIdx = i;
-        match.trainIdx = bestMatch;
-        match.distance = 1.0f - maxScore;  // Convert score to distance
-        result.matches.push_back(match);
-
-        matched0[i] = true;
-        matched1[bestMatch] = true;
-      }
+  // Convert to cv::DMatch format
+  for (size_t i = 0; i < indices0.size(); ++i) {
+    if (indices0[i] >= 0 && indices0[i] < static_cast<int>(keypoints1.size())) {
+      cv::DMatch match;
+      match.queryIdx = static_cast<int>(i);
+      match.trainIdx = indices0[i];
+      match.distance = 1.0 - (mscores0[i] + mscores1[indices0[i]]) /
+                                 2.0;  // Reference formula
+      result.matches.push_back(match);
     }
   }
+
+  // Create scores matrix for visualization
+  result.scores = cv::Mat(rows, cols, CV_32F, scoresPtr).clone();
 
   SLOG_INFO("SuperGlueTRT: Found {} matches", result.matches.size());
   return true;
@@ -425,9 +424,10 @@ void SuperGlueTRT::normalizeKeypoints(
     const std::vector<cv::KeyPoint>& keypoints, int imageWidth, int imageHeight,
     float* output) {
   for (size_t i = 0; i < keypoints.size(); ++i) {
-    // Normalize to [-1, 1]
-    output[i * 2] = (2.0f * keypoints[i].pt.x / imageWidth) - 1.0f;
-    output[i * 2 + 1] = (2.0f * keypoints[i].pt.y / imageHeight) - 1.0f;
+    // Use SuperGLUE reference normalization: (x - w/2) / (max(w,h) * 0.7)
+    float maxDim = std::max(imageWidth, imageHeight) * 0.7f;
+    output[i * 2] = (keypoints[i].pt.x - imageWidth / 2.0f) / maxDim;
+    output[i * 2 + 1] = (keypoints[i].pt.y - imageHeight / 2.0f) / maxDim;
   }
 }
 
@@ -480,7 +480,7 @@ void SuperGlueTRT::printTensorInfo(const std::string& name,
     shape_str += std::to_string(dims.d[i]);
     if (i < dims.nbDims - 1) shape_str += "x";
   }
-  
+
   std::string type_str;
   switch (dtype) {
     case nvinfer1::DataType::kFLOAT:
@@ -502,6 +502,146 @@ void SuperGlueTRT::printTensorInfo(const std::string& name,
       type_str = "UNKNOWN";
       break;
   }
-  
-  SLOG_DEBUG("SuperGlueTRT: Tensor {} - Shape: {}, Type: {}", name, shape_str, type_str);
+
+  SLOG_DEBUG("SuperGlueTRT: Tensor {} - Shape: {}, Type: {}", name, shape_str,
+             type_str);
+}
+
+// Helper functions from reference SuperGLUE implementation
+void where_negative_one(const int* flag_data, const int* data, int size,
+                        std::vector<int>& indices) {
+  for (int i = 0; i < size; ++i) {
+    if (flag_data[i] == 1) {
+      indices.push_back(data[i]);
+    } else {
+      indices.push_back(-1);
+    }
+  }
+}
+
+void max_matrix(const float* data, int* indices, float* values, int h, int w,
+                int dim) {
+  if (dim == 2) {
+    for (int i = 0; i < h - 1; ++i) {
+      float max_value = -FLT_MAX;
+      int max_indices = 0;
+      for (int j = 0; j < w - 1; ++j) {
+        if (max_value < data[i * w + j]) {
+          max_value = data[i * w + j];
+          max_indices = j;
+        }
+      }
+      values[i] = max_value;
+      indices[i] = max_indices;
+    }
+  } else if (dim == 1) {
+    for (int i = 0; i < w - 1; ++i) {
+      float max_value = -FLT_MAX;
+      int max_indices = 0;
+      for (int j = 0; j < h - 1; ++j) {
+        if (max_value < data[j * w + i]) {
+          max_value = data[j * w + i];
+          max_indices = j;
+        }
+      }
+      values[i] = max_value;
+      indices[i] = max_indices;
+    }
+  }
+}
+
+void equal_gather(const int* indices0, const int* indices1, int* mutual,
+                  int size) {
+  for (int i = 0; i < size; ++i) {
+    if (indices0[indices1[i]] == i) {
+      mutual[i] = 1;
+    } else {
+      mutual[i] = 0;
+    }
+  }
+}
+
+void where_exp(const int* flag_data, float* data, std::vector<double>& mscores0,
+               int size) {
+  for (int i = 0; i < size; ++i) {
+    if (flag_data[i] == 1) {
+      mscores0.push_back(std::exp(data[i]));
+    } else {
+      mscores0.push_back(0);
+    }
+  }
+}
+
+void where_gather(const int* flag_data, int* indices,
+                  std::vector<double>& mscores0, std::vector<double>& mscores1,
+                  int size) {
+  for (int i = 0; i < size; ++i) {
+    if (flag_data[i] == 1) {
+      mscores1.push_back(mscores0[indices[i]]);
+    } else {
+      mscores1.push_back(0);
+    }
+  }
+}
+
+void and_threshold(const int* mutual0, int* valid0,
+                   const std::vector<double>& mscores0, double threshold) {
+  for (int i = 0; i < mscores0.size(); ++i) {
+    if (mutual0[i] == 1 && mscores0[i] > threshold) {
+      valid0[i] = 1;
+    } else {
+      valid0[i] = 0;
+    }
+  }
+}
+
+void and_gather(const int* mutual1, const int* valid0, const int* indices1,
+                int* valid1, int size) {
+  for (int i = 0; i < size; ++i) {
+    if (mutual1[i] == 1 && valid0[indices1[i]] == 1) {
+      valid1[i] = 1;
+    } else {
+      valid1[i] = 0;
+    }
+  }
+}
+
+void decode(float* scores, int h, int w, std::vector<int>& indices0,
+            std::vector<int>& indices1, std::vector<double>& mscores0,
+            std::vector<double>& mscores1) {
+  std::vector<int> max_indices0(h - 1);
+  std::vector<int> max_indices1(w - 1);
+  std::vector<float> max_values0(h - 1);
+  std::vector<float> max_values1(w - 1);
+  max_matrix(scores, max_indices0.data(), max_values0.data(), h, w, 2);
+  max_matrix(scores, max_indices1.data(), max_values1.data(), h, w, 1);
+
+  // Debug: Log max values to understand score range
+  SLOG_DEBUG("SuperGLUE decode: Max score values (first 5): {}, {}, {}, {}, {}",
+             max_values0[0], max_values0[1], max_values0[2], max_values0[3],
+             max_values0[4]);
+
+  std::vector<int> mutual0(h - 1);
+  std::vector<int> mutual1(w - 1);
+  equal_gather(max_indices1.data(), max_indices0.data(), mutual0.data(), h - 1);
+  equal_gather(max_indices0.data(), max_indices1.data(), mutual1.data(), w - 1);
+  where_exp(mutual0.data(), max_values0.data(), mscores0, h - 1);
+  where_gather(mutual1.data(), max_indices1.data(), mscores0, mscores1, w - 1);
+  std::vector<int> valid0(h - 1);
+  std::vector<int> valid1(w - 1);
+  and_threshold(mutual0.data(), valid0.data(), mscores0,
+                0.0);  // Set to 0 to allow all matches for debugging
+
+  // Debug: Count valid matches before final step
+  int validCount = 0;
+  for (int i = 0; i < h - 1; ++i) {
+    if (valid0[i] == 1) validCount++;
+  }
+  SLOG_DEBUG("SuperGLUE decode: Valid matches after threshold: {}", validCount);
+
+  and_gather(mutual1.data(), valid0.data(), max_indices1.data(), valid1.data(),
+             w - 1);
+  where_negative_one(valid0.data(), max_indices0.data(), h - 1, indices0);
+  where_negative_one(valid1.data(), max_indices1.data(), w - 1, indices1);
+  // Vectors automatically clean up their memory
 }

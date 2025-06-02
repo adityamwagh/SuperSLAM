@@ -29,18 +29,20 @@ University) For more information see
 #include "Frame.h"
 #include "KeyFrame.h"
 #include "MapPoint.h"
-#include "ReadConfig.h"
-#include "SuperGlueTRT.h"
 
 namespace SuperSLAM {
 
 class SPmatcher {
  public:
-  SPmatcher(float nnratio = 0.7, bool checkOri = true,
-            const SuperGlueConfig& config = SuperGlueConfig());
+  SPmatcher(float nnratio = 0.7, bool checkOri = true);
 
   // Computes the L2 distance between two SuperPoint descriptors
   static float DescriptorDistance(const cv::Mat& a, const cv::Mat& b);
+
+  // Cosine similarity matching for SuperPoint descriptors
+  int CosineSimilarityMatching(const cv::Mat& descriptors0,
+                               const cv::Mat& descriptors1,
+                               std::vector<cv::DMatch>& matches);
 
   // Search matches between Frame keypoints and projected MapPoints. Returns
   // number of matches Used to track the local map (Tracking)
@@ -76,13 +78,6 @@ class SPmatcher {
                  std::vector<MapPoint*>& vpMapPointMatches);
   int SearchByNN(Frame& CurrentFrame, const Frame& LastFrame);
   int SearchByNN(Frame& F, const std::vector<MapPoint*>& vpMapPoints);
-
-  // SuperGlue-based matching
-  int SearchBySuperGlue(const std::vector<cv::KeyPoint>& keypoints0,
-                        const cv::Mat& descriptors0,
-                        const std::vector<cv::KeyPoint>& keypoints1,
-                        const cv::Mat& descriptors1,
-                        std::vector<cv::DMatch>& matches);
 
   // Matching for the Map Initialization (only used in the monocular case)
   int SearchForInitialization(Frame& F1, Frame& F2,
@@ -127,7 +122,6 @@ class SPmatcher {
 
   float mfNNratio;
   bool mbCheckOrientation;
-  std::shared_ptr<SuperGlueTRT> superglue_matcher;
 };
 
 // typedef SPmatcher ORBmatcher; // This alias might be confusing now, consider

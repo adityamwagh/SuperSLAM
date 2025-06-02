@@ -18,6 +18,9 @@
  * along with SuperSLAM. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <Logging.h>
+#include <SPExtractor.h>
+
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -31,8 +34,6 @@
 #include "SPBowVector.h"
 #include "SuperPointTRT.h"
 #include "thirdparty/DBoW3/src/DBoW3.h"
-#include <Logging.h>
-#include <SPExtractor.h>
 
 namespace fs = std::filesystem;
 
@@ -44,170 +45,178 @@ namespace fs = std::filesystem;
  * for loop closure detection in SuperSLAM.
  */
 class SPVocabularyGenerator {
-  private:
-    std::unique_ptr<SuperPointTRT> superpoint_;
-    std::shared_ptr<Configs>       configs_;
+ private:
+  std::unique_ptr<SuperPointTRT> superpoint_;
+  std::shared_ptr<Configs> configs_;
 
-  public:
-    SPVocabularyGenerator(const std::string& config_path, const std::string& model_dir) {
-      configs_    = std::make_shared<Configs>(config_path, model_dir);
-      superpoint_ = std::make_unique<SuperPointTRT>(configs_->superpoint_config);
+ public:
+  SPVocabularyGenerator(const std::string& config_path,
+                        const std::string& model_dir) {
+    configs_ = std::make_shared<Configs>(config_path, model_dir);
+    superpoint_ = std::make_unique<SuperPointTRT>(configs_->superpoint_config);
 
-      if (!superpoint_->initialize()) { throw std::runtime_error("Failed to initialize SuperPointTRT"); }
-
-      std::cout << "SuperPoint initialized successfully for vocabulary generation"
-                << "\n";
+    if (!superpoint_->initialize()) {
+      throw std::runtime_error("Failed to initialize SuperPointTRT");
     }
 
-    /**
-     * @brief Extract SuperPoint features from a single image
-     */
-    bool extractFeatures(const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, cv::Mat& descriptors) {
-      cv::Mat gray_image;
-      if (image.channels() == 3) {
-        cv::cvtColor(image, gray_image, cv::COLOR_BGR2GRAY);
+    std::cout << "SuperPoint initialized successfully for vocabulary generation"
+              << "\n";
+  }
+
+  /**
+   * @brief Extract SuperPoint features from a single image
+   */
+  bool extractFeatures(const cv::Mat& image,
+                       std::vector<cv::KeyPoint>& keypoints,
+                       cv::Mat& descriptors) {
+    cv::Mat gray_image;
+    if (image.channels() == 3) {
+      cv::cvtColor(image, gray_image, cv::COLOR_BGR2GRAY);
+    } else {
+      gray_image = image;
+    }
+
+    return superpoint_->infer(gray_image, keypoints, descriptors);
+  }
+
+  /**
+   * @brief Process a directory of images and extract all features
+   */
+  bool processImageDirectory(
+      const std::string& image_dir,
+      std::vector<std::vector<cv::KeyPoint>>& all_keypoints,
+      std::vector<cv::Mat>& all_descriptors, int max_images = -1) {
+    std::vector<std::string> image_files;
+
+    // Collect image files
+    for (const auto& entry : fs::directory_iterator(image_dir)) {
+      if (entry.is_regular_file()) {
+        std::string ext = entry.path().extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+        if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".bmp" ||
+            ext == ".tiff") {
+          image_files.push_back(entry.path().string());
+        }
+      }
+    }
+
+    if (image_files.empty()) {
+      std::cerr << "No image files found in directory: " << image_dir << "\n";
+      return false;
+    }
+
+    std::sort(image_files.begin(), image_files.end());
+
+    if (max_images > 0 && static_cast<int>(image_files.size()) > max_images) {
+      image_files.resize(max_images);
+    }
+
+    std::cout << "Processing " << image_files.size() << " images..."
+              << "\n";
+
+    SPDLOG_INFO("Processing {} images...", image_files.size())
+
+    all_keypoints.clear();
+    all_descriptors.clear();
+    all_keypoints.reserve(image_files.size());
+    all_descriptors.reserve(image_files.size());
+
+    int processed = 0;
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    for (const auto& image_path : image_files) {
+      cv::Mat image = cv::imread(image_path, cv::IMREAD_COLOR);
+      if (image.empty()) {
+        std::cerr << "Failed to load image: " << image_path << "\n";
+        continue;
+      }
+
+      std::vector<cv::KeyPoint> keypoints;
+      cv::Mat descriptors;
+
+      if (extractFeatures(image, keypoints, descriptors)) {
+        all_keypoints.push_back(keypoints);
+        all_descriptors.push_back(descriptors);
+
+        processed++;
+        if (processed % 100 == 0) {
+          auto current_time = std::chrono::high_resolution_clock::now();
+          auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+              current_time - start_time);
+          std::cout << "Processed " << processed << "/" << image_files.size()
+                    << " images (" << elapsed.count() << "s)" << "\n";
+        }
       } else {
-        gray_image = image;
+        std::cerr << "Failed to extract features from: " << image_path << "\n";
       }
-
-      return superpoint_->infer(gray_image, keypoints, descriptors);
     }
 
-    /**
-     * @brief Process a directory of images and extract all features
-     */
-    bool processImageDirectory(const std::string&                      image_dir,
-                               std::vector<std::vector<cv::KeyPoint>>& all_keypoints,
-                               std::vector<cv::Mat>&                   all_descriptors,
-                               int                                     max_images = -1) {
-      std::vector<std::string> image_files;
+    std::cout << "Successfully processed " << processed << " images"
+              << "\n";
+    return processed > 0;
+  }
 
-      // Collect image files
-      for (const auto& entry : fs::directory_iterator(image_dir)) {
-        if (entry.is_regular_file()) {
-          std::string ext = entry.path().extension().string();
-          std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+  /**
+   * @brief Generate vocabulary from extracted features
+   */
+  bool generateVocabulary(
+      const std::vector<std::vector<cv::KeyPoint>>& all_keypoints,
+      const std::vector<cv::Mat>& all_descriptors,
+      const std::string& output_path, int k = 10, int levels = 6,
+      int max_features_per_image = 500) {
+    if (all_keypoints.size() != all_descriptors.size()) {
+      std::cerr << "Keypoints and descriptors size mismatch" << "\n";
+      return false;
+    }
 
-          if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".bmp" || ext == ".tiff") {
-            image_files.push_back(entry.path().string());
-          }
-        }
-      }
+    std::cout << "Preparing training data..." << "\n";
 
-      if (image_files.empty()) {
-        std::cerr << "No image files found in directory: " << image_dir << "\n";
-        return false;
-      }
+    // Prepare training descriptors
+    std::vector<cv::Mat> training_descriptors;
+    SuperSLAM::SPBowVector::prepareTrainingData(all_keypoints, all_descriptors,
+                                                training_descriptors,
+                                                max_features_per_image);
 
-      std::sort(image_files.begin(), image_files.end());
+    if (training_descriptors.empty()) {
+      std::cerr << "No training descriptors prepared" << "\n";
+      return false;
+    }
 
-      if (max_images > 0 && static_cast<int>(image_files.size()) > max_images) {
-        image_files.resize(max_images);
-      }
+    std::cout << "Creating vocabulary with " << training_descriptors.size()
+              << " descriptors..." << "\n";
+    std::cout << "Vocabulary parameters: k=" << k << ", levels=" << levels
+              << "\n";
 
-      std::cout << "Processing " << image_files.size() << " images..."
+    // Create vocabulary
+    DBoW3::Vocabulary vocabulary;
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+
+    try {
+      vocabulary.create(training_descriptors, k, levels);
+
+      auto end_time = std::chrono::high_resolution_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::minutes>(
+          end_time - start_time);
+
+      std::cout << "Vocabulary created in " << duration.count() << " minutes"
+                << "\n";
+      std::cout << "Vocabulary size: " << vocabulary.size() << " words"
                 << "\n";
 
-      SPDLOG_INFO("Processing {} images...", image_files.size())
+      // Save vocabulary
+      std::cout << "Saving vocabulary to: " << output_path << "\n";
+      vocabulary.save(output_path);
 
-      all_keypoints.clear();
-      all_descriptors.clear();
-      all_keypoints.reserve(image_files.size());
-      all_descriptors.reserve(image_files.size());
+      std::cout << "Vocabulary saved successfully!" << "\n";
+      return true;
 
-      int  processed  = 0;
-      auto start_time = std::chrono::high_resolution_clock::now();
-
-      for (const auto& image_path : image_files) {
-        cv::Mat image = cv::imread(image_path, cv::IMREAD_COLOR);
-        if (image.empty()) {
-          std::cerr << "Failed to load image: " << image_path << "\n";
-          continue;
-        }
-
-        std::vector<cv::KeyPoint> keypoints;
-        cv::Mat                   descriptors;
-
-        if (extractFeatures(image, keypoints, descriptors)) {
-          all_keypoints.push_back(keypoints);
-          all_descriptors.push_back(descriptors);
-
-          processed++;
-          if (processed % 100 == 0) {
-            auto current_time = std::chrono::high_resolution_clock::now();
-            auto elapsed      = std::chrono::duration_cast<std::chrono::seconds>(current_time - start_time);
-            std::cout << "Processed " << processed << "/" << image_files.size() << " images ("
-                      << elapsed.count() << "s)" << "\n";
-          }
-        } else {
-          std::cerr << "Failed to extract features from: " << image_path << "\n";
-        }
-      }
-
-      std::cout << "Successfully processed " << processed << " images"
-                << "\n";
-      return processed > 0;
+    } catch (const std::exception& e) {
+      std::cerr << "Error creating vocabulary: " << e.what() << "\n";
+      return false;
     }
-
-    /**
-     * @brief Generate vocabulary from extracted features
-     */
-    bool generateVocabulary(const std::vector<std::vector<cv::KeyPoint>>& all_keypoints,
-                            const std::vector<cv::Mat>&                   all_descriptors,
-                            const std::string&                            output_path,
-                            int                                           k                      = 10,
-                            int                                           levels                 = 6,
-                            int                                           max_features_per_image = 500) {
-      if (all_keypoints.size() != all_descriptors.size()) {
-        std::cerr << "Keypoints and descriptors size mismatch" << "\n";
-        return false;
-      }
-
-      std::cout << "Preparing training data..." << "\n";
-
-      // Prepare training descriptors
-      std::vector<cv::Mat> training_descriptors;
-      SuperSLAM::SPBowVector::prepareTrainingData(all_keypoints,
-                                                  all_descriptors,
-                                                  training_descriptors,
-                                                  max_features_per_image);
-
-      if (training_descriptors.empty()) {
-        std::cerr << "No training descriptors prepared" << "\n";
-        return false;
-      }
-
-      std::cout << "Creating vocabulary with " << training_descriptors.size() << " descriptors..." << "\n";
-      std::cout << "Vocabulary parameters: k=" << k << ", levels=" << levels << "\n";
-
-      // Create vocabulary
-      DBoW3::Vocabulary vocabulary;
-
-      auto start_time = std::chrono::high_resolution_clock::now();
-
-      try {
-        vocabulary.create(training_descriptors, k, levels);
-
-        auto end_time = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::minutes>(end_time - start_time);
-
-        std::cout << "Vocabulary created in " << duration.count() << " minutes"
-                  << "\n";
-        std::cout << "Vocabulary size: " << vocabulary.size() << " words"
-                  << "\n";
-
-        // Save vocabulary
-        std::cout << "Saving vocabulary to: " << output_path << "\n";
-        vocabulary.save(output_path);
-
-        std::cout << "Vocabulary saved successfully!" << "\n";
-        return true;
-
-      } catch (const std::exception& e) {
-        std::cerr << "Error creating vocabulary: " << e.what() << "\n";
-        return false;
-      }
-    }
+  }
 };
 
 void printUsage() {
@@ -234,10 +243,12 @@ void printUsage() {
             << "\n";
   std::cout << "  --levels L               Depth levels (default: 6)"
             << "\n";
-  std::cout << "  --max-images N           Maximum images to process (default: all)"
-            << "\n";
-  std::cout << "  --max-features-per-image Maximum features per image (default: 500)"
-            << "\n";
+  std::cout
+      << "  --max-images N           Maximum images to process (default: all)"
+      << "\n";
+  std::cout
+      << "  --max-features-per-image Maximum features per image (default: 500)"
+      << "\n";
   std::cout << "\n";
   std::cout << "Example:" << "\n";
   std::cout << "  ./generate_sp_vocabulary utils/config.yaml weights/ "
@@ -254,29 +265,31 @@ int main(int argc, char** argv) {
   // Initialize logging
   SuperSLAM::Logger::initialize();
 
-  std::string config_path    = argv[ 1 ];
-  std::string model_dir      = argv[ 2 ];
-  std::string image_dir      = argv[ 3 ];
-  std::string output_vocab   = argv[ 4 ];
+  std::string config_path = argv[1];
+  std::string model_dir = argv[2];
+  std::string image_dir = argv[3];
+  std::string output_vocab = argv[4];
 
   // Parse optional arguments
-  int k                      = 10;
-  int levels                 = 6;
-  int max_images             = -1;
+  int k = 10;
+  int levels = 6;
+  int max_images = -1;
   int max_features_per_image = 500;
 
   for (int i = 5; i < argc; i += 2) {
-    if (i + 1 >= argc) { break; }
+    if (i + 1 >= argc) {
+      break;
+    }
 
-    std::string arg = argv[ i ];
+    std::string arg = argv[i];
     if (arg == "--k") {
-      k = std::stoi(argv[ i + 1 ]);
+      k = std::stoi(argv[i + 1]);
     } else if (arg == "--levels") {
-      levels = std::stoi(argv[ i + 1 ]);
+      levels = std::stoi(argv[i + 1]);
     } else if (arg == "--max-images") {
-      max_images = std::stoi(argv[ i + 1 ]);
+      max_images = std::stoi(argv[i + 1]);
     } else if (arg == "--max-features-per-image") {
-      max_features_per_image = std::stoi(argv[ i + 1 ]);
+      max_features_per_image = std::stoi(argv[i + 1]);
     }
   }
 
@@ -286,19 +299,17 @@ int main(int argc, char** argv) {
 
     SLOG_INFO("Processing images from: {}", image_dir);
     std::vector<std::vector<cv::KeyPoint>> all_keypoints;
-    std::vector<cv::Mat>                   all_descriptors;
+    std::vector<cv::Mat> all_descriptors;
 
-    if (!generator.processImageDirectory(image_dir, all_keypoints, all_descriptors, max_images)) {
+    if (!generator.processImageDirectory(image_dir, all_keypoints,
+                                         all_descriptors, max_images)) {
       SLOG_ERROR("Failed to process images");
       return 1;
     }
 
     SLOG_INFO("Generating vocabulary...");
-    if (!generator.generateVocabulary(all_keypoints,
-                                      all_descriptors,
-                                      output_vocab,
-                                      k,
-                                      levels,
+    if (!generator.generateVocabulary(all_keypoints, all_descriptors,
+                                      output_vocab, k, levels,
                                       max_features_per_image)) {
       SLOG_ERROR("Failed to generate vocabulary");
       return 1;

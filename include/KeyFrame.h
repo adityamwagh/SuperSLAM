@@ -87,10 +87,8 @@ class KeyFrame {
   MapPoint* GetMapPoint(const size_t& idx);
 
   // KeyPoint functions
-  std::vector<size_t> GetFeaturesInArea(
-      const float& x,
-      const float& y,
-      const float& r) const;
+  std::vector<size_t> GetFeaturesInArea(const float& x, const float& y,
+                                        const float& r) const;
   cv::Mat UnprojectStereo(int i);
 
   // Image
@@ -107,9 +105,7 @@ class KeyFrame {
   // Compute Scene Depth (q=2 median). Used in monocular.
   float ComputeSceneMedianDepth(const int q);
 
-  static bool weightComp(int a, int b) {
-    return a > b;
-  }
+  static bool weightComp(int a, int b) { return a > b; }
 
   static bool lId(KeyFrame* pKF1, KeyFrame* pKF2) {
     return pKF1->mnId < pKF2->mnId;
@@ -160,8 +156,8 @@ class KeyFrame {
   // KeyPoints, stereo coordinate and descriptors (all associated by an index)
   const std::vector<cv::KeyPoint> mvKeys;
   const std::vector<cv::KeyPoint> mvKeysUn;
-  const std::vector<float> mvuRight; // negative value for monocular points
-  const std::vector<float> mvDepth; // negative value for monocular points
+  const std::vector<float> mvuRight;  // negative value for monocular points
+  const std::vector<float> mvDepth;   // negative value for monocular points
   const cv::Mat mDescriptors;
 
   // BoW
@@ -194,7 +190,7 @@ class KeyFrame {
   cv::Mat Twc;
   cv::Mat Ow;
 
-  cv::Mat Cw; // Stereo middel point. Only for visualization
+  cv::Mat Cw;  // Stereo middel point. Only for visualization
 
   // MapPoints associated to keypoints
   std::vector<MapPoint*> mvpMapPoints;
@@ -221,7 +217,7 @@ class KeyFrame {
   bool mbToBeErased;
   bool mbBad;
 
-  float mHalfBaseline; // Only for visualization
+  float mHalfBaseline;  // Only for visualization
 
   Map* mpMap;
 
@@ -230,6 +226,6 @@ class KeyFrame {
   std::mutex mMutexFeatures;
 };
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM
 
-#endif // KEYFRAME_H
+#endif  // KEYFRAME_H

@@ -13,12 +13,28 @@
 #include <string>
 #include <vector>
 
-#include "ReadConfig.h"
+// Custom deleters for TensorRT objects
+// Note: In TensorRT 10.x, the destroy() method is replaced with delete
+namespace SuperSLAM {
 
+struct TRTRuntimeDeleter {
+  void operator()(nvinfer1::IRuntime* rt) { delete rt; }
+};
+
+struct TRTEngineDeleter {
+  void operator()(nvinfer1::ICudaEngine* engine) { delete engine; }
+};
+
+struct TRTContextDeleter {
+  void operator()(nvinfer1::IExecutionContext* context) { delete context; }
+};
+
+}  // namespace SuperSLAM
 
 class SuperPointTRT {
  public:
-  explicit SuperPointTRT(const SuperPointConfig& config);
+  explicit SuperPointTRT(const std::string& engine_file, int max_keypoints,
+                         double keypoint_threshold, int remove_borders);
   ~SuperPointTRT();
 
   bool initialize();
@@ -35,10 +51,10 @@ class SuperPointTRT {
     std::string name;
   };
 
-  SuperPointConfig config_;
-  nvinfer1::IRuntime* runtime_ = nullptr;
-  nvinfer1::ICudaEngine* engine_ = nullptr;
-  nvinfer1::IExecutionContext* context_ = nullptr;
+  std::unique_ptr<nvinfer1::IRuntime, SuperSLAM::TRTRuntimeDeleter> runtime_;
+  std::unique_ptr<nvinfer1::ICudaEngine, SuperSLAM::TRTEngineDeleter> engine_;
+  std::unique_ptr<nvinfer1::IExecutionContext, SuperSLAM::TRTContextDeleter>
+      context_;
   cudaStream_t stream_;
 
   std::vector<TensorInfo> input_tensors_;
@@ -46,6 +62,12 @@ class SuperPointTRT {
 
   int input_height_ = 0;
   int input_width_ = 0;
+
+  // Configuration parameters
+  std::string engine_file_;
+  int max_keypoints_;
+  double keypoint_threshold_;
+  int remove_borders_;
 
   bool loadEngine();
   bool allocateBuffers();

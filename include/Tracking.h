@@ -21,6 +21,7 @@
 #ifndef TRACKING_H
 #define TRACKING_H
 
+#include <memory>
 #include <mutex>
 #include <opencv4/opencv2/core/core.hpp>
 #include <opencv4/opencv2/features2d/features2d.hpp>
@@ -28,14 +29,13 @@
 #include "Frame.h"
 #include "Initializer.h"
 #include "KeyFrameDatabase.h"
-#include "SuperGlueTRT.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #include "Map.h"
-#include "ReadConfig.h"
 #include "RerunViewer.h"
 #include "SPExtractor.h"
 #include "SPVocabulary.h"
+#include "SuperGlueTRT.h"
 #include "System.h"
 
 namespace SuperSLAM {
@@ -72,8 +72,6 @@ class Tracking {
   // Use this function if you have deactivated local mapping and you only want
   // to localize the camera.
   void InformOnlyTracking(const bool& flag);
-
-  SuperGlueConfig GetSuperGlueConfig() const;
 
  public:
   // Tracking states
@@ -157,18 +155,15 @@ class Tracking {
   LoopClosing* mpLoopClosing;
 
   // SuperPoint feature extractors
-  SPextractor *mpSPextractorLeft, *mpSPextractorRight;
-  SPextractor* mpIniSPextractor;
-
-  // SuperPoint/SuperGlue configurations
-  std::shared_ptr<Configs> mpConfigs;
+  std::unique_ptr<SPextractor> mpSPextractorLeft, mpSPextractorRight;
+  std::unique_ptr<SPextractor> mpIniSPextractor;
 
   // BoW
   ORBVocabulary* mpORBVocabulary;
   KeyFrameDatabase* mpKeyFrameDB;
 
   // Initalization (only for monocular)
-  Initializer* mpInitializer;
+  std::unique_ptr<Initializer> mpInitializer;
 
   // Local Map
   KeyFrame* mpReferenceKF;
@@ -219,7 +214,7 @@ class Tracking {
   bool mbRGB;
 
   std::list<MapPoint*> mlpTemporalPoints;
-  
+
   // SuperGlue matcher for stereo matching
   std::shared_ptr<SuperGlueTRT> mpSuperGlueStereo;
 };

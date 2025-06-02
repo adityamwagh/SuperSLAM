@@ -50,7 +50,8 @@ class Frame {
   Frame(const cv::Mat& imLeft, const cv::Mat& imRight, const double& timeStamp,
         SPextractor* extractorLeft, SPextractor* extractorRight,
         ORBVocabulary* voc, cv::Mat& K, cv::Mat& distCoef, const float& bf,
-        const float& thDepth, std::shared_ptr<SuperGlueTRT> superglue = nullptr);
+        const float& thDepth,
+        std::shared_ptr<SuperGlueTRT> superglue = nullptr);
 
   // Constructor for RGB-D cameras.
   Frame(const cv::Mat& imGray, const cv::Mat& imDepth, const double& timeStamp,
@@ -62,7 +63,8 @@ class Frame {
         ORBVocabulary* voc, cv::Mat& K, cv::Mat& distCoef, const float& bf,
         const float& thDepth);
 
-  // Extract SuperPoint features on the image. 0 for left image and 1 for right image.
+  // Extract SuperPoint features on the image. 0 for left image and 1 for right
+  // image.
   void ExtractSP(int flag, const cv::Mat& im);
 
   // Compute Bag of Words representation.

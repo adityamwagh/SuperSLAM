@@ -221,7 +221,7 @@ void SPBowVector::prepareTrainingData(
     }
   }
 
-  SLOG_INFO("SPBowVector: Prepared {} training descriptors from {} images", 
+  SLOG_INFO("SPBowVector: Prepared {} training descriptors from {} images",
             training_descriptors.size(), descriptors_list.size());
 }
 

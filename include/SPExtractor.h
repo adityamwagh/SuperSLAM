@@ -25,7 +25,6 @@
 #include <opencv4/opencv2/opencv.hpp>
 #include <vector>
 
-#include "ReadConfig.h"
 #include "SuperPointTRT.h"
 
 #ifdef EIGEN_MPL2_ONLY
@@ -49,8 +48,8 @@ class ExtractorNode {
 
 class SPextractor {
  public:
-  SPextractor(int nfeatures,  // Only number of features and config needed
-              const SuperPointConfig& config);
+  SPextractor(int nfeatures, const std::string& engine_file, int max_keypoints,
+              double keypoint_threshold, int remove_borders);
 
   ~SPextractor() {}
 
@@ -69,7 +68,8 @@ class SPextractor {
   std::shared_ptr<SuperPointTRT> model;
 };
 
-// typedef SPextractor ORBextractor;  // Removed: No longer needed after refactoring
+// typedef SPextractor ORBextractor;  // Removed: No longer needed after
+// refactoring
 
 }  // namespace SuperSLAM
 

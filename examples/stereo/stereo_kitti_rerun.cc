@@ -18,303 +18,265 @@
  * along with SuperSLAM. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <Logging.h>
-#include <System.h>
+#include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <chrono>
-#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <opencv4/opencv2/core/core.hpp>
+#include <memory>
+#include <numeric>
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/opencv.hpp>
+#include <sstream>
+#include <string>
 #include <thread>
+#include <vector>
 
-namespace fs = std::filesystem;
+#include "System.h"
 
-struct StereoImages {
-  std::vector<std::string> left_filenames;
-  std::vector<std::string> right_filenames;
-  std::vector<double> timestamps;
-};
+namespace {
 
-StereoImages LoadImages(const fs::path& sequence_path) {
-  StereoImages images;
-  
-  // For KITTI stereo, we use image_0 (left) and image_1 (right) directories
-  const fs::path left_path = sequence_path / "image_0";
-  const fs::path right_path = sequence_path / "image_1";
-  const fs::path times_path = sequence_path / "times.txt";
+constexpr char kUsageMessage[] = R"(
+Usage: ./stereo_kitti_rerun vocabulary_path settings_file_path sequence_path
 
-  // Load timestamps
-  std::ifstream times_file(times_path);
-  if (times_file.is_open()) {
-    std::string line;
-    while (std::getline(times_file, line)) {
-      if (!line.empty()) { 
-        images.timestamps.push_back(std::stod(line)); 
-      }
-    }
-  } else {
-    // If no times.txt, generate timestamps at 10 Hz
-    SLOG_WARN("No times.txt found, generating timestamps at 10 Hz");
+Arguments:
+  vocabulary_path    - Path to the ORB vocabulary file
+  settings_file_path - Path to the settings file  
+  sequence_path      - Path to the KITTI sequence directory
+
+Example:
+  ./stereo_kitti_rerun vocabulary/ORBvoc.txt examples/stereo/KITTI00-02.yaml /path/to/kitti/sequences/00
+)";
+
+std::vector<std::string> LoadImages(const std::string& strFile,
+                                    std::vector<double>& vTimestamps) {
+  std::ifstream f(strFile.c_str());
+  if (!f.is_open()) {
+    spdlog::error("Failed to open timestamp file: {}", strFile);
+    return {};
   }
 
-  // Check if directories exist
-  if (!fs::exists(left_path)) {
-    throw std::runtime_error("Left camera directory does not exist: " + left_path.string());
-  }
-  if (!fs::exists(right_path)) {
-    throw std::runtime_error("Right camera directory does not exist: " + right_path.string());
-  }
+  std::vector<std::string> vstrImageFilenames;
+  std::string s;
+  while (std::getline(f, s) && !s.empty()) {
+    std::stringstream ss(s);
+    std::string timestamp_str;
+    if (std::getline(ss, timestamp_str)) {
+      vTimestamps.emplace_back(std::stod(timestamp_str));
 
-  SLOG_INFO("Loading from left: {}", left_path.string());
-  SLOG_INFO("Loading from right: {}", right_path.string());
-
-  // Load image filenames
-  std::vector<fs::path> left_files, right_files;
-
-  for (const auto& entry : fs::directory_iterator(left_path)) {
-    if (entry.path().extension() == ".png" || entry.path().extension() == ".jpg") {
-      left_files.push_back(entry.path());
+      // Construct image filename with proper zero-padding
+      std::stringstream filename_ss;
+      filename_ss << std::setfill('0') << std::setw(6) << vTimestamps.size() - 1
+                  << ".png";
+      vstrImageFilenames.emplace_back(filename_ss.str());
     }
   }
 
-  for (const auto& entry : fs::directory_iterator(right_path)) {
-    if (entry.path().extension() == ".png" || entry.path().extension() == ".jpg") {
-      right_files.push_back(entry.path());
-    }
-  }
-
-  // Sort files by name
-  std::sort(left_files.begin(), left_files.end());
-  std::sort(right_files.begin(), right_files.end());
-
-  // Ensure we have matching pairs
-  size_t n_images = std::min(left_files.size(), right_files.size());
-
-  SLOG_INFO("Found {} left images and {} right images", left_files.size(), right_files.size());
-
-  for (size_t i = 0; i < n_images; ++i) {
-    images.left_filenames.push_back(left_files[i].string());
-    images.right_filenames.push_back(right_files[i].string());
-
-    // Generate timestamp if not loaded from file
-    if (images.timestamps.size() <= i) {
-      images.timestamps.push_back(i * 0.1); // 10 Hz
-    }
-  }
-
-  if (n_images > 0) {
-    SLOG_DEBUG("First left image: {}", images.left_filenames[0]);
-    SLOG_DEBUG("First right image: {}", images.right_filenames[0]);
-  }
-
-  return images;
+  spdlog::info("Loaded {} images from timestamp file",
+               vstrImageFilenames.size());
+  return vstrImageFilenames;
 }
 
+bool ValidateInputs(const std::string& vocab_path,
+                    const std::string& settings_path,
+                    const std::string& sequence_path) {
+  // Check vocabulary file
+  if (!std::ifstream(vocab_path).good()) {
+    spdlog::error("Cannot open vocabulary file: {}", vocab_path);
+    return false;
+  }
+
+  // Check settings file
+  if (!std::ifstream(settings_path).good()) {
+    spdlog::error("Cannot open settings file: {}", settings_path);
+    return false;
+  }
+
+  // Check if sequence directory exists
+  const auto times_file = sequence_path + "/times.txt";
+  if (!std::ifstream(times_file).good()) {
+    spdlog::error("Cannot find times.txt in sequence directory: {}",
+                  times_file);
+    return false;
+  }
+
+  // Check if both image directories exist by trying to read sample images
+  const auto image_left_dir = sequence_path + "/image_0";
+  const auto image_right_dir = sequence_path + "/image_1";
+  const auto sample_left = image_left_dir + "/000000.png";
+  const auto sample_right = image_right_dir + "/000000.png";
+
+  if (!std::ifstream(sample_left).good()) {
+    spdlog::error("Cannot find left image directory or sample image: {}",
+                  sample_left);
+    return false;
+  }
+
+  if (!std::ifstream(sample_right).good()) {
+    spdlog::error("Cannot find right image directory or sample image: {}",
+                  sample_right);
+    return false;
+  }
+
+  return true;
+}
+
+std::pair<cv::Mat, cv::Mat> LoadStereoImages(const std::string& sequence_path,
+                                             const std::string& filename) {
+  const std::string left_path = sequence_path + "/image_0/" + filename;
+  const std::string right_path = sequence_path + "/image_1/" + filename;
+
+  cv::Mat left_img = cv::imread(left_path, cv::IMREAD_UNCHANGED);
+  cv::Mat right_img = cv::imread(right_path, cv::IMREAD_UNCHANGED);
+
+  if (left_img.empty()) {
+    spdlog::warn("Failed to load left image: {}", left_path);
+  }
+  if (right_img.empty()) {
+    spdlog::warn("Failed to load right image: {}", right_path);
+  }
+
+  return std::make_pair(std::move(left_img), std::move(right_img));
+}
+
+}  // namespace
+
 int main(int argc, char** argv) {
-  if (argc < 3 || argc > 5) {
-    std::cerr << "Usage: ./stereo_kitti_rerun [path_to_vocabulary] path_to_settings "
-                 "path_to_sequence [--no-viz]\n";
-    std::cerr << "       ./stereo_kitti_rerun path_to_settings "
-                 "path_to_sequence [--no-viz]  (no vocabulary mode)\n";
-    std::cerr << "\nExamples:\n";
-    std::cerr << "With ORB vocabulary (for loop closure):\n";
-    std::cerr << "./stereo_kitti_rerun vocabulary/ORBvoc.txt "
-                 "examples/stereo/KITTI00-02.yaml "
-                 "/path/to/KITTI/dataset/sequences/00\n";
-    std::cerr << "\nWithout vocabulary (SuperPoint only - no loop closure):\n";
-    std::cerr << "./stereo_kitti_rerun "
-                 "examples/stereo/KITTI00-02.yaml "
-                 "/path/to/KITTI/dataset/sequences/00 --no-viz\n";
-    std::cerr << "\nFeatures:\n";
-    std::cerr << "- Stereo camera trajectory and poses\n";
-    std::cerr << "- 3D map points from stereo triangulation\n";
-    std::cerr << "- SuperPoint keypoints on both images\n";
-    std::cerr << "- Coordinate system relative to most recent keyframe\n";
-    std::cerr << "- Real-time processing statistics\n";
-    std::cerr << "- Video-like sequential playback\n";
-    std::cerr << "\nOptions:\n";
-    std::cerr << "- --no-viz: Disable visualization for maximum framerate\n";
-    std::cerr << "\nNOTE: Without vocabulary, loop closure detection is "
-                 "disabled but SLAM still works!\n";
-    std::cerr << "View at http://localhost:9090\n";
+  // Configure spdlog
+  spdlog::set_level(spdlog::level::info);
+  spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
+
+  if (argc != 4) {
+    spdlog::error("Wrong number of arguments");
+    std::cout << kUsageMessage << std::endl;
     return 1;
   }
 
-  try {
-    // Initialize logging
-    SuperSLAM::Logger::initialize();
+  const std::string vocab_path = argv[1];
+  const std::string settings_file = argv[2];
+  const std::string sequence_path = argv[3];
 
-    // Parse command line arguments
-    std::string vocab_path = "";
-    std::string settings_path = "";
-    std::string sequence_path = "";
-    bool enable_visualization = true;
+  spdlog::info(
+      "Starting SuperSLAM Stereo KITTI Example with Rerun Visualization");
+  spdlog::info("Vocabulary: {}", vocab_path);
+  spdlog::info("Settings: {}", settings_file);
+  spdlog::info("Sequence: {}", sequence_path);
 
-    if (argc == 3 || (argc == 4 && std::string(argv[3]) == "--no-viz")) {
-      // No vocabulary mode
-      settings_path = argv[1];
-      sequence_path = argv[2];
-      if (argc == 4) enable_visualization = false;
-      SLOG_INFO("Running in no-vocabulary mode (loop closure disabled)");
-    } else {
-      // With vocabulary mode
-      vocab_path = argv[1];
-      settings_path = argv[2];
-      sequence_path = argv[3];
-      if (argc == 5 && std::string(argv[4]) == "--no-viz") {
-        enable_visualization = false;
-      }
-      SLOG_INFO("Running with vocabulary: {}", vocab_path);
-    }
-
-    if (!enable_visualization) {
-      SLOG_INFO("Visualization disabled for maximum performance");
-    }
-
-    // Retrieve paths to images
-    const fs::path path_to_sequence(sequence_path);
-
-    SLOG_INFO("Loading KITTI stereo images from: {}", path_to_sequence.string());
-    StereoImages images = LoadImages(path_to_sequence);
-
-    int nImages = images.left_filenames.size();
-    SLOG_INFO("Loaded {} stereo pairs", nImages);
-
-    // Create SLAM system with or without visualization
-    SLOG_INFO("Initializing SuperSLAM stereo system{}...",
-              enable_visualization ? " with Rerun visualization"
-                                   : " (no visualization)");
-
-    SuperSLAM::System SLAM(vocab_path.empty() ? "" : vocab_path.c_str(),
-                           settings_path.c_str(), SuperSLAM::System::STEREO,
-                           enable_visualization);
-
-    SLOG_INFO("\n=== KITTI Stereo SLAM {} ===",
-              enable_visualization ? "with Rerun" : "(High Performance Mode)");
-    SLOG_INFO("Dataset: {}", path_to_sequence.string());
-    SLOG_INFO("Stereo pairs: {}", nImages);
-    SLOG_INFO("Feature extractor: SuperPoint (ORB-free!)");
-    if (vocab_path.empty()) {
-      SLOG_INFO("Loop closure: DISABLED (no vocabulary)");
-    } else {
-      SLOG_INFO("Loop closure: ENABLED with vocabulary");
-    }
-    if (enable_visualization) {
-      SLOG_INFO("Visualization: http://localhost:9090");
-    }
-    SLOG_INFO("================================\n");
-
-    // Vector for tracking time statistics
-    std::vector<float> vTimesTrack(nImages);
-
-    // Performance tracking
-    int nLostFrames = 0;
-
-    // Main processing loop
-    cv::Mat imLeft, imRight;
-    auto start_time = std::chrono::steady_clock::now();
-
-    for (int ni = 0; ni < nImages; ni++) {
-      // Read stereo images
-      imLeft = cv::imread(images.left_filenames[ni], cv::IMREAD_UNCHANGED);
-      imRight = cv::imread(images.right_filenames[ni], cv::IMREAD_UNCHANGED);
-      double tframe = images.timestamps[ni];
-
-      if (imLeft.empty() || imRight.empty()) {
-        SLOG_ERROR("Failed to load stereo pair: {} | {}", 
-                   images.left_filenames[ni], images.right_filenames[ni]);
-        continue;
-      }
-
-      auto t1 = std::chrono::steady_clock::now();
-
-      // Pass stereo images to SLAM system
-      cv::Mat pose = SLAM.TrackStereo(imLeft, imRight, tframe);
-      int tracking_state = SLAM.GetTrackingState();
-
-      auto t2 = std::chrono::steady_clock::now();
-
-      double ttrack =
-          std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1)
-              .count();
-
-      vTimesTrack[ni] = ttrack;
-
-      // Track performance metrics
-      if (tracking_state == 3) {  // LOST state
-        nLostFrames++;
-      }
-
-      // Print progress every 50 frames for KITTI sequences
-      if (ni % 50 == 0 && ni > 0) {
-        auto elapsed = std::chrono::steady_clock::now() - start_time;
-        double elapsed_seconds = std::chrono::duration<double>(elapsed).count();
-        double fps = ni / elapsed_seconds;
-
-        SLOG_INFO(
-            "Frame {}/{} | FPS: {:.1f} | Track: {:.3f}ms | Lost: {} | State: "
-            "{}",
-            ni, nImages, fps, ttrack * 1000, nLostFrames,
-            (tracking_state == -1)  ? "SYSTEM_NOT_READY"
-            : (tracking_state == 0) ? "NO_IMAGES_YET"
-            : (tracking_state == 1) ? "NOT_INITIALIZED"
-            : (tracking_state == 2) ? "OK"
-            : (tracking_state == 3) ? "LOST"
-                                    : "UNKNOWN");
-        
-        // Print additional debug info for visualization
-        if (tracking_state == 2) {
-          SLOG_INFO("  → Tracked keypoints: {}", SLAM.GetTrackedKeyPointsUn().size());
-          if (enable_visualization) {
-            SLOG_INFO("  → Visualization available at: http://localhost:9090");
-          }
-        } else if (tracking_state == 1) {
-          SLOG_WARN("  → System still initializing - need good stereo matches for triangulation");
-        }
-      }
-
-      // Maintain real-time processing rate for KITTI (10 Hz)
-      if (ttrack < 0.1) {
-        std::this_thread::sleep_for(std::chrono::microseconds(static_cast<long>((0.1 - ttrack) * 1e6)));
-      }
-    }
-
-    SLOG_INFO("\nProcessing complete. Finalizing...");
-
-    // Stop all threads
-    SLAM.Shutdown();
-
-    // Final statistics
-    std::sort(vTimesTrack.begin(), vTimesTrack.end());
-    float totaltime =
-        std::accumulate(vTimesTrack.begin(), vTimesTrack.end(), 0.0f);
-
-    SLOG_INFO("\n=== Performance Summary ===");
-    SLOG_INFO("Total stereo pairs: {}", nImages);
-    SLOG_INFO("Median tracking time: {} ms", vTimesTrack[nImages / 2] * 1000);
-    SLOG_INFO("Mean tracking time: {} ms", (totaltime / nImages) * 1000);
-    SLOG_INFO("Average FPS: {}", nImages / totaltime);
-    SLOG_INFO("Lost frames: {} ({}%)", nLostFrames,
-              (100.0 * nLostFrames / nImages));
-
-    // Save trajectory
-    SLOG_INFO("\nSaving trajectories...");
-    SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory_KITTI_stereo.txt");
-    SLAM.SaveTrajectoryTUM("CameraTrajectory_KITTI_stereo.txt");
-    SLAM.SaveTrajectoryKITTI("CameraTrajectory_KITTI_stereo_format.txt");
-
-    SLOG_INFO("Saved:");
-    SLOG_INFO("- KeyFrameTrajectory_KITTI_stereo.txt");
-    SLOG_INFO("- CameraTrajectory_KITTI_stereo.txt");
-    SLOG_INFO("- CameraTrajectory_KITTI_stereo_format.txt");
-
-  } catch (const std::exception& e) {
-    SLOG_ERROR("Error: {}", e.what());
+  if (!ValidateInputs(vocab_path, settings_file, sequence_path)) {
     return 1;
   }
 
+  // Retrieve paths to images
+  std::vector<std::string> vstrImageFilenames;
+  std::vector<double> vTimestamps;
+  const std::string times_file = sequence_path + "/times.txt";
+
+  vstrImageFilenames = LoadImages(times_file, vTimestamps);
+  const std::size_t nImages = vstrImageFilenames.size();
+
+  if (nImages == 0) {
+    spdlog::error("No images found in sequence");
+    return 1;
+  }
+
+  spdlog::info("Found {} stereo image pairs in sequence", nImages);
+
+  // Initialize the SLAM system with Rerun viewer enabled
+  spdlog::info("Initializing SLAM system (this may take a moment)...");
+  auto slam_system = std::make_unique<SuperSLAM::System>(
+      vocab_path, settings_file, SuperSLAM::System::STEREO, true);
+
+  if (!slam_system) {
+    spdlog::error("Failed to initialize SLAM system");
+    return 1;
+  }
+
+  spdlog::info("SLAM system initialized successfully");
+
+  // Vector for tracking results
+  std::vector<float> vTimesTrack;
+  vTimesTrack.resize(nImages);
+
+  // Main loop
+  spdlog::info("Starting main tracking loop");
+
+  for (std::size_t ni = 0; ni < nImages; ++ni) {
+    // Read stereo images from file
+    auto [imLeft, imRight] =
+        LoadStereoImages(sequence_path, vstrImageFilenames[ni]);
+
+    if (imLeft.empty() || imRight.empty()) {
+      spdlog::error("Failed to load stereo pair for frame {}: {}", ni,
+                    vstrImageFilenames[ni]);
+      continue;
+    }
+
+    const double tframe = vTimestamps[ni];
+
+    // Start timing
+    const auto t1 = std::chrono::steady_clock::now();
+
+    // Pass the stereo images to the SLAM system
+    cv::Mat Tcw = slam_system->TrackStereo(imLeft, imRight, tframe);
+
+    const auto t2 = std::chrono::steady_clock::now();
+
+    const auto ttrack =
+        std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+    vTimesTrack[ni] = ttrack / 1000.0f;  // Convert to milliseconds
+
+    // Log progress
+    if ((ni + 1) % 50 == 0 || ni == 0) {
+      spdlog::info("Processed stereo frame {}/{} - Tracking time: {:.2f}ms",
+                   ni + 1, nImages, vTimesTrack[ni]);
+    }
+
+    // Small delay to allow processing and reduce Rerun logging frequency
+    if (ni < nImages - 1) {
+      const double T = vTimestamps[ni + 1] - tframe;
+      const auto min_delay =
+          std::chrono::milliseconds(10);  // Minimum 10ms delay
+      if (ttrack < T * 1000000.0) {
+        const auto target_delay = std::chrono::microseconds(
+            static_cast<long long>(T * 1000000.0 - ttrack));
+        std::this_thread::sleep_for(std::max(
+            min_delay, std::chrono::duration_cast<std::chrono::milliseconds>(
+                           target_delay)));
+      } else {
+        std::this_thread::sleep_for(min_delay);
+      }
+    }
+  }
+
+  spdlog::info("Main tracking loop completed");
+
+  // Stop all threads
+  slam_system->Shutdown();
+
+  // Tracking time statistics
+  std::sort(vTimesTrack.begin(), vTimesTrack.end());
+  const float totaltime =
+      std::accumulate(vTimesTrack.begin(), vTimesTrack.end(), 0.0f);
+
+  spdlog::info("=== Tracking Performance Statistics ===");
+  spdlog::info("Number of processed frames: {}", nImages);
+  spdlog::info("Mean tracking time: {:.3f}ms", totaltime / nImages);
+  spdlog::info("Median tracking time: {:.3f}ms", vTimesTrack[nImages / 2]);
+  spdlog::info("Total tracking time: {:.3f}s", totaltime / 1000.0f);
+
+  // Save trajectory in KITTI format
+  const std::string trajectory_file = "KeyFrameTrajectory_KITTI_stereo.txt";
+  slam_system->SaveKeyFrameTrajectoryTUM(trajectory_file);
+  spdlog::info("Trajectory saved to: {}", trajectory_file);
+
+  // Save KITTI format trajectory (for stereo/RGBD datasets)
+  const std::string kitti_trajectory_file = "CameraTrajectory_KITTI_stereo.txt";
+  slam_system->SaveTrajectoryKITTI(kitti_trajectory_file);
+  spdlog::info("KITTI format trajectory saved to: {}", kitti_trajectory_file);
+
+  spdlog::info("SuperSLAM Stereo KITTI Example completed successfully");
   return 0;
 }

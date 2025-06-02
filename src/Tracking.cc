@@ -35,7 +35,6 @@
 #include "Map.h"
 #include "Optimizer.h"
 #include "PnPsolver.h"
-#include "ReadConfig.h"
 #include "SPMatcher.h"
 
 namespace SuperSLAM {
@@ -49,7 +48,7 @@ Tracking::Tracking(System* pSys, ORBVocabulary* pVoc, Map* pMap,
       mbVO(false),
       mpORBVocabulary(pVoc),
       mpKeyFrameDB(pKFDB),
-      mpInitializer(static_cast<Initializer*>(NULL)),
+      mpInitializer(nullptr),
       mpSystem(pSys),
       mpViewer(NULL),
       mpMap(pMap),
@@ -123,20 +122,33 @@ Tracking::Tracking(System* pSys, ORBVocabulary* pVoc, Map* pMap,
   int fIniThFAST = fSettings["ORBextractor.iniThFAST"];
   int fMinThFAST = fSettings["ORBextractor.minThFAST"];
 
-  // Load SuperPoint/SuperGlue configuration
-  std::string configPath = fSettings["SuperPoint.config_file"];
+  // Load SuperPoint/SuperGlue configuration directly from settings
   std::string modelDir = fSettings["SuperPoint.model_dir"];
-  mpConfigs = std::make_shared<Configs>(configPath, modelDir);
 
-  mpSPextractorLeft =
-      new SuperSLAM::SPextractor(nFeatures, mpConfigs->superpoint_config);
+  // Read SuperPoint parameters
+  int sp_max_keypoints = fSettings["superpoint"]["max_keypoints"];
+  double sp_keypoint_threshold = fSettings["superpoint"]["keypoint_threshold"];
+  int sp_remove_borders = fSettings["superpoint"]["remove_borders"];
+  std::string sp_engine_file =
+      modelDir + "/" + std::string(fSettings["superpoint"]["engine_file"]);
+
+  mpSPextractorLeft = std::make_unique<SuperSLAM::SPextractor>(
+      nFeatures, sp_engine_file, sp_max_keypoints, sp_keypoint_threshold,
+      sp_remove_borders);
 
   if (sensor == System::STEREO) {
-    mpSPextractorRight =
-        new SuperSLAM::SPextractor(nFeatures, mpConfigs->superpoint_config);
-    
+    mpSPextractorRight = std::make_unique<SuperSLAM::SPextractor>(
+        nFeatures, sp_engine_file, sp_max_keypoints, sp_keypoint_threshold,
+        sp_remove_borders);
+
     // Initialize SuperGlue for stereo matching
-    mpSuperGlueStereo = std::make_shared<SuperGlueTRT>(mpConfigs->superglue_config);
+    int sg_image_width = fSettings["superglue"]["image_width"];
+    int sg_image_height = fSettings["superglue"]["image_height"];
+    std::string sg_engine_file =
+        modelDir + "/" + std::string(fSettings["superglue"]["engine_file"]);
+
+    mpSuperGlueStereo = std::make_shared<SuperGlueTRT>(
+        sg_engine_file, sg_image_width, sg_image_height);
     if (!mpSuperGlueStereo->initialize()) {
       SLOG_ERROR("Failed to initialize SuperGlue for stereo matching!");
       mpSuperGlueStereo.reset();
@@ -146,8 +158,9 @@ Tracking::Tracking(System* pSys, ORBVocabulary* pVoc, Map* pMap,
   }
 
   if (sensor == System::MONOCULAR) {
-    mpIniSPextractor =
-        new SuperSLAM::SPextractor(2 * nFeatures, mpConfigs->superpoint_config);
+    mpIniSPextractor = std::make_unique<SuperSLAM::SPextractor>(
+        2 * nFeatures, sp_engine_file, sp_max_keypoints, sp_keypoint_threshold,
+        sp_remove_borders);
   }
 
   SLOG_INFO("SuperPoint Extractor Parameters:");
@@ -212,9 +225,9 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat& imRectLeft,
   mImGrayRight = imGrayRight.clone();
 
   mCurrentFrame =
-      Frame(mImGray, imGrayRight, timestamp, mpSPextractorLeft,
-            mpSPextractorRight, mpORBVocabulary, mK, mDistCoef, mbf, mThDepth,
-            mpSuperGlueStereo);
+      Frame(mImGray, imGrayRight, timestamp, mpSPextractorLeft.get(),
+            mpSPextractorRight.get(), mpORBVocabulary, mK, mDistCoef, mbf,
+            mThDepth, mpSuperGlueStereo);
 
   Track();
 
@@ -244,7 +257,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat& imRGB, const cv::Mat& imD,
     imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
   }
 
-  mCurrentFrame = Frame(mImGray, imDepth, timestamp, mpSPextractorLeft,
+  mCurrentFrame = Frame(mImGray, imDepth, timestamp, mpSPextractorLeft.get(),
                         mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
 
   Track();
@@ -271,10 +284,10 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat& im,
   }
 
   if (mState == NOT_INITIALIZED || mState == NO_IMAGES_YET) {
-    mCurrentFrame = Frame(mImGray, timestamp, mpIniSPextractor,
+    mCurrentFrame = Frame(mImGray, timestamp, mpIniSPextractor.get(),
                           mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
   } else {
-    mCurrentFrame = Frame(mImGray, timestamp, mpSPextractorLeft,
+    mCurrentFrame = Frame(mImGray, timestamp, mpSPextractorLeft.get(),
                           mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
   }
 
@@ -588,11 +601,7 @@ void Tracking::MonocularInitialization() {
         mvbPrevMatched[i] = mCurrentFrame.mvKeysUn[i].pt;
       }
 
-      if (mpInitializer) {
-        delete mpInitializer;
-      }
-
-      mpInitializer = new Initializer(mCurrentFrame, 1.0, 200);
+      mpInitializer = std::make_unique<Initializer>(mCurrentFrame, 1.0, 200);
 
       fill(mvIniMatches.begin(), mvIniMatches.end(), -1);
 
@@ -601,21 +610,19 @@ void Tracking::MonocularInitialization() {
   } else {
     // Try to initialize
     if ((int)mCurrentFrame.mvKeys.size() <= 100) {
-      delete mpInitializer;
-      mpInitializer = static_cast<Initializer*>(NULL);
+      mpInitializer.reset();
       fill(mvIniMatches.begin(), mvIniMatches.end(), -1);
       return;
     }
 
     // Find correspondences
-    SPmatcher matcher(0.9, true, mpConfigs->superglue_config);
+    SPmatcher matcher(0.9, true);
     int nmatches = matcher.SearchForInitialization(
         mInitialFrame, mCurrentFrame, mvbPrevMatched, mvIniMatches, 100);
     SLOG_INFO("Matches {}", nmatches);
     // Check if there are enough correspondences
     if (nmatches < 100) {
-      delete mpInitializer;
-      mpInitializer = static_cast<Initializer*>(NULL);
+      mpInitializer.reset();
       return;
     }
 
@@ -736,6 +743,12 @@ void Tracking::CreateInitialMapMonocular() {
 
   mpLocalMapper->InsertKeyFrame(pKFini);
   mpLocalMapper->InsertKeyFrame(pKFcur);
+
+  // Log keyframes to RerunViewer
+  if (mpViewer) {
+    mpViewer->LogKeyFrame(pKFini);
+    mpViewer->LogKeyFrame(pKFcur);
+  }
 
   mCurrentFrame.SetPose(pKFcur->GetPose());
   mnLastKeyFrameId = mCurrentFrame.mnId;
@@ -1150,6 +1163,11 @@ void Tracking::CreateNewKeyFrame() {
 
   mpLocalMapper->InsertKeyFrame(pKF);
 
+  // Log keyframe to RerunViewer
+  if (mpViewer) {
+    mpViewer->LogKeyFrame(pKF);
+  }
+
   mpLocalMapper->SetNotStop(false);
 
   mnLastKeyFrameId = mCurrentFrame.mnId;
@@ -1372,7 +1390,7 @@ bool Tracking::Relocalization() {
   // If enough matches are found we setup a PnP solver
   SPmatcher matcher(0.75, true);
 
-  std::vector<PnPsolver*> vpPnPsolvers;
+  std::vector<std::unique_ptr<PnPsolver>> vpPnPsolvers;
   vpPnPsolvers.resize(nKFs);
 
   std::vector<std::vector<MapPoint*>> vvpMapPointMatches;
@@ -1394,10 +1412,10 @@ bool Tracking::Relocalization() {
         vbDiscarded[i] = true;
         continue;
       } else {
-        PnPsolver* pSolver =
-            new PnPsolver(mCurrentFrame, vvpMapPointMatches[i]);
+        auto pSolver =
+            std::make_unique<PnPsolver>(mCurrentFrame, vvpMapPointMatches[i]);
         pSolver->SetRansacParameters(0.99, 10, 300, 4, 0.5, 5.991);
-        vpPnPsolvers[i] = pSolver;
+        vpPnPsolvers[i] = std::move(pSolver);
         nCandidates++;
       }
     }
@@ -1419,7 +1437,7 @@ bool Tracking::Relocalization() {
       int nInliers;
       bool bNoMore;
 
-      PnPsolver* pSolver = vpPnPsolvers[i];
+      PnPsolver* pSolver = vpPnPsolvers[i].get();
       cv::Mat Tcw = pSolver->iterate(5, bNoMore, vbInliers, nInliers);
 
       // If Ransac reachs max. iterations discard keyframe
@@ -1541,10 +1559,7 @@ void Tracking::Reset() {
   Frame::nNextId = 0;
   mState = NO_IMAGES_YET;
 
-  if (mpInitializer) {
-    delete mpInitializer;
-    mpInitializer = static_cast<Initializer*>(NULL);
-  }
+  mpInitializer.reset();
 
   mlRelativeFramePoses.clear();
   mlpReferences.clear();
@@ -1588,9 +1603,5 @@ void Tracking::ChangeCalibration(const std::string& strSettingPath) {
 }
 
 void Tracking::InformOnlyTracking(const bool& flag) { mbOnlyTracking = flag; }
-
-SuperGlueConfig Tracking::GetSuperGlueConfig() const {
-  return mpConfigs->superglue_config;
-}
 
 }  // namespace SuperSLAM

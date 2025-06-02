@@ -22,11 +22,10 @@
 
 #include <thread>
 
+#include "Logging.h"
 #include "Optimizer.h"
 #include "Random.h"
 #include "SPMatcher.h"
-#include "thirdparty/DBoW2/DUtils/Random.h"
-#include "Logging.h"
 
 namespace SuperSLAM {
 
@@ -61,6 +60,12 @@ bool Initializer::Initialize(const Frame &CurrentFrame,
   }
 
   const int N = mvMatches12.size();
+
+  SLOG_INFO("Initialization attempt: {} matches between frames", N);
+  if (N < 50) {
+    SLOG_WARN("Insufficient matches for initialization: {} < 50", N);
+    return false;
+  }
 
   // Indices for minimum set selection
   std::vector<size_t> vAllIndices;
@@ -108,15 +113,17 @@ bool Initializer::Initialize(const Frame &CurrentFrame,
 
   // Compute ratio of scores
   float RH = SH / (SH + SF);
+  
+  SLOG_INFO("Homography score: {}, Fundamental score: {}, Ratio: {}", SH, SF, RH);
 
   // Try to reconstruct from homography or fundamental depending on the ratio
   // (0.40-0.45)
   if (RH > 0.40)
     return ReconstructH(vbMatchesInliersH, H, mK, R21, t21, vP3D,
-                        vbTriangulated, 1.0, 50);
+                        vbTriangulated, 0.5, 25);
   else  // if(pF_HF>0.6)
     return ReconstructF(vbMatchesInliersF, F, mK, R21, t21, vP3D,
-                        vbTriangulated, 1.0, 50);
+                        vbTriangulated, 0.5, 25);
 
   return false;
 }

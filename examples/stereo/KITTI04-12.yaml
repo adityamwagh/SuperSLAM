@@ -39,18 +39,18 @@ SuperPoint.config_file: "utils/config.yaml"
 
 # SuperPoint model directory (where .engine files are located)
 SuperPoint.model_dir: "weights/"
+superpoint:
+  max_keypoints: 600
+  keypoint_threshold: 0.005
+  remove_borders: 4
+  input_tensor_names:
+    - "input"
+  output_tensor_names:
+    - "scores"
+    - "descriptors"
+  onnx_file: "superpoint_v1_sim_int32.onnx"
+  engine_file: "superpoint_v1_sim_int32.engine"
+  dla_core: -1
 
-#--------------------------------------------------------------------------------------------
-# Viewer Parameters
-#--------------------------------------------------------------------------------------------
-Viewer.KeyFrameSize: 0.6
-Viewer.KeyFrameLineWidth: 2
-Viewer.GraphLineWidth: 1
-Viewer.PointSize: 2
-Viewer.CameraSize: 0.7
-Viewer.CameraLineWidth: 3
-Viewer.ViewpointX: 0
-Viewer.ViewpointY: -100
-Viewer.ViewpointZ: -0.1
-Viewer.ViewpointF: 2000
+
 

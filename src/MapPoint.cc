@@ -22,8 +22,8 @@
 
 #include <mutex>
 
-#include "SPMatcher.h"
 #include "Logging.h"
+#include "SPMatcher.h"
 
 namespace SuperSLAM {
 
