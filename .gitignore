@@ -53,18 +53,11 @@ lib/
 .cache
 data/
 
-mono_euroc
-mono_kitti
-mono_tum
-rgbd_tum
-stereo_euroc
-stereo_kitti
-mono_rerun
-mono_tum_rerun
-new_mono_tum
-rgbd_rerun
-stereo_euroc_rerun
-stereo_kitti_rerun
-
 KeyFrameTrajectory_EuRoC.txt
 build_engines
+superslam.log
+examples/monocular/mono_kitti_rerun
+examples/stereo/stereo_kitti_no_viewer
+examples/stereo/stereo_kitti_rerun
+test_example_simple
+test_simple_visualization
