@@ -143,21 +143,21 @@ sudo apt-get install -y --no-install-recommends \
 # Install CUDA-related packages
 echo "-- Installing TensorRT and cuDNN for CUDA 11.8..."
 sudo apt-get install -y --no-install-recommends \
-    libcudnn8=8.9.7.29-1+cuda11.8 \
-    libcudnn8-dev=8.9.7.29-1+cuda11.8 \
-    libnvinfer8=8.5.3-1+cuda11.8 \
-    libnvinfer-plugin8=8.5.3-1+cuda11.8 \
-    libnvinfer-plugin-dev=8.5.3-1+cuda11.8 \
-    libnvinfer-bin=8.5.3-1+cuda11.8 \
-    libnvinfer-dev=8.5.3-1+cuda11.8 \
-    libnvinfer-samples=8.5.3-1+cuda11.8 \
-    libnvonnxparsers8=8.5.3-1+cuda11.8 \
-    libnvonnxparsers-dev=8.5.3-1+cuda11.8 \
-    libnvparsers8=8.5.3-1+cuda11.8 \
-    libnvparsers-dev=8.5.3-1+cuda11.8 \
-    tensorrt=8.5.3.1-1+cuda11.8 \
-    tensorrt-dev=8.5.3.1-1+cuda11.8 \
-    tensorrt-libs=8.5.3.1-1+cuda11.8
+    libcudnn8=10*cuda11.8 \
+    libcudnn8-dev=10*cuda11.8 \
+    libnvinfer8=10*cuda11.8 \
+    libnvinfer-plugin8=10*cuda11.8 \
+    libnvinfer-plugin-dev=10*cuda11.8 \
+    libnvinfer-bin=10*cuda11.8 \
+    libnvinfer-dev=10*cuda11.8 \
+    libnvinfer-samples=10*cuda11.8 \
+    libnvonnxparsers8=10*cuda11.8 \
+    libnvonnxparsers-dev=10*cuda11.8 \
+    libnvparsers8=10*cuda11.8 \
+    libnvparsers-dev=10*cuda11.8 \
+    tensorrt=10*cuda11.8 \
+    tensorrt-dev=10*cuda11.8 \
+    tensorrt-libs=10*cuda11.8
 
 # Optional ROS 2 Humble installation
 if prompt_yes_no "-- Do you want to install ROS 2 Humble and run ROS 2 examples?"; then
