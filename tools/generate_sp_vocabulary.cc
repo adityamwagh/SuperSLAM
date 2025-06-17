@@ -24,7 +24,6 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <memory>
 #include <opencv4/opencv2/opencv.hpp>
 #include <string>
@@ -59,8 +58,7 @@ class SPVocabularyGenerator {
       throw std::runtime_error("Failed to initialize SuperPointTRT");
     }
 
-    std::cout << "SuperPoint initialized successfully for vocabulary generation"
-              << "\n";
+    SLOG_INFO("SuperPoint initialized successfully for vocabulary generation");
   }
 
   /**
@@ -102,7 +100,7 @@ class SPVocabularyGenerator {
     }
 
     if (image_files.empty()) {
-      std::cerr << "No image files found in directory: " << image_dir << "\n";
+      SLOG_ERROR("No image files found in directory: {}", image_dir);
       return false;
     }
 
@@ -112,10 +110,7 @@ class SPVocabularyGenerator {
       image_files.resize(max_images);
     }
 
-    std::cout << "Processing " << image_files.size() << " images..."
-              << "\n";
-
-    SPDLOG_INFO("Processing {} images...", image_files.size())
+    SLOG_INFO("Processing {} images...", image_files.size());
 
     all_keypoints.clear();
     all_descriptors.clear();
@@ -128,7 +123,7 @@ class SPVocabularyGenerator {
     for (const auto& image_path : image_files) {
       cv::Mat image = cv::imread(image_path, cv::IMREAD_COLOR);
       if (image.empty()) {
-        std::cerr << "Failed to load image: " << image_path << "\n";
+        SLOG_WARN("Failed to load image: {}", image_path);
         continue;
       }
 
@@ -144,16 +139,14 @@ class SPVocabularyGenerator {
           auto current_time = std::chrono::high_resolution_clock::now();
           auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
               current_time - start_time);
-          std::cout << "Processed " << processed << "/" << image_files.size()
-                    << " images (" << elapsed.count() << "s)" << "\n";
+          SLOG_INFO("Processed {}/{} images ({}s)", processed, image_files.size(), elapsed.count());
         }
       } else {
-        std::cerr << "Failed to extract features from: " << image_path << "\n";
+        SLOG_WARN("Failed to extract features from: {}", image_path);
       }
     }
 
-    std::cout << "Successfully processed " << processed << " images"
-              << "\n";
+    SLOG_INFO("Successfully processed {} images", processed);
     return processed > 0;
   }
 
@@ -166,11 +159,11 @@ class SPVocabularyGenerator {
       const std::string& output_path, int k = 10, int levels = 6,
       int max_features_per_image = 500) {
     if (all_keypoints.size() != all_descriptors.size()) {
-      std::cerr << "Keypoints and descriptors size mismatch" << "\n";
+      SLOG_ERROR("Keypoints and descriptors size mismatch");
       return false;
     }
 
-    std::cout << "Preparing training data..." << "\n";
+    SLOG_INFO("Preparing training data...");
 
     // Prepare training descriptors
     std::vector<cv::Mat> training_descriptors;
@@ -179,14 +172,12 @@ class SPVocabularyGenerator {
                                                 max_features_per_image);
 
     if (training_descriptors.empty()) {
-      std::cerr << "No training descriptors prepared" << "\n";
+      SLOG_ERROR("No training descriptors prepared");
       return false;
     }
 
-    std::cout << "Creating vocabulary with " << training_descriptors.size()
-              << " descriptors..." << "\n";
-    std::cout << "Vocabulary parameters: k=" << k << ", levels=" << levels
-              << "\n";
+    SLOG_INFO("Creating vocabulary with {} descriptors...", training_descriptors.size());
+    SLOG_INFO("Vocabulary parameters: k={}, levels={}", k, levels);
 
     // Create vocabulary
     DBoW3::Vocabulary vocabulary;
@@ -200,60 +191,44 @@ class SPVocabularyGenerator {
       auto duration = std::chrono::duration_cast<std::chrono::minutes>(
           end_time - start_time);
 
-      std::cout << "Vocabulary created in " << duration.count() << " minutes"
-                << "\n";
-      std::cout << "Vocabulary size: " << vocabulary.size() << " words"
-                << "\n";
+      SLOG_INFO("Vocabulary created in {} minutes", duration.count());
+      SLOG_INFO("Vocabulary size: {} words", vocabulary.size());
 
       // Save vocabulary
-      std::cout << "Saving vocabulary to: " << output_path << "\n";
+      SLOG_INFO("Saving vocabulary to: {}", output_path);
       vocabulary.save(output_path);
 
-      std::cout << "Vocabulary saved successfully!" << "\n";
+      SLOG_INFO("Vocabulary saved successfully!");
       return true;
 
     } catch (const std::exception& e) {
-      std::cerr << "Error creating vocabulary: " << e.what() << "\n";
+      SLOG_ERROR("Error creating vocabulary: {}", e.what());
       return false;
     }
   }
 };
 
 void printUsage() {
-  std::cout << "SuperPoint Vocabulary Generator" << "\n";
-  std::cout << "Usage: ./generate_sp_vocabulary <config_path> <model_dir> "
-               "<image_dir> "\n "<output_vocab> [options]"
-            << "\n";
-  std::cout << "\n";
-  std::cout << "Arguments:" << "\n";
-  std::cout << "  config_path     Path to SuperPoint configuration file (e.g., "
-               "utils/config.yaml)"
-            << "\n";
-  std::cout << "  model_dir       Directory containing SuperPoint model files "
-               "(e.g., "\n "weights/)"
-            << "\n";
-  std::cout << "  image_dir       Directory containing training images"
-            << "\n";
-  std::cout << "  output_vocab    Output vocabulary file path (e.g., "
-               "sp_vocabulary.yml.gz)"
-            << "\n";
-  std::cout << "\n";
-  std::cout << "Options:" << "\n";
-  std::cout << "  --k K                    Branching factor (default: 10)"
-            << "\n";
-  std::cout << "  --levels L               Depth levels (default: 6)"
-            << "\n";
-  std::cout
-      << "  --max-images N           Maximum images to process (default: all)"
-      << "\n";
-  std::cout
-      << "  --max-features-per-image Maximum features per image (default: 500)"
-      << "\n";
-  std::cout << "\n";
-  std::cout << "Example:" << "\n";
-  std::cout << "  ./generate_sp_vocabulary utils/config.yaml weights/ "
-               "/dataset/images/ "\n "sp_vocabulary.yml.gz --k 10 --levels 6"
-            << "\n";
+  const std::string usage = R"(
+SuperPoint Vocabulary Generator
+Usage: ./generate_sp_vocabulary <config_path> <model_dir> <image_dir> <output_vocab> [options]
+
+Arguments:
+  config_path     Path to SuperPoint configuration file (e.g., utils/config.yaml)
+  model_dir       Directory containing SuperPoint model files (e.g., weights/)
+  image_dir       Directory containing training images
+  output_vocab    Output vocabulary file path (e.g., sp_vocabulary.yml.gz)
+
+Options:
+  --k K                    Branching factor (default: 10)
+  --levels L               Depth levels (default: 6)
+  --max-images N           Maximum images to process (default: all)
+  --max-features-per-image Maximum features per image (default: 500)
+
+Example:
+  ./generate_sp_vocabulary utils/config.yaml weights/ /dataset/images/ sp_vocabulary.yml.gz --k 10 --levels 6
+)";
+  SLOG_INFO("{}", usage);
 }
 
 int main(int argc, char** argv) {

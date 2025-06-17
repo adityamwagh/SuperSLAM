@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
 
   if (argc != 4) {
     spdlog::error("Wrong number of arguments");
-    std::cout << kUsageMessage << std::endl;
+    spdlog::info("{}", kUsageMessage);
     return 1;
   }
 

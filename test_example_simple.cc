@@ -1,16 +1,13 @@
 #include <spdlog/spdlog.h>
 
 #include <fstream>
-#include <iostream>
 
 int main(int argc, char** argv) {
   spdlog::set_level(spdlog::level::info);
   spdlog::info("Testing basic functionality...");
 
   if (argc != 4) {
-    std::cout
-        << "Usage: ./test_example_simple vocab_path settings_path sequence_path"
-        << std::endl;
+    spdlog::info("Usage: ./test_example_simple vocab_path settings_path sequence_path");
     return 1;
   }
 
