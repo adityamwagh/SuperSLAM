@@ -21,6 +21,7 @@
 #ifndef FRAME_H
 #define FRAME_H
 
+#include <Eigen/Core>
 #include <opencv4/opencv2/opencv.hpp>
 #include <vector>
 
@@ -28,6 +29,7 @@
 #include "MapPoint.h"
 #include "SPExtractor.h"
 #include "SPVocabulary.h"
+#include "SuperGlueTRT.h"
 #include "thirdparty/DBoW3/src/DBoW3.h"
 
 namespace SuperSLAM {
@@ -45,43 +47,25 @@ class Frame {
   Frame(const Frame& frame);
 
   // Constructor for stereo cameras.
-  Frame(
-      const cv::Mat& imLeft,
-      const cv::Mat& imRight,
-      const double& timeStamp,
-      ORBextractor* extractorLeft,
-      ORBextractor* extractorRight,
-      ORBVocabulary* voc,
-      cv::Mat& K,
-      cv::Mat& distCoef,
-      const float& bf,
-      const float& thDepth);
+  Frame(const cv::Mat& imLeft, const cv::Mat& imRight, const double& timeStamp,
+        SPextractor* extractorLeft, SPextractor* extractorRight,
+        ORBVocabulary* voc, cv::Mat& K, cv::Mat& distCoef, const float& bf,
+        const float& thDepth,
+        std::shared_ptr<SuperGlueTRT> superglue = nullptr);
 
   // Constructor for RGB-D cameras.
-  Frame(
-      const cv::Mat& imGray,
-      const cv::Mat& imDepth,
-      const double& timeStamp,
-      ORBextractor* extractor,
-      ORBVocabulary* voc,
-      cv::Mat& K,
-      cv::Mat& distCoef,
-      const float& bf,
-      const float& thDepth);
+  Frame(const cv::Mat& imGray, const cv::Mat& imDepth, const double& timeStamp,
+        SPextractor* extractor, ORBVocabulary* voc, cv::Mat& K,
+        cv::Mat& distCoef, const float& bf, const float& thDepth);
 
   // Constructor for Monocular cameras.
-  Frame(
-      const cv::Mat& imGray,
-      const double& timeStamp,
-      ORBextractor* extractor,
-      ORBVocabulary* voc,
-      cv::Mat& K,
-      cv::Mat& distCoef,
-      const float& bf,
-      const float& thDepth);
+  Frame(const cv::Mat& imGray, const double& timeStamp, SPextractor* extractor,
+        ORBVocabulary* voc, cv::Mat& K, cv::Mat& distCoef, const float& bf,
+        const float& thDepth);
 
-  // Extract ORB on the image. 0 for left image and 1 for right image.
-  void ExtractORB(int flag, const cv::Mat& im);
+  // Extract SuperPoint features on the image. 0 for left image and 1 for right
+  // image.
+  void ExtractSP(int flag, const cv::Mat& im);
 
   // Compute Bag of Words representation.
   void ComputeBoW();
@@ -94,14 +78,10 @@ class Frame {
   void UpdatePoseMatrices();
 
   // Returns the camera center.
-  inline cv::Mat GetCameraCenter() {
-    return mOw.clone();
-  }
+  inline cv::Mat GetCameraCenter() { return mOw.clone(); }
 
   // Returns inverse of rotation
-  inline cv::Mat GetRotationInverse() {
-    return mRwc.clone();
-  }
+  inline cv::Mat GetRotationInverse() { return mRwc.clone(); }
 
   // Check if a MapPoint is in the frustum of the camera
   // and fill variables of the MapPoint to be used by the tracking
@@ -110,12 +90,9 @@ class Frame {
   // Compute the cell of a keypoint (return false if outside the grid)
   bool PosInGrid(const cv::KeyPoint& kp, int& posX, int& posY);
 
-  std::vector<size_t> GetFeaturesInArea(
-      const float& x,
-      const float& y,
-      const float& r,
-      const int minLevel = -1,
-      const int maxLevel = -1) const;
+  std::vector<size_t> GetFeaturesInArea(const float& x, const float& y,
+                                        const float& r, const int minLevel = -1,
+                                        const int maxLevel = -1) const;
 
   // Search a match for each keypoint in the left image to a keypoint in the
   // right image. If there is a match, depth is computed and the right
@@ -135,7 +112,7 @@ class Frame {
   ORBVocabulary* mpORBvocabulary;
 
   // Feature extractor. The right is used only in the stereo case.
-  ORBextractor *mpORBextractorLeft, *mpORBextractorRight;
+  SPextractor *mpSPextractorLeft, *mpSPextractorRight;
 
   // Frame timestamp.
   double mTimeStamp;
@@ -181,6 +158,14 @@ class Frame {
   // ORB descriptor, each row associated to a keypoint.
   cv::Mat mDescriptors, mDescriptorsRight;
 
+  // SuperPoint features (259 x N matrix: score, x, y, descriptors)
+  Eigen::Matrix<double, 259, Eigen::Dynamic> mSuperPointFeatures,
+      mSuperPointFeaturesRight;
+
+  // Store the images for subpixel refinement if needed
+  cv::Mat mImGray;   // For left image in stereo, or main image in mono/RGBD
+  cv::Mat mImRight;  // For right image in stereo
+
   // MapPoints associated to keypoints, NULL pointer if no association.
   std::vector<MapPoint*> mvpMapPoints;
 
@@ -203,14 +188,15 @@ class Frame {
   // Reference Keyframe.
   KeyFrame* mpReferenceKF;
 
-  // Scale pyramid info.
-  int mnScaleLevels;
-  float mfScaleFactor;
-  float mfLogScaleFactor;
-  std::vector<float> mvScaleFactors;
-  std::vector<float> mvInvScaleFactors;
-  std::vector<float> mvLevelSigma2;
-  std::vector<float> mvInvLevelSigma2;
+  // Scale pyramid info (Simplified for single-scale SuperPoint)
+  int mnScaleLevels;                     // Will be set to 1
+  float mfScaleFactor;                   // Will be set to 1.0f
+  float mfLogScaleFactor;                // Will be set to 0.0f
+  std::vector<float> mvScaleFactors;     // Will contain {1.0f}
+  std::vector<float> mvInvScaleFactors;  // Will contain {1.0f}
+  std::vector<float>
+      mvLevelSigma2;  // Will contain {1.0f} (or other appropriate base sigma)
+  std::vector<float> mvInvLevelSigma2;  // Will contain {1.0f}
 
   // Undistorted Image Bounds (computed once).
   static float mnMinX;
@@ -234,13 +220,16 @@ class Frame {
   // constructor).
   void AssignFeaturesToGrid();
 
+  // SuperGlue matcher for stereo matching
+  std::shared_ptr<SuperGlueTRT> mpSuperGlue;
+
   // Rotation, translation and camera center
   cv::Mat mRcw;
   cv::Mat mtcw;
   cv::Mat mRwc;
-  cv::Mat mOw; //==mtwc
+  cv::Mat mOw;  //==mtwc
 };
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM
 
-#endif // FRAME_H
+#endif  // FRAME_H

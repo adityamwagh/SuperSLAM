@@ -37,7 +37,7 @@ class Map;
 
 class LocalMapping {
  public:
-  LocalMapping(Map* pMap, const float bMonocular);
+  LocalMapping(Map* pMap, const float bMonocular = 0);
 
   void SetLoopCloser(LoopClosing* pLoopCloser);
 
@@ -119,6 +119,6 @@ class LocalMapping {
   std::mutex mMutexAccept;
 };
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM
 
-#endif // LOCALMAPPING_H
+#endif  // LOCALMAPPING_H

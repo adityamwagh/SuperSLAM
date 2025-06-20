@@ -21,27 +21,25 @@
 #ifndef TRACKING_H
 #define TRACKING_H
 
+#include <memory>
+#include <mutex>
 #include <opencv4/opencv2/core/core.hpp>
 #include <opencv4/opencv2/features2d/features2d.hpp>
-#include <mutex>
 
 #include "Frame.h"
-#include "FrameDrawer.h"
 #include "Initializer.h"
 #include "KeyFrameDatabase.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #include "Map.h"
-#include "MapDrawer.h"
+#include "RerunViewer.h"
 #include "SPExtractor.h"
 #include "SPVocabulary.h"
+#include "SuperGlueTRT.h"
 #include "System.h"
-#include "Viewer.h"
 
 namespace SuperSLAM {
 
-class Viewer;
-class FrameDrawer;
 class Map;
 class LocalMapping;
 class LoopClosing;
@@ -49,31 +47,21 @@ class System;
 
 class Tracking {
  public:
-  Tracking(
-      System* pSys,
-      ORBVocabulary* pVoc,
-      FrameDrawer* pFrameDrawer,
-      MapDrawer* pMapDrawer,
-      Map* pMap,
-      KeyFrameDatabase* pKFDB,
-      const std::string& strSettingPath,
-      const int sensor);
+  Tracking(System* pSys, ORBVocabulary* pVoc, Map* pMap,
+           KeyFrameDatabase* pKFDB, const std::string& strSettingPath,
+           const int sensor);
 
   // Preprocess the input and call Track(). Extract features and performs stereo
   // matching.
-  cv::Mat GrabImageStereo(
-      const cv::Mat& imRectLeft,
-      const cv::Mat& imRectRight,
-      const double& timestamp);
-  cv::Mat GrabImageRGBD(
-      const cv::Mat& imRGB,
-      const cv::Mat& imD,
-      const double& timestamp);
+  cv::Mat GrabImageStereo(const cv::Mat& imRectLeft, const cv::Mat& imRectRight,
+                          const double& timestamp);
+  cv::Mat GrabImageRGBD(const cv::Mat& imRGB, const cv::Mat& imD,
+                        const double& timestamp);
   cv::Mat GrabImageMonocular(const cv::Mat& im, const double& timestamp);
 
   void SetLocalMapper(LocalMapping* pLocalMapper);
   void SetLoopClosing(LoopClosing* pLoopClosing);
-  void SetViewer(Viewer* pViewer);
+  void SetViewer(RerunViewer* pViewer);
 
   // Load new settings
   // The focal lenght should be similar or scale prediction will fail when
@@ -104,6 +92,7 @@ class Tracking {
   // Current Frame
   Frame mCurrentFrame;
   cv::Mat mImGray;
+  cv::Mat mImGrayRight;  // Right camera image for stereo visualization
 
   // Initialization Variables (Monocular)
   std::vector<int> mvIniLastMatches;
@@ -165,16 +154,16 @@ class Tracking {
   LocalMapping* mpLocalMapper;
   LoopClosing* mpLoopClosing;
 
-  // ORB
-  ORBextractor *mpORBextractorLeft, *mpORBextractorRight;
-  ORBextractor* mpIniORBextractor;
+  // SuperPoint feature extractors
+  std::unique_ptr<SPextractor> mpSPextractorLeft, mpSPextractorRight;
+  std::unique_ptr<SPextractor> mpIniSPextractor;
 
   // BoW
   ORBVocabulary* mpORBVocabulary;
   KeyFrameDatabase* mpKeyFrameDB;
 
   // Initalization (only for monocular)
-  Initializer* mpInitializer;
+  std::unique_ptr<Initializer> mpInitializer;
 
   // Local Map
   KeyFrame* mpReferenceKF;
@@ -184,10 +173,8 @@ class Tracking {
   // System
   System* mpSystem;
 
-  // Drawers
-  Viewer* mpViewer;
-  FrameDrawer* mpFrameDrawer;
-  MapDrawer* mpMapDrawer;
+  // Viewer
+  RerunViewer* mpViewer;
 
   // Map
   Map* mpMap;
@@ -227,8 +214,11 @@ class Tracking {
   bool mbRGB;
 
   std::list<MapPoint*> mlpTemporalPoints;
+
+  // SuperGlue matcher for stereo matching
+  std::shared_ptr<SuperGlueTRT> mpSuperGlueStereo;
 };
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM
 
-#endif // TRACKING_H
+#endif  // TRACKING_H

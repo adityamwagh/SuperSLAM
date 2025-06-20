@@ -23,25 +23,22 @@
 
 #include <opencv4/opencv2/imgproc/types_c.h>
 
+#include <memory>
 #include <opencv4/opencv2/core/core.hpp>
 #include <opencv4/opencv2/opencv.hpp>
 #include <string>
 #include <thread>
 
-#include "FrameDrawer.h"
 #include "KeyFrameDatabase.h"
 #include "LocalMapping.h"
 #include "LoopClosing.h"
 #include "Map.h"
-#include "MapDrawer.h"
+#include "RerunViewer.h"
 #include "SPVocabulary.h"
 #include "Tracking.h"
-#include "Viewer.h"
 
 namespace SuperSLAM {
 
-class Viewer;
-class FrameDrawer;
 class Map;
 class Tracking;
 class LocalMapping;
@@ -55,28 +52,24 @@ class System {
  public:
   // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and
   // Viewer threads.
-  System(
-      const std::string& strVocFile,
-      const std::string& strSettingsFile,
-      const eSensor sensor,
-      const bool bUseViewer = true);
+  System(const std::string& strVocFile, const std::string& strSettingsFile,
+         const eSensor sensor, const bool bUseViewer = true);
+
+  // Destructor
+  ~System();
 
   // Proccess the given stereo frame. Images must be synchronized and rectified.
   // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to
   // grayscale. Returns the camera pose (empty if tracking fails).
-  cv::Mat TrackStereo(
-      const cv::Mat& imLeft,
-      const cv::Mat& imRight,
-      const double& timestamp);
+  cv::Mat TrackStereo(const cv::Mat& imLeft, const cv::Mat& imRight,
+                      const double& timestamp);
 
   // Process the given rgbd frame. Depthmap must be registered to the RGB frame.
   // Input image: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to
   // grayscale. Input depthmap: Float (CV_32F). Returns the camera pose (empty
   // if tracking fails).
-  cv::Mat TrackRGBD(
-      const cv::Mat& im,
-      const cv::Mat& depthmap,
-      const double& timestamp);
+  cv::Mat TrackRGBD(const cv::Mat& im, const cv::Mat& depthmap,
+                    const double& timestamp);
 
   // Proccess the given monocular frame
   // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to
@@ -135,41 +128,38 @@ class System {
   eSensor mSensor;
 
   // ORB vocabulary used for place recognition and feature matching.
-  ORBVocabulary* mpVocabulary;
+  std::unique_ptr<ORBVocabulary> mpVocabulary;
 
   // KeyFrame database for place recognition (relocalization and loop
   // detection).
-  KeyFrameDatabase* mpKeyFrameDatabase;
+  std::unique_ptr<KeyFrameDatabase> mpKeyFrameDatabase;
 
   // Map structure that stores the pointers to all KeyFrames and MapPoints.
-  Map* mpMap;
+  std::unique_ptr<Map> mpMap;
 
   // Tracker. It receives a frame and computes the associated camera pose.
   // It also decides when to insert a new keyframe, create some new MapPoints
   // and performs relocalization if tracking fails.
-  Tracking* mpTracker;
+  std::unique_ptr<Tracking> mpTracker;
 
   // Local Mapper. It manages the local map and performs local bundle
   // adjustment.
-  LocalMapping* mpLocalMapper;
+  std::unique_ptr<LocalMapping> mpLocalMapper;
 
   // Loop Closer. It searches loops with every new keyframe. If there is a loop
   // it performs a pose graph optimization and full bundle adjustment (in a new
   // thread) afterwards.
-  LoopClosing* mpLoopCloser;
+  std::unique_ptr<LoopClosing> mpLoopCloser;
 
-  // The viewer draws the map and the current camera pose. It uses Pangolin.
-  Viewer* mpViewer;
-
-  FrameDrawer* mpFrameDrawer;
-  MapDrawer* mpMapDrawer;
+  // The viewer draws the map and the current camera pose. It uses Rerun.io.
+  std::unique_ptr<RerunViewer> mpViewer;
 
   // System threads: Local Mapping, Loop Closing, Viewer.
   // The Tracking thread "lives" in the main execution thread that creates the
   // System object.
-  std::thread* mptLocalMapping;
-  std::thread* mptLoopClosing;
-  std::thread* mptViewer;
+  std::unique_ptr<std::thread> mptLocalMapping;
+  std::unique_ptr<std::thread> mptLoopClosing;
+  std::unique_ptr<std::thread> mptViewer;
 
   // Reset flag
   std::mutex mMutexReset;
@@ -187,6 +177,6 @@ class System {
   std::mutex mMutexState;
 };
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM
 
-#endif // SYSTEM_H
+#endif  // SYSTEM_H

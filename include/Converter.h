@@ -21,11 +21,12 @@
 #ifndef CONVERTER_H
 #define CONVERTER_H
 
-#include <opencv4/opencv2/core/core.hpp>
-#include <Eigen/Dense>
+#include <gtsam/geometry/Point3.h>
+#include <gtsam/geometry/Pose3.h>
+#include <gtsam/geometry/Similarity3.h>
 
-#include "thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
-#include "thirdparty/g2o/g2o/types/types_six_dof_expmap.h"
+#include <Eigen/Dense>
+#include <opencv4/opencv2/core/core.hpp>
 
 namespace SuperSLAM {
 
@@ -33,17 +34,23 @@ class Converter {
  public:
   static std::vector<cv::Mat> toDescriptorVector(const cv::Mat& Descriptors);
 
-  static g2o::SE3Quat toSE3Quat(const cv::Mat& cvT);
-  static g2o::SE3Quat toSE3Quat(const g2o::Sim3& gSim3);
+  // GTSAM conversions
+  static gtsam::Pose3 toPose3(const cv::Mat& cvT);
+  static gtsam::Point3 toPoint3(const cv::Mat& cvPoint);
+  static gtsam::Similarity3 toSimilarity3(const cv::Mat& cvT,
+                                          double scale = 1.0);
 
-  static cv::Mat toCvMat(const g2o::SE3Quat& SE3);
-  static cv::Mat toCvMat(const g2o::Sim3& Sim3);
+  // Legacy g2o conversion helpers
+  static gtsam::Similarity3 g2oSim3ToGTSAM(const Eigen::Matrix3d& R,
+                                           const Eigen::Vector3d& t, double s);
+
+  static cv::Mat toCvMat(const gtsam::Pose3& pose);
+  static cv::Mat toCvMat(const gtsam::Point3& point);
+  static cv::Mat toCvMat(const gtsam::Similarity3& sim3);
   static cv::Mat toCvMat(const Eigen::Matrix<double, 4, 4>& m);
   static cv::Mat toCvMat(const Eigen::Matrix3d& m);
-  static cv::Mat toCvMat(const Eigen::Matrix<double, 3, 1>& m);
-  static cv::Mat toCvSE3(
-      const Eigen::Matrix<double, 3, 3>& R,
-      const Eigen::Matrix<double, 3, 1>& t);
+  static cv::Mat toCvSE3(const Eigen::Matrix<double, 3, 3>& R,
+                         const Eigen::Matrix<double, 3, 1>& t);
 
   static Eigen::Matrix<double, 3, 1> toVector3d(const cv::Mat& cvVector);
   static Eigen::Matrix<double, 3, 1> toVector3d(const cv::Point3f& cvPoint);
@@ -52,6 +59,6 @@ class Converter {
   static std::vector<float> toQuaternion(const cv::Mat& M);
 };
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM
 
-#endif // CONVERTER_H
+#endif  // CONVERTER_H

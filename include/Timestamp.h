@@ -183,11 +183,11 @@ class Timestamp {
 
  protected:
   /// Seconds
-  unsigned long m_secs; // seconds
+  unsigned long m_secs;  // seconds
   /// Microseconds
-  unsigned long m_usecs; // microseconds
+  unsigned long m_usecs;  // microseconds
 };
 
-} // namespace DUtils
+}  // namespace DUtils
 
 #endif

@@ -36,10 +36,11 @@ def main():
         os.mkdir(output_dir)
     weight_file = args.weight_file
 
-    # load model
-    superpoint_model = superpoint.SuperPoint()
+    # load model with empty config (will load default weights)
+    config = {}
+    superpoint_model = superpoint.SuperPoint(config)
     pytorch_total_params = sum(p.numel() for p in superpoint_model.parameters())
-    print("total number ff params: ", pytorch_total_params)
+    print("total number of params: ", pytorch_total_params)
 
     # initialize model with the pretrained weights
     map_location = lambda storage, loc: storage

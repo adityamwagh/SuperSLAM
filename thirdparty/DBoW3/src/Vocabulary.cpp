@@ -994,7 +994,7 @@ void Vocabulary::save(cv::FileStorage& f, const std::string& name) const {
 
     for (pit = children.begin(); pit != children.end(); pit++) {
       const Node& child = m_nodes[*pit];
-      std::cout << m_nodes[*pit].id << " ";
+      // Removed node ID output for cleaner operation
 
       // save node data
       f << "{:";
@@ -1010,7 +1010,7 @@ void Vocabulary::save(cv::FileStorage& f, const std::string& name) const {
       }
     }
   }
-  std::cout << "\n";
+  // Vocabulary save completed (removed output for cleaner operation)
 
   f << "]"; // nodes
 
@@ -1142,8 +1142,8 @@ void Vocabulary::load_fromtxt(const std::string& filename) {
   while (!ifile.eof()) {
     std::string snode;
     getline(ifile, snode);
-    if (counter++ % 100 == 0)
-      std::cerr << ".";
+    counter++;
+    // Removed progress dots for cleaner output
     // std::cout<<snode<<std::endl;
     if (snode.size() == 0)
       break;

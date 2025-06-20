@@ -22,6 +22,8 @@
 
 #include <mutex>
 
+#include "Logging.h"
+
 namespace SuperSLAM {
 
 Map::Map() : mnMaxKFid(0), mnBigChangeIdx(0) {}
@@ -29,8 +31,7 @@ Map::Map() : mnMaxKFid(0), mnBigChangeIdx(0) {}
 void Map::AddKeyFrame(KeyFrame *pKF) {
   std::unique_lock<std::mutex> lock(mMutexMap);
   mspKeyFrames.insert(pKF);
-  if (pKF->mnId > mnMaxKFid)
-    mnMaxKFid = pKF->mnId;
+  if (pKF->mnId > mnMaxKFid) mnMaxKFid = pKF->mnId;
 }
 
 void Map::AddMapPoint(MapPoint *pMP) {
@@ -41,17 +42,13 @@ void Map::AddMapPoint(MapPoint *pMP) {
 void Map::EraseMapPoint(MapPoint *pMP) {
   std::unique_lock<std::mutex> lock(mMutexMap);
   mspMapPoints.erase(pMP);
-
-  // TODO: This only erase the pointer.
-  // Delete the MapPoint
+  delete pMP;
 }
 
 void Map::EraseKeyFrame(KeyFrame *pKF) {
   std::unique_lock<std::mutex> lock(mMutexMap);
   mspKeyFrames.erase(pKF);
-
-  // TODO: This only erase the pointer.
-  // Delete the MapPoint
+  delete pKF;
 }
 
 void Map::SetReferenceMapPoints(const std::vector<MapPoint *> &vpMPs) {
@@ -117,4 +114,4 @@ void Map::clear() {
   mvpKeyFrameOrigins.clear();
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

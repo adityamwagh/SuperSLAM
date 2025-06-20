@@ -1,91 +1,88 @@
-
 #ifndef SUPERPOINTTRT_H_
 #define SUPERPOINTTRT_H_
 
 #include <NvInfer.h>
 #include <NvOnnxParser.h>
+#include <cuda_runtime.h>
 
-#include <opencv4/opencv2/opencv.hpp>
 #include <Eigen/Core>
+#include <fstream>
+#include <iostream>
 #include <memory>
+#include <opencv4/opencv2/opencv.hpp>
 #include <string>
+#include <vector>
 
-#include "ReadConfig.h"
-#include "thirdparty/tensorrtbuffer/include/buffers.h"
+// Custom deleters for TensorRT objects
+// Note: In TensorRT 10.x, the destroy() method is replaced with delete
+namespace SuperSLAM {
 
-using tensorrt_common::TensorRTUniquePtr;
-
-class SuperPoint {
- public:
-  explicit SuperPoint(SuperPointConfig super_point_config);
-
-  bool build();
-
-  bool infer(
-      const cv::Mat& image,
-      Eigen::Matrix<double, 259, Eigen::Dynamic>& features);
-
-  void visualization(const std::string& image_name, const cv::Mat& image);
-
-  void save_engine();
-
-  bool deserialize_engine();
-
- private:
-  SuperPointConfig super_point_config_;
-  nvinfer1::Dims input_dims_{};
-  nvinfer1::Dims semi_dims_{};
-  nvinfer1::Dims desc_dims_{};
-  std::shared_ptr<nvinfer1::ICudaEngine> engine_;
-  std::shared_ptr<nvinfer1::IExecutionContext> context_;
-  std::vector<std::vector<int>> keypoints_;
-  std::vector<std::vector<double>> descriptors_;
-
-  bool construct_network(
-      TensorRTUniquePtr<nvinfer1::IBuilder>& builder,
-      TensorRTUniquePtr<nvinfer1::INetworkDefinition>& network,
-      TensorRTUniquePtr<nvinfer1::IBuilderConfig>& config,
-      TensorRTUniquePtr<nvonnxparser::IParser>& parser) const;
-
-  bool process_input(
-      const tensorrt_buffer::BufferManager& buffers,
-      const cv::Mat& image);
-
-  bool process_output(
-      const tensorrt_buffer::BufferManager& buffers,
-      Eigen::Matrix<double, 259, Eigen::Dynamic>& features);
-
-  void remove_borders(
-      std::vector<std::vector<int>>& keypoints,
-      std::vector<float>& scores,
-      int border,
-      int height,
-      int width);
-
-  std::vector<size_t> sort_indexes(std::vector<float>& data);
-
-  void top_k_keypoints(
-      std::vector<std::vector<int>>& keypoints,
-      std::vector<float>& scores,
-      int k);
-
-  void find_high_score_index(
-      std::vector<float>& scores,
-      std::vector<std::vector<int>>& keypoints,
-      int h,
-      int w,
-      double threshold);
-
-  void sample_descriptors(
-      std::vector<std::vector<int>>& keypoints,
-      float* descriptors,
-      std::vector<std::vector<double>>& dest_descriptors,
-      int dim,
-      int h,
-      int w,
-      int s = 8);
+struct TRTRuntimeDeleter {
+  void operator()(nvinfer1::IRuntime* rt) { delete rt; }
 };
 
-typedef std::shared_ptr<SuperPoint> SuperPointPtr;
+struct TRTEngineDeleter {
+  void operator()(nvinfer1::ICudaEngine* engine) { delete engine; }
+};
 
-#endif // SUPER_POINT_H_
+struct TRTContextDeleter {
+  void operator()(nvinfer1::IExecutionContext* context) { delete context; }
+};
+
+}  // namespace SuperSLAM
+
+class SuperPointTRT {
+ public:
+  explicit SuperPointTRT(const std::string& engine_file, int max_keypoints,
+                         double keypoint_threshold, int remove_borders);
+  ~SuperPointTRT();
+
+  bool initialize();
+  bool infer(const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints,
+             cv::Mat& descriptors);
+
+ private:
+  struct TensorInfo {
+    void* devicePtr = nullptr;
+    void* hostPtr = nullptr;
+    size_t size = 0;
+    nvinfer1::Dims dims;
+    nvinfer1::DataType dtype;
+    std::string name;
+  };
+
+  std::unique_ptr<nvinfer1::IRuntime, SuperSLAM::TRTRuntimeDeleter> runtime_;
+  std::unique_ptr<nvinfer1::ICudaEngine, SuperSLAM::TRTEngineDeleter> engine_;
+  std::unique_ptr<nvinfer1::IExecutionContext, SuperSLAM::TRTContextDeleter>
+      context_;
+  cudaStream_t stream_;
+
+  std::vector<TensorInfo> input_tensors_;
+  std::vector<TensorInfo> output_tensors_;
+
+  int input_height_ = 0;
+  int input_width_ = 0;
+
+  // Configuration parameters
+  std::string engine_file_;
+  int max_keypoints_;
+  double keypoint_threshold_;
+  int remove_borders_;
+
+  bool loadEngine();
+  bool allocateBuffers();
+  bool allocateDynamicBuffers(int height, int width);
+  void freeBuffers();
+  bool preprocessImage(const cv::Mat& image);
+  bool postprocessOutputs(std::vector<cv::KeyPoint>& keypoints,
+                          cv::Mat& descriptors);
+
+  size_t getElementSize(nvinfer1::DataType dtype);
+  size_t getTensorSize(const nvinfer1::Dims& dims, nvinfer1::DataType dtype);
+  void printTensorInfo(const std::string& name, const nvinfer1::Dims& dims,
+                       nvinfer1::DataType dtype);
+};
+
+typedef std::shared_ptr<SuperPointTRT> SuperPointTRTPtr;
+
+#endif  // SUPERPOINTTRT_H_

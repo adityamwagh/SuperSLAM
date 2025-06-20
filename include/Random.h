@@ -140,17 +140,13 @@ class Random::UnrepeatedRandomizer {
    * is the same than after creating the randomizer
    * @return true iff all the values were returned
    */
-  inline bool empty() const {
-    return m_values.empty();
-  }
+  inline bool empty() const { return m_values.empty(); }
 
   /**
    * Returns the number of values still to be returned
    * @return amount of values to return
    */
-  inline unsigned int left() const {
-    return m_values.size();
-  }
+  inline unsigned int left() const { return m_values.size(); }
 
   /**
    * Resets the randomizer as it were just created
@@ -173,6 +169,6 @@ class Random::UnrepeatedRandomizer {
   std::vector<int> m_values;
 };
 
-} // namespace DUtils
+}  // namespace DUtils
 
 #endif

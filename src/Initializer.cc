@@ -22,10 +22,10 @@
 
 #include <thread>
 
+#include "Logging.h"
 #include "Optimizer.h"
 #include "Random.h"
 #include "SPMatcher.h"
-#include "thirdparty/DBoW2/DUtils/Random.h"
 
 namespace SuperSLAM {
 
@@ -60,6 +60,12 @@ bool Initializer::Initialize(const Frame &CurrentFrame,
   }
 
   const int N = mvMatches12.size();
+
+  SLOG_INFO("Initialization attempt: {} matches between frames", N);
+  if (N < 50) {
+    SLOG_WARN("Insufficient matches for initialization: {} < 50", N);
+    return false;
+  }
 
   // Indices for minimum set selection
   std::vector<size_t> vAllIndices;
@@ -107,15 +113,17 @@ bool Initializer::Initialize(const Frame &CurrentFrame,
 
   // Compute ratio of scores
   float RH = SH / (SH + SF);
+  
+  SLOG_INFO("Homography score: {}, Fundamental score: {}, Ratio: {}", SH, SF, RH);
 
   // Try to reconstruct from homography or fundamental depending on the ratio
   // (0.40-0.45)
   if (RH > 0.40)
     return ReconstructH(vbMatchesInliersH, H, mK, R21, t21, vP3D,
-                        vbTriangulated, 1.0, 50);
-  else // if(pF_HF>0.6)
+                        vbTriangulated, 0.5, 25);
+  else  // if(pF_HF>0.6)
     return ReconstructF(vbMatchesInliersF, F, mK, R21, t21, vP3D,
-                        vbTriangulated, 1.0, 50);
+                        vbTriangulated, 0.5, 25);
 
   return false;
 }
@@ -464,8 +472,7 @@ bool Initializer::ReconstructF(std::vector<bool> &vbMatchesInliers,
                                float minParallax, int minTriangulated) {
   int N = 0;
   for (size_t i = 0, iend = vbMatchesInliers.size(); i < iend; i++)
-    if (vbMatchesInliers[i])
-      N++;
+    if (vbMatchesInliers[i]) N++;
 
   // Compute Essential Matrix from Fundamental Matrix
   cv::Mat E21 = K.t() * F21 * K;
@@ -501,14 +508,10 @@ bool Initializer::ReconstructF(std::vector<bool> &vbMatchesInliers,
   int nMinGood = std::max(static_cast<int>(0.9 * N), minTriangulated);
 
   int nsimilar = 0;
-  if (nGood1 > 0.7 * maxGood)
-    nsimilar++;
-  if (nGood2 > 0.7 * maxGood)
-    nsimilar++;
-  if (nGood3 > 0.7 * maxGood)
-    nsimilar++;
-  if (nGood4 > 0.7 * maxGood)
-    nsimilar++;
+  if (nGood1 > 0.7 * maxGood) nsimilar++;
+  if (nGood2 > 0.7 * maxGood) nsimilar++;
+  if (nGood3 > 0.7 * maxGood) nsimilar++;
+  if (nGood4 > 0.7 * maxGood) nsimilar++;
 
   // If there is not a clear winner or not enough triangulated points reject
   // initialization
@@ -565,8 +568,7 @@ bool Initializer::ReconstructH(std::vector<bool> &vbMatchesInliers,
                                float minParallax, int minTriangulated) {
   int N = 0;
   for (size_t i = 0, iend = vbMatchesInliers.size(); i < iend; i++)
-    if (vbMatchesInliers[i])
-      N++;
+    if (vbMatchesInliers[i]) N++;
 
   // We recover 8 motion hypotheses using the method of Faugeras et al.
   // Motion and structure from motion in a piecewise planar environment.
@@ -633,8 +635,7 @@ bool Initializer::ReconstructH(std::vector<bool> &vbMatchesInliers,
     np.at<float>(2) = x3[i];
 
     cv::Mat n = V * np;
-    if (n.at<float>(2) < 0)
-      n = -n;
+    if (n.at<float>(2) < 0) n = -n;
     vn.push_back(n);
   }
 
@@ -671,8 +672,7 @@ bool Initializer::ReconstructH(std::vector<bool> &vbMatchesInliers,
     np.at<float>(2) = x3[i];
 
     cv::Mat n = V * np;
-    if (n.at<float>(2) < 0)
-      n = -n;
+    if (n.at<float>(2) < 0) n = -n;
     vn.push_back(n);
   }
 
@@ -817,8 +817,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t,
   int nGood = 0;
 
   for (size_t i = 0, iend = vMatches12.size(); i < iend; i++) {
-    if (!vbMatchesInliers[i])
-      continue;
+    if (!vbMatchesInliers[i]) continue;
 
     const cv::KeyPoint &kp1 = vKeys1[vMatches12[i].first];
     const cv::KeyPoint &kp2 = vKeys2[vMatches12[i].second];
@@ -843,15 +842,13 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t,
 
     // Check depth in front of first camera (only if enough parallax, as
     // "infinite" points can easily go to negative depth)
-    if (p3dC1.at<float>(2) <= 0 && cosParallax < 0.99998)
-      continue;
+    if (p3dC1.at<float>(2) <= 0 && cosParallax < 0.99998) continue;
 
     // Check depth in front of second camera (only if enough parallax, as
     // "infinite" points can easily go to negative depth)
     cv::Mat p3dC2 = R * p3dC1 + t;
 
-    if (p3dC2.at<float>(2) <= 0 && cosParallax < 0.99998)
-      continue;
+    if (p3dC2.at<float>(2) <= 0 && cosParallax < 0.99998) continue;
 
     // Check reprojection error in first image
     float im1x, im1y;
@@ -862,8 +859,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t,
     float squareError1 = (im1x - kp1.pt.x) * (im1x - kp1.pt.x) +
                          (im1y - kp1.pt.y) * (im1y - kp1.pt.y);
 
-    if (squareError1 > th2)
-      continue;
+    if (squareError1 > th2) continue;
 
     // Check reprojection error in second image
     float im2x, im2y;
@@ -874,8 +870,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t,
     float squareError2 = (im2x - kp2.pt.x) * (im2x - kp2.pt.x) +
                          (im2y - kp2.pt.y) * (im2y - kp2.pt.y);
 
-    if (squareError2 > th2)
-      continue;
+    if (squareError2 > th2) continue;
 
     vCosParallax.push_back(cosParallax);
     vP3D[vMatches12[i].first] =
@@ -912,12 +907,10 @@ void Initializer::DecomposeE(const cv::Mat &E, cv::Mat &R1, cv::Mat &R2,
   W.at<float>(2, 2) = 1;
 
   R1 = u * W * vt;
-  if (cv::determinant(R1) < 0)
-    R1 = -R1;
+  if (cv::determinant(R1) < 0) R1 = -R1;
 
   R2 = u * W.t() * vt;
-  if (cv::determinant(R2) < 0)
-    R2 = -R2;
+  if (cv::determinant(R2) < 0) R2 = -R2;
 }
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM

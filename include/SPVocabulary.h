@@ -35,6 +35,6 @@ typedef DBoW3::Vocabulary SPVocabulary;
 
 typedef SPVocabulary ORBVocabulary;
 
-} // namespace SuperSLAM
+}  // namespace SuperSLAM
 
-#endif // ORBVOCABULARY_H
+#endif  // SPVOCABULARY_H

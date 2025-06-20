@@ -10,6 +10,8 @@
  *
  */
 
+#include <bits/types/time_t.h>
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -30,15 +32,17 @@
 #include <sys/time.h>
 #endif
 
+#include "Logging.h"
 #include "Timestamp.h"
 
 using namespace DUtils;
 
 Timestamp::Timestamp(Timestamp::tOptions option) {
-  if (option & CURRENT_TIME)
+  if (option & CURRENT_TIME) {
     setToCurrentTime();
-  else if (option & ZERO)
+  } else if (option & ZERO) {
     setTime(0.);
+  }
 }
 
 Timestamp::~Timestamp(void) {}
@@ -48,7 +52,7 @@ bool Timestamp::empty() const { return m_secs == 0 && m_usecs == 0; }
 void Timestamp::setToCurrentTime() {
 #ifdef WIN32
   struct __timeb32 timebuffer;
-  _ftime32_s(&timebuffer); // C4996
+  _ftime32_s(&timebuffer);  // C4996
   // Note: _ftime is deprecated; consider using _ftime_s instead
   m_secs = timebuffer.time;
   m_usecs = timebuffer.millitm * 1000;
@@ -115,10 +119,11 @@ Timestamp Timestamp::plus(unsigned long secs, unsigned long usecs) const {
 
   const unsigned long max = 1000000ul;
 
-  if (m_usecs + usecs >= max)
+  if (m_usecs + usecs >= max) {
     t.setTime(m_secs + secs + 1, m_usecs + usecs - max);
-  else
+  } else {
     t.setTime(m_secs + secs, m_usecs + usecs);
+  }
 
   return t;
 }
@@ -135,48 +140,53 @@ Timestamp Timestamp::minus(unsigned long secs, unsigned long usecs) const {
 
   const unsigned long max = 1000000ul;
 
-  if (m_usecs < usecs)
+  if (m_usecs < usecs) {
     t.setTime(m_secs - secs - 1, max - (usecs - m_usecs));
-  else
+  } else {
     t.setTime(m_secs - secs, m_usecs - usecs);
+  }
 
   return t;
 }
 
 bool Timestamp::operator>(const Timestamp &t) const {
-  if (m_secs > t.m_secs)
+  if (m_secs > t.m_secs) {
     return true;
-  else if (m_secs == t.m_secs)
+  } else if (m_secs == t.m_secs) {
     return m_usecs > t.m_usecs;
-  else
+  } else {
     return false;
+  }
 }
 
 bool Timestamp::operator>=(const Timestamp &t) const {
-  if (m_secs > t.m_secs)
+  if (m_secs > t.m_secs) {
     return true;
-  else if (m_secs == t.m_secs)
+  } else if (m_secs == t.m_secs) {
     return m_usecs >= t.m_usecs;
-  else
+  } else {
     return false;
+  }
 }
 
 bool Timestamp::operator<(const Timestamp &t) const {
-  if (m_secs < t.m_secs)
+  if (m_secs < t.m_secs) {
     return true;
-  else if (m_secs == t.m_secs)
+  } else if (m_secs == t.m_secs) {
     return m_usecs < t.m_usecs;
-  else
+  } else {
     return false;
+  }
 }
 
 bool Timestamp::operator<=(const Timestamp &t) const {
-  if (m_secs < t.m_secs)
+  if (m_secs < t.m_secs) {
     return true;
-  else if (m_secs == t.m_secs)
+  } else if (m_secs == t.m_secs) {
     return m_usecs <= t.m_usecs;
-  else
+  } else {
     return false;
+  }
 }
 
 bool Timestamp::operator==(const Timestamp &t) const {
@@ -186,7 +196,7 @@ bool Timestamp::operator==(const Timestamp &t) const {
 std::string Timestamp::Format(bool machine_friendly) const {
   struct tm tm_time;
 
-  time_t t = (time_t)getFloatTime();
+  time_t t = static_cast<time_t>(getFloatTime());
 
 #ifdef WIN32
   localtime_s(&tm_time, &t);
@@ -199,7 +209,7 @@ std::string Timestamp::Format(bool machine_friendly) const {
   if (machine_friendly) {
     strftime(buffer, 128, "%Y%m%d_%H%M%S", &tm_time);
   } else {
-    strftime(buffer, 128, "%c", &tm_time); // Thu Aug 23 14:55:02 2001
+    strftime(buffer, 128, "%c", &tm_time);  // Thu Aug 23 14:55:02 2001
   }
 
   return std::string(buffer);
@@ -218,17 +228,22 @@ std::string Timestamp::Format(double s) {
   std::stringstream ss;
   ss.fill('0');
   bool b;
-  if ((b = (days > 0)))
+  if ((b = (days > 0))) {
     ss << days << "d ";
-  if ((b = (b || hours > 0)))
+  }
+  if ((b = (b || hours > 0))) {
     ss << std::setw(2) << hours << ":";
-  if ((b = (b || minutes > 0)))
+  }
+  if ((b = (b || minutes > 0))) {
     ss << std::setw(2) << minutes << ":";
-  if (b)
+  }
+  if (b) {
     ss << std::setw(2);
+  }
   ss << seconds;
-  if (!b)
+  if (!b) {
     ss << "." << std::setw(6) << ms;
+  }
 
   return ss.str();
 }
