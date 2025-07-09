@@ -1,12 +1,8 @@
-# SuperSLAM: Open Source System for Deep Learning based Monocular Visual SLAM
+# SuperSLAM: Open Source System for Deep Learning based Visual SLAM
 
 > Alpha Software
  
-SuperSLAM is a deep learning based visual SLAM system that combines recent advances in learned feature detection and matching with the mapping capabilities of ORB_SLAM2. 
-
-It utilizes SuperPoint for keypoint detection and description and SuperGlue for robust feature matching between frames. These matches are then used by ORB_SLAM2 to estimate camera poses and build a map of the environment.
-
-Some of the future goals are to eventually replace the ORB_SLAM backend with a modern and performant factor graph based implementation and complete rewrite in Rust.
+SuperSLAM is a deep learning based visual SLAM system that combines learned feature detection and matching with a classical SLAM pipeline.
 
 ## Installation
 
@@ -72,10 +68,9 @@ cd SuperSLAM
 sh ./build.sh
 ```
 
-This will create `libSuperSLAM.so` in the `lib` folder and the executables `mono_tum`, `mono_kitti`, `rgbd_tum`, `stereo_kitti`, `mono_euroc` and `stereo_euroc` in `examples` folder.
+This will create `libSuperSLAM.so` in the `lib` folder and the executables `mono_kitti_rerun` and `stereo_kitti_rerun` in appropriate subfolders in `examples` folder.
 
 ## Troubleshooting
-
 - **CUDA Errors**: Ensure your NVIDIA drivers and CUDA toolkit are correctly installed.
 - **ROS 2 Issues**: Verify that the ROS 2 environment is sourced correctly.
 - **Missing Dependencies**: Double-check that all dependencies listed above are installed.
@@ -89,6 +84,16 @@ Contributions to the SuperSLAM project are welcome! Please ensure that any chang
 This project is licensed under the [LGPL](LICENSE).
 
 For any questions or issues, please open an issue on the GitHub repository.
+
+## Star History
+
+<a href="https://www.star-history.com/#adityamwagh/SuperSLAM&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=adityamwagh/SuperSLAM&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=adityamwagh/SuperSLAM&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=adityamwagh/SuperSLAM&type=Date" />
+ </picture>
+</a>
 
 ## Acknowledgements
 
