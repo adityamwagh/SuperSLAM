@@ -1,0 +1,31 @@
+# Docker Compose service for SuperSLAM.
+#
+# One place to define the image build, GPU access, volume mounts, and working dir. The
+# top-level Makefile drives this (`docker compose run --rm superslam <cmd>`) so you never type
+# these flags by hand. Select the TensorRT version with `TENSORRT=10|11` (default 10) and the
+# host datasets dir with `DATASETS=/path` (default ~/datasets).
+#
+# Requires Docker Compose v2 (>= v2.30 for the `gpus:` key). On older Compose, comment out
+# `gpus: all` and uncomment the `deploy:` block below.
+services:
+  superslam:
+    image: superslam:tensorrt${TENSORRT:-10}-ubuntu24.04
+    build:
+      context: .
+      dockerfile: Dockerfile.tensorrt${TENSORRT:-10}
+      target: builder
+    gpus: all
+    # deploy:                       # fallback for Compose < v2.30
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    working_dir: /workspace/SuperSLAM
+    volumes:
+      - .:/workspace/SuperSLAM
+      - ${DATASETS:-${HOME}/datasets}:/datasets
+    environment:
+      - SUPERSLAM_ENABLE_LOOP=${SUPERSLAM_ENABLE_LOOP:-}
+      - SUPERSLAM_PROFILE=${SUPERSLAM_PROFILE:-}
