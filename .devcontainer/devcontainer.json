@@ -1,0 +1,21 @@
+{
+  "name": "SuperSLAM",
+  "build": {
+    "dockerfile": "../Dockerfile.tensorrt10",
+    "context": "..",
+    "target": "builder"
+  },
+  "workspaceFolder": "/workspace/SuperSLAM",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/SuperSLAM,type=bind,consistency=cached",
+  "remoteUser": "root",
+  "runArgs": ["--gpus", "all", "--ipc=host"],
+  "containerEnv": {
+    "NVIDIA_DRIVER_CAPABILITIES": "compute,utility,video",
+    "NVIDIA_VISIBLE_DEVICES": "all"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools"]
+    }
+  }
+}
