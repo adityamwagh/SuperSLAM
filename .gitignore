@@ -1,28 +1,12 @@
-# Prerequisites
+# Compiled objects and libraries
 *.d
-
-# Compiled Object files
-*.slo
-*.lo
 *.o
 *.obj
-
-# Precompiled Headers
 *.gch
 *.pch
-
-# Compiled Dynamic libraries
 *.so
 *.dylib
 *.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
 *.a
 *.lib
 
@@ -31,33 +15,43 @@
 *.out
 *.app
 
-# user defined
-build/
-cmake-build-debug/
-.idea/
-.vscode/
-CMakeLists.txt.user
-KeyFrameTrajectory.txt
-thirdparty/libtorch/
-thirdparty/DBoW2/build/
-thirdparty/DBoW2/lib/
-thirdparty/g2o/build/
-thirdparty/g2o/config.h
-thirdparty/g2o/lib/
-**/build
-vocabulary/ORBvoc.txt
-build/
-.build/
-*~
+# Build trees
+build*/
 lib/
-.cache
-data/
 
-KeyFrameTrajectory_EuRoC.txt
-build_engines
+# CTest scratch and downloaded package artifacts
+Testing/
+*.deb
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Datasets (mounted or copied in by the user) and example binaries
+data/
+examples/kitti
+examples/euroc
+examples/tum
+examples/benchmark
+examples/rgbd_tum
+examples/tartan
+
+# Run outputs: trajectories, logs, Rerun recordings, debug dumps
+*.rrd
+*.log
 superslam.log
-examples/monocular/mono_kitti_rerun
-examples/stereo/stereo_kitti_no_viewer
-examples/stereo/stereo_kitti_rerun
-test_example_simple
-test_simple_visualization
+gdb_*.txt
+CameraTrajectory*.txt
+KeyFrameTrajectory*.txt
+
+# TensorRT engines and ONNX exports (per-env build artifacts)
+weights/*.engine
+weights/*.onnx
+weights/*.onnx.data
+weights/*.safetensors
+weights/*.stale.bak
+weights/backup_*/
+utils/weights
+
+# Benchmark trajectory outputs and plots
+results/
