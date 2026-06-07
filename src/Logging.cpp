@@ -5,7 +5,7 @@
 
 #include <iostream>
 
-namespace SuperSLAM {
+namespace superslam {
 
 std::shared_ptr<spdlog::logger> Logger::logger_ = nullptr;
 bool Logger::initialized_ = false;
@@ -22,15 +22,13 @@ void Logger::initialize() {
     console_sink->set_pattern("[%H:%M:%S.%e] [%^%l%$] %v");
 
     // Create file sink
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-        "superslam.log", true);
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("superslam.log", true);
     file_sink->set_level(spdlog::level::trace);
     file_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] [%s:%#] %v");
 
     // Create logger with both sinks
     std::vector<spdlog::sink_ptr> sinks{console_sink, file_sink};
-    logger_ = std::make_shared<spdlog::logger>("SuperSLAM", sinks.begin(),
-                                               sinks.end());
+    logger_ = std::make_shared<spdlog::logger>("SuperSLAM", sinks.begin(), sinks.end());
 
     // Set the global log level
     logger_->set_level(spdlog::level::trace);
@@ -57,4 +55,4 @@ std::shared_ptr<spdlog::logger> Logger::getLogger() {
   return logger_;
 }
 
-}  // namespace SuperSLAM
+} // namespace superslam
