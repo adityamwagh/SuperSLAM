@@ -1,28 +1,28 @@
-%YAML:1.0
 
 #--------------------------------------------------------------------------------------------
 # Camera Parameters. Adjust them!
 #--------------------------------------------------------------------------------------------
 
-# Camera calibration and distortion parameters (OpenCV) 
-Camera.fx: 718.856
-Camera.fy: 718.856
-Camera.cx: 607.1928
-Camera.cy: 185.2157
+# Camera calibration and distortion parameters (OpenCV).
+# KITTI sequences 04-12 (from calib.txt P0/P1): 1226x370, not 00-02's 1241x376.
+Camera.fx: 707.0912
+Camera.fy: 707.0912
+Camera.cx: 601.8873
+Camera.cy: 183.1104
 
 Camera.k1: 0.0
 Camera.k2: 0.0
 Camera.p1: 0.0
 Camera.p2: 0.0
 
-Camera.width: 1241
-Camera.height: 376
+Camera.width: 1226
+Camera.height: 370
 
-# Camera frames per second 
+# Camera frames per second
 Camera.fps: 10.0
 
-# stereo baseline times fx
-Camera.bf: 386.1448
+# stereo baseline times fx (-P1[0,3])
+Camera.bf: 379.8145
 
 # Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale)
 Camera.RGB: 1
@@ -31,11 +31,10 @@ Camera.RGB: 1
 ThDepth: 35
 
 #--------------------------------------------------------------------------------------------
-# SuperPoint/SuperGlue Parameters
+# SuperPoint/LightGlue Parameters
 #--------------------------------------------------------------------------------------------
 
 # SuperPoint model configuration file
-SuperPoint.config_file: "utils/config.yaml"
 
 # SuperPoint model directory (where .engine files are located)
 SuperPoint.model_dir: "weights/"
@@ -48,9 +47,26 @@ superpoint:
   output_tensor_names:
     - "scores"
     - "descriptors"
-  onnx_file: "superpoint_v1_sim_int32.onnx"
-  engine_file: "superpoint_v1_sim_int32.engine"
+  onnx_file: "superpoint_dense_dynamic_batch.onnx"
+  engine_file: "superpoint_dense_dynamic_batch_fp16.engine"
   dla_core: -1
 
+lightglue:
+  image_width: 1226
+  image_height: 370
+  onnx_file: "lightglue_superpoint.onnx"
+  engine_file: "lightglue_superpoint_fp16.engine"
+  dla_core: -1
 
+#--------------------------------------------------------------------------------------------
+# Loop closure (EigenPlaces place recognition). Active only when SUPERSLAM_ENABLE_LOOP=1.
+# Engine built by scripts/rebuild_engines.sh from convert_eigenplaces_to_onnx.py.
+#--------------------------------------------------------------------------------------------
+loop:
+  image_width: 512
+  image_height: 512
+  onnx_file: "eigenplaces_resnet18_512.onnx"
+  engine_file: "eigenplaces_resnet18_512_fp16.engine"
 
+# Backend sliding-window smoother size. env SUPERSLAM_WS_WINDOW overrides.
+Backend.window_size: 10

@@ -1,0 +1,111 @@
+#--------------------------------------------------------------------------------------------
+# Camera Parameters (RECTIFIED). These match LEFT.P below (alpha=0 stereoRectify).
+#--------------------------------------------------------------------------------------------
+Camera.fx: 436.2345864
+Camera.fy: 436.2345864
+Camera.cx: 364.4412346
+Camera.cy: 256.9516754
+
+# Images are rectified and undistorted by the loader; distortion is zero here.
+Camera.k1: 0.0
+Camera.k2: 0.0
+Camera.p1: 0.0
+Camera.p2: 0.0
+
+Camera.width: 752
+Camera.height: 480
+
+# Camera frames per second
+Camera.fps: 20.0
+
+# stereo baseline (m) times fx ( -P2[0,3] )
+Camera.bf: 48.01976196
+
+# Color order of the images (0: BGR, 1: RGB. Ignored for grayscale)
+Camera.RGB: 1
+
+# Close/Far threshold. Baseline times.
+ThDepth: 35
+
+
+#--------------------------------------------------------------------------------------------
+# Stereo Rectification. Loader builds remap tables from these (raw K/D + R/P).
+#--------------------------------------------------------------------------------------------
+LEFT.height: 480
+LEFT.width: 752
+LEFT.D:
+  rows: 1
+  cols: 5
+  dt: d
+  data: [-0.28340811, 0.07395907, 0.00019359, 1.76187114e-05, 0.0]
+LEFT.K:
+  rows: 3
+  cols: 3
+  dt: d
+  data: [458.654, 0.0, 367.215, 0.0, 457.296, 248.375, 0.0, 0.0, 1.0]
+LEFT.R:
+  rows: 3
+  cols: 3
+  dt: d
+  data: [0.9999663475, -0.001422739139, 0.008079580483, 0.001365741835, 0.9999741761, 0.007055629199, -0.008089410157, -0.007044357139, 0.9999424676]
+LEFT.P:
+  rows: 3
+  cols: 4
+  dt: d
+  data: [436.2345864, 0.0, 364.4412346, 0.0, 0.0, 436.2345864, 256.9516754, 0.0, 0.0, 0.0, 1.0, 0.0]
+
+RIGHT.height: 480
+RIGHT.width: 752
+RIGHT.D:
+  rows: 1
+  cols: 5
+  dt: d
+  data: [-0.28368365, 0.07451284, -0.00010473, -3.55590700e-05, 0.0]
+RIGHT.K:
+  rows: 3
+  cols: 3
+  dt: d
+  data: [457.587, 0.0, 379.999, 0.0, 456.134, 255.238, 0.0, 0.0, 1.0]
+RIGHT.R:
+  rows: 3
+  cols: 3
+  dt: d
+  data: [0.9999633526, -0.003625811872, 0.00775544366, 0.003680398547, 0.9999684753, -0.007035845251, -0.007729688521, 0.007064130529, 0.9999451735]
+RIGHT.P:
+  rows: 3
+  cols: 4
+  dt: d
+  data: [436.2345864, 0.0, 364.4412346, -48.01976196, 0.0, 436.2345864, 256.9516754, 0.0, 0.0, 0.0, 1.0, 0.0]
+
+#--------------------------------------------------------------------------------------------
+# SuperPoint/LightGlue Parameters
+#--------------------------------------------------------------------------------------------
+SuperPoint.model_dir: "weights/"
+superpoint:
+  max_keypoints: 600
+  keypoint_threshold: 0.005
+  remove_borders: 4
+  input_tensor_names:
+    - "input"
+  output_tensor_names:
+    - "scores"
+    - "descriptors"
+  onnx_file: "superpoint_dense_dynamic_batch.onnx"
+  engine_file: "superpoint_dense_dynamic_batch_fp16.engine"
+  dla_core: -1
+
+lightglue:
+  image_width: 752
+  image_height: 480
+  onnx_file: "lightglue_superpoint.onnx"
+  engine_file: "lightglue_superpoint_fp16.engine"
+  dla_core: -1
+
+loop:
+  image_width: 512
+  image_height: 512
+  onnx_file: "eigenplaces_resnet18_512.onnx"
+  engine_file: "eigenplaces_resnet18_512_fp16.engine"
+
+# Backend sliding-window smoother size. env SUPERSLAM_WS_WINDOW overrides.
+Backend.window_size: 8
