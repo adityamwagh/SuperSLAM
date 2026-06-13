@@ -1,10 +1,9 @@
-%YAML:1.0
 
 #--------------------------------------------------------------------------------------------
 # Camera Parameters. Adjust them!
 #--------------------------------------------------------------------------------------------
 
-# Camera calibration and distortion parameters (OpenCV) 
+# Camera calibration and distortion parameters (OpenCV)
 Camera.fx: 718.856
 Camera.fy: 718.856
 Camera.cx: 607.1928
@@ -18,7 +17,7 @@ Camera.p2: 0.0
 Camera.width: 1241
 Camera.height: 376
 
-# Camera frames per second 
+# Camera frames per second
 Camera.fps: 10.0
 
 # stereo baseline times fx
@@ -31,21 +30,14 @@ Camera.RGB: 1
 ThDepth: 35
 
 #--------------------------------------------------------------------------------------------
-# ORB/SuperPoint Parameters (even though we use SuperPoint, these params are still read)
 #--------------------------------------------------------------------------------------------
 
-ORBextractor.nFeatures: 1200
-ORBextractor.scaleFactor: 1.2
-ORBextractor.nLevels: 8
-ORBextractor.iniThFAST: 20
-ORBextractor.minThFAST: 7
-# 
+#
 #--------------------------------------------------------------------------------------------
-# SuperPoint/SuperGlue Parameters
+# SuperPoint/LightGlue Parameters
 #--------------------------------------------------------------------------------------------
 
 # SuperPoint model configuration file
-SuperPoint.config_file: "utils/config.yaml"
 
 # SuperPoint model directory (where .engine files are located)
 SuperPoint.model_dir: "weights/"
@@ -59,8 +51,41 @@ superpoint:
   output_tensor_names:
     - "scores"
     - "descriptors"
-  onnx_file: "superpoint_v1_sim_int32.onnx"
-  engine_file: "superpoint_v1_sim_int32.engine"
+  onnx_file: "superpoint_dense_dynamic_batch.onnx"
+  engine_file: "superpoint_dense_dynamic_batch_fp16.engine"
   dla_core: -1
 
+lightglue:
+  image_width: 1241
+  image_height: 376
+  onnx_file: "lightglue_superpoint.onnx"
+  engine_file: "lightglue_superpoint_fp16.engine"
+  dla_core: -1
 
+loop:
+  image_width: 512
+  image_height: 512
+  onnx_file: "eigenplaces_resnet18_512.onnx"
+  engine_file: "eigenplaces_resnet18_512_fp16.engine"
+
+#--------------------------------------------------------------------------------------------
+# Tuning knobs (per-dataset). Precedence: env var over YAML over built-in default. Uncomment to
+# override; values shown are the defaults. Each line notes the matching env var.
+#--------------------------------------------------------------------------------------------
+
+# Backend (window smoother + global pose graph)
+Backend.window_size: 10   # sliding-window smoother size. env SUPERSLAM_WS_WINDOW overrides.
+# Backend.max_iters: 4        # LM iteration cap (warm-started).             env WS_MAX_ITERS
+# Backend.smart_sigma_px: 1.0 # smart-stereo measurement sigma (px).          env SMART_SIGMA_PX
+# Backend.odom_rot_sigma: 0.02   # global-graph odometry edge rot sigma.      env ODOM_ROT_SIGMA
+# Backend.odom_trans_sigma: 0.05 # global-graph odometry edge trans sigma.    env ODOM_TRANS_SIGMA
+
+# Tracking (per-frame pose)
+# Tracking.min_matches: 10    # min correspondences for a valid solve; coast otherwise.
+                              #                                                env TRACK_MIN_MATCHES
+# Tracking.disp_sigma_px: 8.0 # stereo-match disparity floor sigma (px).       env DISP_SIGMA_PX
+# Tracking.cond_depth_m: 40.0 # depth (m) beyond which stereo is deweighted.   env STEREO_COND_DEPTH_M
+
+# Loop closure thresholds also live in the `loop:` block above:
+#   loop.min_inliers (default 30)  env LOOP_MIN_INLIERS
+#   loop.min_score   (default 0.75) env LOOP_MIN_SCORE
