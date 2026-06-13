@@ -1,0 +1,48 @@
+Camera.fx: 320.0
+Camera.fy: 320.0
+Camera.cx: 320.0
+Camera.cy: 320.0
+
+Camera.k1: 0.0
+Camera.k2: 0.0
+Camera.p1: 0.0
+Camera.p2: 0.0
+
+Camera.width: 640
+Camera.height: 640
+
+Camera.fps: 10.0
+
+Camera.bf: 80.0
+
+Camera.RGB: 1
+
+ThDepth: 35
+
+
+SuperPoint.model_dir: "weights/"
+superpoint:
+  max_keypoints: 600
+  keypoint_threshold: 0.005
+  remove_borders: 4
+  input_tensor_names:
+    - "input"
+  output_tensor_names:
+    - "scores"
+    - "descriptors"
+  onnx_file: "superpoint_dense_dynamic_batch.onnx"
+  engine_file: "superpoint_dense_dynamic_batch_fp16.engine"
+  dla_core: -1
+
+lightglue:
+  image_width: 640
+  image_height: 640
+  onnx_file: "lightglue_superpoint.onnx"
+  engine_file: "lightglue_superpoint_fp16.engine"
+  dla_core: -1
+
+loop:
+  image_width: 512
+  image_height: 512
+  onnx_file: "eigenplaces_resnet18_512.onnx"
+  engine_file: "eigenplaces_resnet18_512_fp16.engine"
