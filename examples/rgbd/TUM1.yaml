@@ -1,0 +1,54 @@
+Camera.fx: 517.306408
+Camera.fy: 516.469215
+Camera.cx: 318.643040
+Camera.cy: 255.313989
+
+Camera.k1: 0.262383
+Camera.k2: -0.953104
+Camera.p1: -0.005358
+Camera.p2: 0.002628
+Camera.k3: 1.163314
+
+Camera.width: 640
+Camera.height: 480
+
+Camera.fps: 30.0
+
+Camera.bf: 40.0
+
+Camera.RGB: 1
+
+ThDepth: 40.0
+
+DepthMapFactor: 5000.0
+
+
+SuperPoint.model_dir: "weights/"
+superpoint:
+  max_keypoints: 1000
+  keypoint_threshold: 0.005
+  remove_borders: 4
+  input_tensor_names:
+    - "input"
+  output_tensor_names:
+    - "scores"
+    - "descriptors"
+  onnx_file: "superpoint_dense_dynamic_batch.onnx"
+  engine_file: "superpoint_dense_dynamic_batch_fp16.engine"
+  dla_core: -1
+
+lightglue:
+  image_width: 640
+  image_height: 480
+  onnx_file: "lightglue_superpoint.onnx"
+  engine_file: "lightglue_superpoint_fp16.engine"
+  dla_core: -1
+
+loop:
+  image_width: 512
+  image_height: 512
+  onnx_file: "eigenplaces_resnet18_512.onnx"
+  engine_file: "eigenplaces_resnet18_512_fp16.engine"
+
+# Backend sliding-window smoother size. env SUPERSLAM_WS_WINDOW overrides.
+Backend.window_size: 8
