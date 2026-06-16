@@ -6,11 +6,12 @@
 
 #include "Logging.h"
 #include "ReadConfig.h"
-#include "SuperPointTRT.h"
+#include "SuperPoint.h"
 
 // Draw keypoints on image
 void drawKeypoints(const cv::Mat& image,
-                   const std::vector<cv::KeyPoint>& keypoints, cv::Mat& output,
+                   const std::vector<cv::KeyPoint>& keypoints,
+                   cv::Mat& output,
                    const cv::Scalar& color = cv::Scalar(0, 255, 0)) {
   output = image.clone();
   if (output.channels() == 1) {
@@ -29,13 +30,14 @@ float cosineSimilarity(const cv::Mat& desc1, const cv::Mat& desc2) {
   float dot = desc1.dot(desc2);
   float norm1 = cv::norm(desc1);
   float norm2 = cv::norm(desc2);
-  return dot /
-         (norm1 * norm2 + 1e-8);  // Add small epsilon to avoid division by zero
+  return dot / (norm1 * norm2 + 1e-8); // Add small epsilon to avoid division by zero
 }
 
 // Match descriptors using cosine similarity
-void cosineMatch(const cv::Mat& descriptors1, const cv::Mat& descriptors2,
-                 std::vector<cv::DMatch>& matches, float threshold = 0.8) {
+void cosineMatch(const cv::Mat& descriptors1,
+                 const cv::Mat& descriptors2,
+                 std::vector<cv::DMatch>& matches,
+                 float threshold = 0.8) {
   matches.clear();
 
   // For each descriptor in image 1
@@ -61,21 +63,23 @@ void cosineMatch(const cv::Mat& descriptors1, const cv::Mat& descriptors2,
     if (bestIdx >= 0 && bestSim > threshold) {
       // Optional: Lowe's ratio test
       float ratio = (secondBestSim > 0) ? bestSim / secondBestSim : 2.0f;
-      if (ratio >
-          1.2f) {  // Good match should be significantly better than second best
+      if (ratio > 1.2f) { // Good match should be significantly better than second best
         cv::DMatch match;
         match.queryIdx = i;
         match.trainIdx = bestIdx;
-        match.distance = 1.0f - bestSim;  // Convert similarity to distance
+        match.distance = 1.0f - bestSim; // Convert similarity to distance
         matches.push_back(match);
       }
     }
   }
 }
 
-void drawMatches(const cv::Mat& img1, const std::vector<cv::KeyPoint>& kpts1,
-                 const cv::Mat& img2, const std::vector<cv::KeyPoint>& kpts2,
-                 const std::vector<cv::DMatch>& matches, cv::Mat& output) {
+void drawMatches(const cv::Mat& img1,
+                 const std::vector<cv::KeyPoint>& kpts1,
+                 const cv::Mat& img2,
+                 const std::vector<cv::KeyPoint>& kpts2,
+                 const std::vector<cv::DMatch>& matches,
+                 cv::Mat& output) {
   cv::Mat img1_color, img2_color;
 
   if (img1.channels() == 1) {
@@ -96,8 +100,7 @@ void drawMatches(const cv::Mat& img1, const std::vector<cv::KeyPoint>& kpts1,
   output = cv::Mat::zeros(height, width, CV_8UC3);
 
   img1_color.copyTo(output(cv::Rect(0, 0, img1_color.cols, img1_color.rows)));
-  img2_color.copyTo(
-      output(cv::Rect(img1_color.cols, 0, img2_color.cols, img2_color.rows)));
+  img2_color.copyTo(output(cv::Rect(img1_color.cols, 0, img2_color.cols, img2_color.rows)));
 
   // Draw keypoints
   for (const auto& kp : kpts1) {
@@ -117,11 +120,11 @@ void drawMatches(const cv::Mat& img1, const std::vector<cv::KeyPoint>& kpts1,
 
     // Color based on match quality (red=bad, yellow=medium, green=good)
     if (similarity > 0.95f) {
-      color = cv::Scalar(0, 255, 0);  // Green for excellent matches
+      color = cv::Scalar(0, 255, 0); // Green for excellent matches
     } else if (similarity > 0.9f) {
-      color = cv::Scalar(0, 255, 255);  // Yellow for good matches
+      color = cv::Scalar(0, 255, 255); // Yellow for good matches
     } else {
-      color = cv::Scalar(0, 165, 255);  // Orange for acceptable matches
+      color = cv::Scalar(0, 165, 255); // Orange for acceptable matches
     }
 
     cv::Point2f pt1 = kpts1[match.queryIdx].pt;
@@ -134,7 +137,7 @@ void drawMatches(const cv::Mat& img1, const std::vector<cv::KeyPoint>& kpts1,
 
 int main(int argc, char** argv) {
   // Initialize logging
-  SuperSLAM::Logger::initialize();
+  superslam::Logger::initialize();
 
   // Paths
   std::string config_path = "/home/aditya/Projects/SuperSLAM/utils/config.yaml";
@@ -162,8 +165,7 @@ int main(int argc, char** argv) {
 
     // Initialize SuperPoint
     SLOG_INFO("Initializing SuperPoint...");
-    auto superpoint =
-        std::make_shared<SuperPointTRT>(configs.superpoint_config);
+    auto superpoint = std::make_shared<SuperPoint>(configs.superpoint_config);
     if (!superpoint->initialize()) {
       SLOG_ERROR("Failed to initialize SuperPoint!");
       return -1;
@@ -192,8 +194,7 @@ int main(int argc, char** argv) {
       return -1;
     }
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     SLOG_INFO("SuperPoint inference time (image 1): {} ms", duration.count());
     SLOG_INFO("Detected {} keypoints in image 1", keypoints1.size());
 
@@ -204,8 +205,7 @@ int main(int argc, char** argv) {
       return -1;
     }
     end = std::chrono::high_resolution_clock::now();
-    duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     SLOG_INFO("SuperPoint inference time (image 2): {} ms", duration.count());
     SLOG_INFO("Detected {} keypoints in image 2", keypoints2.size());
 
@@ -224,16 +224,14 @@ int main(int argc, char** argv) {
     start = std::chrono::high_resolution_clock::now();
     cosineMatch(descriptors1, descriptors2, matches, 0.8f);
     end = std::chrono::high_resolution_clock::now();
-    duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     SLOG_INFO("Matching time: {} ms", duration.count());
     SLOG_INFO("Found {} matches", matches.size());
 
     // Sort matches by similarity
-    std::sort(matches.begin(), matches.end(),
-              [](const cv::DMatch& a, const cv::DMatch& b) {
-                return a.distance < b.distance;
-              });
+    std::sort(matches.begin(), matches.end(), [](const cv::DMatch& a, const cv::DMatch& b) {
+      return a.distance < b.distance;
+    });
 
     // Show top matches
     SLOG_INFO("\nTop 10 matches:");
@@ -243,10 +241,16 @@ int main(int argc, char** argv) {
       cv::Point2f pt2 = keypoints2[matches[i].trainIdx].pt;
       float dx = pt2.x - pt1.x;
       float dy = pt2.y - pt1.y;
-      SLOG_INFO(
-          "Match {}: similarity={:.3f}, pt1=({:.1f},{:.1f}), "
-          "pt2=({:.1f},{:.1f}), delta=({:.1f},{:.1f})",
-          i, similarity, pt1.x, pt1.y, pt2.x, pt2.y, dx, dy);
+      SLOG_INFO("Match {}: similarity={:.3f}, pt1=({:.1f},{:.1f}), "
+                "pt2=({:.1f},{:.1f}), delta=({:.1f},{:.1f})",
+                i,
+                similarity,
+                pt1.x,
+                pt1.y,
+                pt2.x,
+                pt2.y,
+                dx,
+                dy);
     }
 
     // Try different thresholds
@@ -293,8 +297,7 @@ int main(int argc, char** argv) {
     }
 
     cv::Mat excellent_vis, good_vis, fair_vis;
-    drawMatches(image1, keypoints1, image2, keypoints2, excellent_matches,
-                excellent_vis);
+    drawMatches(image1, keypoints1, image2, keypoints2, excellent_matches, excellent_vis);
     drawMatches(image1, keypoints1, image2, keypoints2, good_matches, good_vis);
     drawMatches(image1, keypoints1, image2, keypoints2, fair_matches, fair_vis);
 
@@ -309,8 +312,7 @@ int main(int argc, char** argv) {
       cv::Point2f pt2 = keypoints2[match.trainIdx].pt;
 
       // Draw arrow from pt1 to pt2
-      cv::arrowedLine(motion_vis, pt1, pt2, cv::Scalar(0, 255, 0), 1,
-                      cv::LINE_AA, 0, 0.1);
+      cv::arrowedLine(motion_vis, pt1, pt2, cv::Scalar(0, 255, 0), 1, cv::LINE_AA, 0, 0.1);
       cv::circle(motion_vis, pt1, 2, cv::Scalar(0, 0, 255), -1);
     }
 
@@ -345,56 +347,82 @@ int main(int argc, char** argv) {
     int combined_height = single_height * 3 + pad * 2;
 
     cv::Mat combined = cv::Mat::zeros(combined_height, combined_width, CV_8UC3);
-    combined.setTo(cv::Scalar(50, 50, 50));  // Gray background
+    combined.setTo(cv::Scalar(50, 50, 50)); // Gray background
 
     // Top row: Original images with keypoints and main matches
     kp1_vis.copyTo(combined(cv::Rect(0, 0, single_width, single_height)));
-    kp2_vis.copyTo(
-        combined(cv::Rect(single_width + pad, 0, single_width, single_height)));
+    kp2_vis.copyTo(combined(cv::Rect(single_width + pad, 0, single_width, single_height)));
     cv::resize(matches_vis, matches_vis, cv::Size(single_width, single_height));
-    matches_vis.copyTo(combined(
-        cv::Rect(2 * (single_width + pad), 0, single_width, single_height)));
+    matches_vis.copyTo(
+        combined(cv::Rect(2 * (single_width + pad), 0, single_width, single_height)));
 
     // Middle row: Motion visualization and heatmap
-    motion_vis.copyTo(combined(
-        cv::Rect(0, single_height + pad, single_width, single_height)));
-    heatmap_overlay.copyTo(combined(cv::Rect(
-        single_width + pad, single_height + pad, single_width, single_height)));
+    motion_vis.copyTo(combined(cv::Rect(0, single_height + pad, single_width, single_height)));
+    heatmap_overlay.copyTo(
+        combined(cv::Rect(single_width + pad, single_height + pad, single_width, single_height)));
 
     // Bottom row: Different quality matches
-    cv::resize(excellent_vis, excellent_vis,
-               cv::Size(single_width, single_height));
-    excellent_vis.copyTo(
-        combined(cv::Rect(2 * (single_width + pad), single_height + pad,
-                          single_width, single_height)));
+    cv::resize(excellent_vis, excellent_vis, cv::Size(single_width, single_height));
+    excellent_vis.copyTo(combined(
+        cv::Rect(2 * (single_width + pad), single_height + pad, single_width, single_height)));
 
     // Add text labels
-    cv::putText(combined, "Image 1 Keypoints", cv::Point(10, 25),
-                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
-    cv::putText(combined, "Image 2 Keypoints",
+    cv::putText(combined,
+                "Image 1 Keypoints",
+                cv::Point(10, 25),
+                cv::FONT_HERSHEY_SIMPLEX,
+                0.7,
+                cv::Scalar(255, 255, 255),
+                2);
+    cv::putText(combined,
+                "Image 2 Keypoints",
                 cv::Point(single_width + pad + 10, 25),
-                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
-    cv::putText(combined, "All Matches (Cosine Similarity)",
+                cv::FONT_HERSHEY_SIMPLEX,
+                0.7,
+                cv::Scalar(255, 255, 255),
+                2);
+    cv::putText(combined,
+                "All Matches (Cosine Similarity)",
                 cv::Point(2 * (single_width + pad) + 10, 25),
-                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
-    cv::putText(combined, "Motion Vectors",
+                cv::FONT_HERSHEY_SIMPLEX,
+                0.7,
+                cv::Scalar(255, 255, 255),
+                2);
+    cv::putText(combined,
+                "Motion Vectors",
                 cv::Point(10, single_height + pad + 25),
-                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
-    cv::putText(combined, "Match Distribution Heatmap",
+                cv::FONT_HERSHEY_SIMPLEX,
+                0.7,
+                cv::Scalar(255, 255, 255),
+                2);
+    cv::putText(combined,
+                "Match Distribution Heatmap",
                 cv::Point(single_width + pad + 10, single_height + pad + 25),
-                cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
-    cv::putText(
-        combined, "Excellent Matches (>0.95)",
-        cv::Point(2 * (single_width + pad) + 10, single_height + pad + 25),
-        cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(255, 255, 255), 2);
+                cv::FONT_HERSHEY_SIMPLEX,
+                0.7,
+                cv::Scalar(255, 255, 255),
+                2);
+    cv::putText(combined,
+                "Excellent Matches (>0.95)",
+                cv::Point(2 * (single_width + pad) + 10, single_height + pad + 25),
+                cv::FONT_HERSHEY_SIMPLEX,
+                0.7,
+                cv::Scalar(255, 255, 255),
+                2);
 
     // Add statistics
-    std::string stats =
-        cv::format("Total Matches: %d | Excellent: %d | Good: %d | Fair: %d",
-                   (int)matches.size(), (int)excellent_matches.size(),
-                   (int)good_matches.size(), (int)fair_matches.size());
-    cv::putText(combined, stats, cv::Point(10, combined_height - 20),
-                cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 1);
+    std::string stats = cv::format("Total Matches: %d | Excellent: %d | Good: %d | Fair: %d",
+                                   (int)matches.size(),
+                                   (int)excellent_matches.size(),
+                                   (int)good_matches.size(),
+                                   (int)fair_matches.size());
+    cv::putText(combined,
+                stats,
+                cv::Point(10, combined_height - 20),
+                cv::FONT_HERSHEY_SIMPLEX,
+                0.6,
+                cv::Scalar(255, 255, 255),
+                1);
 
     // Save visualizations
     cv::imwrite("cosine_matches.jpg", matches_vis);

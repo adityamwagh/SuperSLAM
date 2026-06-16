@@ -6,10 +6,11 @@
 
 #include "Logging.h"
 #include "ReadConfig.h"
-#include "SuperPointTRT.h"
+#include "SuperPoint.h"
 
 void drawKeypoints(const cv::Mat& image,
-                   const std::vector<cv::KeyPoint>& keypoints, cv::Mat& output,
+                   const std::vector<cv::KeyPoint>& keypoints,
+                   cv::Mat& output,
                    const cv::Scalar& color = cv::Scalar(0, 255, 0)) {
   output = image.clone();
   if (output.channels() == 1) {
@@ -24,14 +25,13 @@ void drawKeypoints(const cv::Mat& image,
 
 int main(int argc, char** argv) {
   // Initialize logging
-  SuperSLAM::Logger::initialize();
+  superslam::Logger::initialize();
 
   // Paths
   std::string config_path = "/home/aditya/Projects/SuperSLAM/utils/config.yaml";
   std::string weights_dir = "/home/aditya/Projects/SuperSLAM/weights";
-  std::string image_path =
-      "/home/aditya/Downloads/data_odometry_gray/dataset/sequences/00/image_0/"
-      "000000.png";
+  std::string image_path = "/home/aditya/Downloads/data_odometry_gray/dataset/sequences/00/image_0/"
+                           "000000.png";
 
   // Parse command line arguments
   if (argc >= 2) {
@@ -46,8 +46,7 @@ int main(int argc, char** argv) {
 
     // Initialize SuperPoint
     SLOG_INFO("Initializing SuperPoint...");
-    auto superpoint =
-        std::make_shared<SuperPointTRT>(configs.superpoint_config);
+    auto superpoint = std::make_shared<SuperPoint>(configs.superpoint_config);
     if (!superpoint->initialize()) {
       SLOG_ERROR("Failed to initialize SuperPoint!");
       return -1;
@@ -74,8 +73,7 @@ int main(int argc, char** argv) {
       return -1;
     }
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
     SLOG_INFO("SuperPoint inference time: {} ms", duration.count());
     SLOG_INFO("Detected {} keypoints", keypoints.size());
@@ -84,8 +82,11 @@ int main(int argc, char** argv) {
 
     // Log some keypoint details
     for (int i = 0; i < std::min(5, (int)keypoints.size()); i++) {
-      SLOG_INFO("Keypoint {}: x={:.2f}, y={:.2f}, score={:.4f}", i,
-                keypoints[i].pt.x, keypoints[i].pt.y, keypoints[i].response);
+      SLOG_INFO("Keypoint {}: x={:.2f}, y={:.2f}, score={:.4f}",
+                i,
+                keypoints[i].pt.x,
+                keypoints[i].pt.y,
+                keypoints[i].response);
     }
 
     // Visualize results
