@@ -1,0 +1,5 @@
+# clangd configuration. Point clangd at the full TensorRT build's compile database
+# (CMake exports compile_commands.json there). For a core-only checkout, change this to
+# build-core. clangd also reads .clang-format and .clang-tidy from the repo root.
+CompileFlags:
+  CompilationDatabase: build-tensorrt

@@ -1,0 +1,23 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "ignorePaths": [
+    ".git/**",
+    "build/**",
+    "build-rel/**",
+    "cmake-build-debug/**",
+    "thirdparty/**",
+    "weights/**",
+    "lib/**",
+    "build_tools/**",
+    "superslam-dictionary.txt"
+  ],
+  "dictionaryDefinitions": [
+    {
+      "name": "superslam",
+      "path": "./superslam-dictionary.txt",
+      "addWords": true
+    }
+  ],
+  "dictionaries": ["superslam"]
+}

@@ -1,1 +1,11 @@
-BasedOnStyle: Google
+BasedOnStyle: LLVM
+Standard: c++17
+IndentWidth: 2
+ColumnLimit: 100
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: Inline
+BinPackParameters: false
+BinPackArguments: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllArgumentsOnNextLine: false
+AlignAfterOpenBracket: Align

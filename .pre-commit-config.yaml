@@ -1,0 +1,69 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+        exclude: ^examples/.*\.yaml$
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-symlinks
+      - id: detect-private-key
+      - id: check-added-large-files
+      - id: file-contents-sorter
+        files: ^superslam-dictionary\.txt$
+        args: ["--unique"]
+  - repo: https://github.com/cpp-linter/cpp-linter-hooks
+    rev: v1.1.11
+    hooks:
+      - id: clang-format
+        types_or: [c, c++, cuda]
+  - repo: local
+    hooks:
+      - id: uv-ruff-format
+        name: ruff format (uv)
+        entry: uv tool run ruff format
+        language: system
+        types_or: [python]
+      - id: uv-ruff-check
+        name: ruff check (uv)
+        entry: uv tool run ruff check --fix
+        language: system
+        types_or: [python]
+  - repo: https://github.com/cheshirekow/cmake-format-precommit
+    rev: v0.6.13
+    hooks:
+      - id: cmake-format
+        files: "CMakeLists.txt|\\.cmake$"
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        files: "\\.(md|json|yaml|yml)$"
+        exclude: ^examples/.*\.yaml$
+  - repo: https://github.com/streetsidesoftware/cspell-cli
+    rev: v9.4.0
+    hooks:
+      - id: cspell
+        args: ["--config", "cSpell.json", "--no-progress"]
+        files: "\\.(md|txt|cmake|yaml|yml)$"
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      - id: clang-tidy
+        types_or: [c, c++, cuda]
+        args: ["-p=build-tensorrt", "--extra-arg=-std=c++17"]
+        stages: [manual]
+      - id: cppcheck
+        exclude: ^(thirdparty|build|build-rel|examples)/
+        args:
+          - --language=c++
+          - --std=c++17
+          - --enable=warning,style,performance,portability
+          - --inline-suppr
+          - --suppress=missingIncludeSystem
+        stages: [manual]
+        types_or: [c, c++, cuda]
