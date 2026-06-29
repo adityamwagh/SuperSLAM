@@ -55,6 +55,7 @@ dedup
 demux
 deque
 deweighted
+downloaders
 eigenplaces
 epipolar
 extrinsics

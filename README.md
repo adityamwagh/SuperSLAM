@@ -240,10 +240,13 @@ holds the large weight tensors. LightGlue and EigenPlaces are stored this way, s
 sit in `weights/` together. The download scripts fetch the sidecar automatically. The SuperPoint
 ONNX has inline weights and no `.data` file.
 
-**Publishing the prebuilt ONNX (maintainers).** The download scripts pull from a GitHub Release:
+**Publishing the prebuilt ONNX (maintainers).** The download scripts pull from a GitHub Release.
+Name each release `weights-<YYYYMMDDHHMMSS>` and point the downloaders at it by setting `DEFAULT_TAG`
+in `scripts/models/_release.py`:
 
 ```bash
-gh release create weights-v1 weights/superpoint_dense_dynamic_batch.onnx \
+TAG="weights-$(date +%Y%m%d%H%M%S)"
+gh release create "$TAG" weights/superpoint_dense_dynamic_batch.onnx \
   weights/lightglue_superpoint.onnx weights/lightglue_superpoint.onnx.data \
   weights/eigenplaces_resnet18_512.onnx weights/eigenplaces_resnet18_512.onnx.data
 ```
