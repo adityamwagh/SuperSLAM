@@ -7,6 +7,7 @@ GitHub Release into weights/. Build the TensorRT engine afterwards with
 
 Idempotent: skip the file if already present.
 """
+
 from _release import download
 
 if __name__ == "__main__":

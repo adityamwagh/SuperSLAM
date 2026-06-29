@@ -7,6 +7,7 @@ ONNX from source.
 
 For the normal path use download_onnx_engine_lightglue.py (prebuilt ONNX from the release).
 """
+
 if __name__ == "__main__":
     print(
         "LightGlue weights are downloaded by the `lightglue` package at export time.\n"

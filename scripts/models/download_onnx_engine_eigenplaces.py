@@ -8,6 +8,7 @@ EigenPlaces' ONNX uses EXTERNAL DATA: graph in `eigenplaces_resnet18_512.onnx`, 
 sidecar `eigenplaces_resnet18_512.onnx.data` -- both downloaded, both needed together. Only
 required if you enable loop closure. Idempotent: skips files already present.
 """
+
 from _release import download
 
 if __name__ == "__main__":

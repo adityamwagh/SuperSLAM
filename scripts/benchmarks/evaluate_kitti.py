@@ -40,7 +40,9 @@ def main() -> None:
         a = ev.ate(gt, est, align=True)
         r = ev.rpe(gt, est)
         seg = ev.kitti_segments(ev.poses_to_matrices(gt), ev.poses_to_matrices(est))
-        ev.plot_xy(gt, est, str(out_dir / f"{seq}_traj.png"), f"KITTI {seq}", axes=(0, 2))
+        ev.plot_xy(
+            gt, est, str(out_dir / f"{seq}_traj.png"), f"KITTI {seq}", axes=(0, 2)
+        )
         rows.append(
             (
                 seq,

@@ -31,8 +31,11 @@ public:
     std::lock_guard<std::mutex> g(m_);
     SLOG_INFO("[profile] ---- per-stage (SUPERSLAM_PROFILE) ----");
     for (const auto& [key, s] : stats_)
-      SLOG_INFO("[profile] {:22s} mean={:7.3f}ms  n={:6d}  total={:8.1f}ms", key,
-                s.n ? s.total_ms / s.n : 0.0, s.n, s.total_ms);
+      SLOG_INFO("[profile] {:22s} mean={:7.3f}ms  n={:6d}  total={:8.1f}ms",
+                key,
+                s.n ? s.total_ms / s.n : 0.0,
+                s.n,
+                s.total_ms);
   }
   ~Profiler() {
     if (enabled())
@@ -50,14 +53,12 @@ private:
 
 class ScopedTimer {
 public:
-  explicit ScopedTimer(const char* label)
-      : label_(label), t0_(std::chrono::steady_clock::now()) {}
+  explicit ScopedTimer(const char* label) : label_(label), t0_(std::chrono::steady_clock::now()) {}
   ~ScopedTimer() {
     if (!Profiler::enabled())
       return;
     const auto t1 = std::chrono::steady_clock::now();
-    Profiler::instance().add(label_,
-                             std::chrono::duration<double, std::milli>(t1 - t0_).count());
+    Profiler::instance().add(label_, std::chrono::duration<double, std::milli>(t1 - t0_).count());
   }
 
 private:
@@ -69,4 +70,5 @@ private:
 
 #define SUPERSLAM_PROF_CONCAT_(a, b) a##b
 #define SUPERSLAM_PROF_NAME_(line) SUPERSLAM_PROF_CONCAT_(_prof_, line)
-#define SUPERSLAM_PROFILE_SCOPE(label) ::superslam::ScopedTimer SUPERSLAM_PROF_NAME_(__LINE__)(label)
+#define SUPERSLAM_PROFILE_SCOPE(label)                                                             \
+  ::superslam::ScopedTimer SUPERSLAM_PROF_NAME_(__LINE__)(label)
