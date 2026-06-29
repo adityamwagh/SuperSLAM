@@ -9,6 +9,7 @@ large weight tensors are in the sidecar `lightglue_superpoint.onnx.data` next to
 are downloaded, and both must sit in weights/ together for the engine build to load it.
 Idempotent: skips files already present.
 """
+
 from _release import download
 
 if __name__ == "__main__":

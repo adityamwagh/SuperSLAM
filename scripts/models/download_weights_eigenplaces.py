@@ -7,6 +7,7 @@ regenerating the ONNX from source.
 
 For the normal path use download_onnx_engine_eigenplaces.py (prebuilt ONNX from the release).
 """
+
 if __name__ == "__main__":
     print(
         "EigenPlaces weights are downloaded from torch.hub (gmberton/eigenplaces) at export "

@@ -23,11 +23,17 @@ SEQUENCES = {
     "fr2_desk": ("freiburg2", "rgbd_dataset_freiburg2_desk"),
     "fr3_long_office": ("freiburg3", "rgbd_dataset_freiburg3_long_office_household"),
     "fr3_walking_xyz": ("freiburg3", "rgbd_dataset_freiburg3_walking_xyz"),
-    "fr3_walking_halfsphere": ("freiburg3", "rgbd_dataset_freiburg3_walking_halfsphere"),
+    "fr3_walking_halfsphere": (
+        "freiburg3",
+        "rgbd_dataset_freiburg3_walking_halfsphere",
+    ),
     "fr3_walking_rpy": ("freiburg3", "rgbd_dataset_freiburg3_walking_rpy"),
     "fr3_walking_static": ("freiburg3", "rgbd_dataset_freiburg3_walking_static"),
     "fr3_sitting_xyz": ("freiburg3", "rgbd_dataset_freiburg3_sitting_xyz"),
-    "fr3_sitting_halfsphere": ("freiburg3", "rgbd_dataset_freiburg3_sitting_halfsphere"),
+    "fr3_sitting_halfsphere": (
+        "freiburg3",
+        "rgbd_dataset_freiburg3_sitting_halfsphere",
+    ),
     "fr3_sitting_rpy": ("freiburg3", "rgbd_dataset_freiburg3_sitting_rpy"),
     "fr3_sitting_static": ("freiburg3", "rgbd_dataset_freiburg3_sitting_static"),
 }
