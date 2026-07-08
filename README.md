@@ -11,9 +11,11 @@ loop closure.
 Run on an NVIDIA RTX PRO 1000 (Blackwell, laptop, 8 GB) with an Intel Core Ultra 5 235H, TensorRT
 10.11, CUDA 12.9, FP16. `fps` is the per-frame tracking rate (front-end plus window smoother); every
 sequence runs above its camera rate (KITTI 10 Hz, EuRoC 20 Hz, TUM 30 Hz). ATE is SE3-aligned RMSE.
-Per-sequence trajectory plots are in [PLOTS.md](PLOTS.md).
+Estimated trajectory (red) against ground truth (black). KITTI is shown in the x-z ground plane.
 
 ### KITTI (stereo, window 10)
+
+![KITTI](docs/benchmark/kitti.png)
 
 <table width="100%">
 <thead><tr><th align="left">seq</th><th>ATE RMSE (m)</th><th>ATE mean (m)</th><th>RPE RMSE (m)</th><th>t_rel (%)</th><th>r_rel (deg/m)</th><th>fps</th></tr></thead>
@@ -37,6 +39,8 @@ known failure for feature SLAM).
 
 ### EuRoC (stereo)
 
+![EuRoC](docs/benchmark/euroc.png)
+
 <table width="100%">
 <thead><tr><th align="left">seq</th><th>ATE RMSE (m)</th><th>ATE mean (m)</th><th>ATE max (m)</th><th>RPE RMSE (m)</th><th>fps</th></tr></thead>
 <tbody>
@@ -58,6 +62,8 @@ known failure for feature SLAM).
 
 #### Standard
 
+![TUM standard](docs/benchmark/tum-standard.png)
+
 <table width="100%">
 <thead><tr><th align="left">seq</th><th>ATE RMSE (m)</th><th>ATE mean (m)</th><th>ATE max (m)</th><th>RPE RMSE (m)</th><th>fps</th></tr></thead>
 <tbody>
@@ -68,6 +74,10 @@ known failure for feature SLAM).
 </table>
 
 #### Dynamic (moving people)
+
+Top row walking, bottom row sitting.
+
+![TUM dynamic](docs/benchmark/tum-dynamic.png)
 
 <table width="100%">
 <thead><tr><th align="left">seq</th><th>ATE RMSE (m)</th><th>ATE mean (m)</th><th>ATE max (m)</th><th>RPE RMSE (m)</th><th>fps</th></tr></thead>
@@ -88,6 +98,8 @@ SLAM without explicit dynamic-object handling.
 
 ### TartanAir (stereo)
 
+![TartanAir](docs/benchmark/tartanair.png)
+
 <table width="100%">
 <thead><tr><th align="left">seq</th><th>ATE RMSE (m)</th><th>ATE mean (m)</th><th>RPE RMSE (m)</th><th>fps</th></tr></thead>
 <tbody>
@@ -105,6 +117,8 @@ The KITTI segment metric (t_rel) is undefined here: TartanAir trajectories are t
 100-800 m segments.
 
 ### TartanGround (stereo)
+
+![TartanGround](docs/benchmark/tartanground.png)
 
 <table width="100%">
 <thead><tr><th align="left">seq</th><th>ATE RMSE (m)</th><th>ATE mean (m)</th><th>RPE RMSE (m)</th><th>t_rel (%)</th><th>fps</th></tr></thead>
