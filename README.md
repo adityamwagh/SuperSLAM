@@ -270,17 +270,6 @@ To regenerate the ONNX from source, see `scripts/models/download_weights_*.py` a
 
 </details>
 
-## Citation
-
-```bibtex
-@software{wagh_superslam,
-  author = {Wagh, Aditya},
-  title  = {SuperSLAM: Accurate Real-Time SLAM with Deep Learned Features},
-  year   = {2026},
-  url    = {https://github.com/adityamwagh/SuperSLAM}
-}
-```
-
 ## License
 
 Licensed under the [LGPL](LICENSE). For questions or issues, open an issue on GitHub.
