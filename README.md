@@ -289,10 +289,10 @@ Code and ideas come from these projects:
 
 ## Star History
 
-<a href="https://www.star-history.com/#adityamwagh/SuperSLAM&Date">
+<a href="https://www.star-history.com/?repos=adityamwagh%2FSuperSLAM&type=date&logscale=&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=adityamwagh/SuperSLAM&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=adityamwagh/SuperSLAM&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=adityamwagh/SuperSLAM&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=adityamwagh/SuperSLAM&type=date&theme=dark&logscale&legend=top-left&sealed_token=Y6N58KH1LNCz3f4pqaWKsGHnxsvKlIdf4rhakGLIYi_of5OOG-Jd5zHS35NNPkNqZF4oi6Lrti8NqM8Ammv6esBrBcXiDqXwBOEaEaOSO5TwM01pNZiUXZLoSqCczphLBAS6krQBZXEUhm05UVafsG7Z4xSoMwjqPY5Z3SF6w6awkVYGWd64wPF4_jg2" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=adityamwagh/SuperSLAM&type=date&logscale&legend=top-left&sealed_token=Y6N58KH1LNCz3f4pqaWKsGHnxsvKlIdf4rhakGLIYi_of5OOG-Jd5zHS35NNPkNqZF4oi6Lrti8NqM8Ammv6esBrBcXiDqXwBOEaEaOSO5TwM01pNZiUXZLoSqCczphLBAS6krQBZXEUhm05UVafsG7Z4xSoMwjqPY5Z3SF6w6awkVYGWd64wPF4_jg2" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=adityamwagh/SuperSLAM&type=date&logscale&legend=top-left&sealed_token=Y6N58KH1LNCz3f4pqaWKsGHnxsvKlIdf4rhakGLIYi_of5OOG-Jd5zHS35NNPkNqZF4oi6Lrti8NqM8Ammv6esBrBcXiDqXwBOEaEaOSO5TwM01pNZiUXZLoSqCczphLBAS6krQBZXEUhm05UVafsG7Z4xSoMwjqPY5Z3SF6w6awkVYGWd64wPF4_jg2" />
  </picture>
 </a>
